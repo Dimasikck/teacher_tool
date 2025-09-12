@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Задание {{ assignment.id }}{% endblock %}
+
+{% block content %}
+<h1>Задание: {{ assignment.title }}</h1>
+<p><strong>Студент:</strong> {{ student.name if student else '-' }}</p>
+<p><strong>Группа:</strong> {{ group.name if group else '-' }}</p>
+<p><strong>Оценка:</strong> {{ assignment.score or '-' }}</p>
+<p><strong>Анализ ИИ:</strong><br>{{ assignment.ai_analysis or '—' }}</p>
+{% if assignment.cloud_url %}
+<p><a href="{{ assignment.cloud_url }}" target="_blank">Скачать из облака</a></p>
+{% endif %}
+{% endblock %}
+

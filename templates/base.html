@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Система управления обучением{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Основные стили */
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .sidebar a {
+            color: white;
+            text-decoration: none;
+            padding: 15px;
+            display: block;
+            transition: 0.3s;
+            border-radius: 8px;
+            margin: 2px 8px;
+        }
+        
+        .sidebar a:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateX(5px);
+        }
+        
+        .main-content {
+            padding: 20px;
+            background: #f8f9fa;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease-in-out;
+        }
+        
+        .stat-card {
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Мобильная адаптация */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 280px;
+                height: 100vh;
+                z-index: 1050;
+                transform: translateX(-100%);
+                overflow-y: auto;
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+                padding-top: 70px; /* Место для мобильного хедера */
+            }
+            
+            .mobile-header {
+                display: block;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 15px;
+                z-index: 1040;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                height: 60px;
+                box-sizing: border-box;
+            }
+            
+            .mobile-menu-btn {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 1.5rem;
+                cursor: pointer;
+                padding: 8px 12px;
+                border-radius: 8px;
+                transition: background-color 0.3s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 44px;
+                min-height: 44px;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            .mobile-menu-btn:hover,
+            .mobile-menu-btn:active,
+            .mobile-menu-btn:focus {
+                background: rgba(255,255,255,0.15);
+                outline: none;
+                transform: none;
+            }
+            
+            .mobile-menu-btn:active {
+                transform: scale(0.95);
+            }
+            
+            .mobile-user-info {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                height: 100%;
+                width: 100%;
+            }
+            
+            .mobile-user-info h5 {
+                margin: 0;
+                font-size: 1.1rem;
+                font-weight: 600;
+                text-align: center;
+                flex: 1;
+            }
+            
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 1040;
+                display: none;
+            }
+            
+            .sidebar-overlay.show {
+                display: block;
+            }
+            
+            /* Дополнительные стили для улучшения сенсорного взаимодействия */
+            .mobile-menu-btn i {
+                pointer-events: none;
+                display: block;
+            }
+            
+            /* Убираем стандартные стили браузера для кнопок */
+            .mobile-menu-btn::-moz-focus-inner {
+                border: 0;
+                padding: 0;
+            }
+            
+            /* Улучшаем визуальную обратную связь */
+            .mobile-menu-btn:focus-visible {
+                background: rgba(255,255,255,0.2);
+                outline: 2px solid rgba(255,255,255,0.5);
+                outline-offset: 2px;
+            }
+            
+            /* Адаптация карточек */
+            .stat-card {
+                margin-bottom: 15px;
+                padding: 20px;
+            }
+            
+            .stat-card h3 {
+                font-size: 1.5rem;
+            }
+            
+            /* Адаптация таблиц */
+            .table-responsive {
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            
+            .table {
+                font-size: 0.9rem;
+            }
+            
+            /* Адаптация кнопок */
+            .btn-group {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+            
+            .btn-group .btn {
+                flex: 1;
+                min-width: 120px;
+                margin-bottom: 5px;
+            }
+            
+            /* Адаптация модальных окон */
+            .modal-dialog {
+                margin: 10px;
+                max-width: calc(100% - 20px);
+            }
+            
+            /* Адаптация форм */
+            .form-control, .form-select {
+                font-size: 16px; /* Предотвращает зум на iOS */
+            }
+            
+            /* Адаптация календаря */
+            .fc-toolbar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .fc-toolbar-chunk {
+                display: flex;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .fc-button {
+                font-size: 0.8rem;
+                padding: 0.375rem 0.75rem;
+            }
+            
+            /* Адаптация карточек групп */
+            .card {
+                margin-bottom: 15px;
+            }
+            
+            .card-header {
+                padding: 15px;
+                font-size: 1.1rem;
+            }
+            
+            .card-body {
+                padding: 15px;
+            }
+            
+            /* Адаптация навигации */
+            .breadcrumb {
+                font-size: 0.9rem;
+                padding: 10px 0;
+            }
+        }
+
+        /* Планшеты */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .sidebar {
+                width: 250px;
+            }
+            
+            .main-content {
+                margin-left: 250px;
+                padding: 25px;
+            }
+            
+            .mobile-header {
+                display: none;
+            }
+            
+            .stat-card {
+                margin-bottom: 20px;
+            }
+        }
+
+        /* Десктоп */
+        @media (min-width: 1025px) {
+            .mobile-header {
+                display: none;
+            }
+            
+            .sidebar {
+                position: relative;
+                transform: translateX(0);
+            }
+        }
+
+        /* Переменные для тем */
+        :root {
+            --bg-primary: #f8f9fa;
+            --bg-secondary: #ffffff;
+            --bg-sidebar: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --text-inverse: #ffffff;
+            --border-color: #e0e0e0;
+            --shadow-light: rgba(0,0,0,0.08);
+            --shadow-medium: rgba(0,0,0,0.15);
+            --shadow-dark: rgba(0,0,0,0.25);
+            --hover-bg: #f8f9fa;
+            --input-bg: #ffffff;
+            --table-header-bg: #f8f9fa;
+            --table-hover-bg: #f8f9fa;
+        }
+
+        /* Темная тема */
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-sidebar: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            --text-primary: #ffffff;
+            --text-secondary: #a0aec0;
+            --text-inverse: #ffffff;
+            --border-color: #4a5568;
+            --shadow-light: rgba(0,0,0,0.3);
+            --shadow-medium: rgba(0,0,0,0.4);
+            --shadow-dark: rgba(0,0,0,0.6);
+            --hover-bg: #4a5568;
+            --input-bg: #4a5568;
+            --table-header-bg: #4a5568;
+            --table-hover-bg: #4a5568;
+        }
+
+        /* Кнопка смены темы */
+        .theme-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            box-shadow: 0 4px 15px var(--shadow-medium);
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px var(--shadow-dark);
+        }
+
+        .theme-toggle:active {
+            transform: scale(0.95);
+        }
+
+        /* Применение переменных к основным элементам */
+        .main-content {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .sidebar {
+            background: var(--bg-sidebar);
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 15px var(--shadow-light);
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 25px var(--shadow-medium);
+        }
+
+        .form-control, .form-select {
+            background: var(--input-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: var(--input-bg);
+            color: var(--text-primary);
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .table {
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+        }
+
+        .table th {
+            background: var(--table-header-bg);
+            color: var(--text-primary);
+        }
+
+        .table td {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .table tbody tr:hover {
+            background: var(--table-hover-bg);
+        }
+
+        .alert {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-footer {
+            border-top: 1px solid var(--border-color);
+        }
+
+        .dropdown-menu {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .dropdown-item {
+            color: var(--text-primary);
+        }
+
+        .dropdown-item:hover {
+            background: var(--hover-bg);
+            color: var(--text-primary);
+        }
+
+        /* Общие улучшения */
+        .btn {
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-medium);
+        }
+        
+        .stat-card {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        /* Адаптация кнопки темы для мобильных */
+        @media (max-width: 768px) {
+            .theme-toggle {
+                bottom: 15px;
+                right: 15px;
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <!-- Мобильный хедер -->
+    <div class="mobile-header">
+        <div class="mobile-user-info">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()" type="button" aria-label="Открыть меню">
+                <i class="bi bi-list"></i>
+            </button>
+            <h5>{{ current_user.username }}</h5>
+            <button class="mobile-menu-btn" onclick="logout()" type="button" aria-label="Выйти">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Оверлей для мобильного меню -->
+    <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- Кнопка смены темы -->
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle" aria-label="Сменить тему">
+        <i class="bi bi-moon-fill" id="themeIcon"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-2 sidebar p-0" id="sidebar">
+                <div class="text-center py-4">
+                    <h5 class="text-white">{{ current_user.username }}</h5>
+                </div>
+                <nav>
+                    <a href="{{ url_for('dashboard') }}" onclick="closeSidebar()">
+                        <i class="bi bi-speedometer2"></i> Главная
+                    </a>
+                    <a href="{{ url_for('groups.groups') }}" onclick="closeSidebar()">
+                        <i class="bi bi-people"></i> Группы
+                    </a>
+                    <a href="{{ url_for('journal.journal') }}" onclick="closeSidebar()">
+                        <i class="bi bi-journal-text"></i> Журнал
+                    </a>
+                    <a href="{{ url_for('assignments.assignments') }}" onclick="closeSidebar()">
+                        <i class="bi bi-file-earmark-text"></i> Задания
+                    </a>
+                    <a href="{{ url_for('calendar.calendar') }}" onclick="closeSidebar()">
+                        <i class="bi bi-calendar3"></i> Календарь
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" onclick="closeSidebar()">
+                        <i class="bi bi-box-arrow-right"></i> Выход
+                    </a>
+                </nav>
+            </div>
+            <div class="col-md-10 main-content">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    {% block auth_content %}{% endblock %}
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <script>
+        // Мобильное меню
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+            
+            // Предотвращаем скролл body когда меню открыто
+            if (sidebar.classList.contains('show')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+            
+            // Добавляем небольшую задержку для предотвращения случайных повторных кликов
+            const menuBtn = event.target.closest('.mobile-menu-btn');
+            if (menuBtn) {
+                menuBtn.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    menuBtn.style.pointerEvents = 'auto';
+                }, 300);
+            }
+        }
+        
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
+        function logout() {
+            if (confirm('Вы уверены, что хотите выйти?')) {
+                window.location.href = "{{ url_for('auth.logout') }}";
+            }
+        }
+        
+        // Закрытие меню при клике вне его
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(event.target) && 
+                !event.target.classList.contains('mobile-menu-btn') &&
+                sidebar.classList.contains('show')) {
+                closeSidebar();
+            }
+        });
+        
+        // Закрытие меню при изменении размера экрана
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                closeSidebar();
+            }
+        });
+        
+        // Плавная прокрутка для якорных ссылок
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Автоматическое скрытие алертов через 5 секунд
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
+            alerts.forEach(function(alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+        
+        // Улучшение UX для форм
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Загрузка...';
+                    
+                    // Восстанавливаем кнопку через 10 секунд на случай ошибки
+                    setTimeout(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = submitBtn.dataset.originalText || 'Отправить';
+                    }, 10000);
+                }
+            });
+        });
+        
+        // Сохраняем оригинальный текст кнопок
+        document.querySelectorAll('button[type="submit"]').forEach(btn => {
+            btn.dataset.originalText = btn.innerHTML;
+        });
+
+        // Управление темой
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('themeIcon');
+            const currentTheme = html.getAttribute('data-theme');
+            
+            if (currentTheme === 'dark') {
+                // Переключаем на светлую тему
+                html.setAttribute('data-theme', 'light');
+                themeIcon.className = 'bi bi-moon-fill';
+                localStorage.setItem('theme', 'light');
+            } else {
+                // Переключаем на темную тему
+                html.setAttribute('data-theme', 'dark');
+                themeIcon.className = 'bi bi-sun-fill';
+                localStorage.setItem('theme', 'dark');
+            }
+            
+            // Добавляем анимацию переключения
+            document.body.style.transition = 'background-color 0.3s ease, color 0.3s ease';
+            setTimeout(() => {
+                document.body.style.transition = '';
+            }, 300);
+        }
+
+        // Загружаем сохраненную тему при загрузке страницы
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const themeIcon = document.getElementById('themeIcon');
+            
+            let theme = 'light'; // По умолчанию светлая тема
+            
+            if (savedTheme) {
+                theme = savedTheme;
+            } else if (prefersDark) {
+                theme = 'dark';
+            }
+            
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            if (theme === 'dark') {
+                themeIcon.className = 'bi bi-sun-fill';
+            } else {
+                themeIcon.className = 'bi bi-moon-fill';
+            }
+        }
+
+        // Слушаем изменения системной темы
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+            const savedTheme = localStorage.getItem('theme');
+            if (!savedTheme) { // Только если пользователь не выбрал тему вручную
+                if (e.matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    document.getElementById('themeIcon').className = 'bi bi-sun-fill';
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    document.getElementById('themeIcon').className = 'bi bi-moon-fill';
+                }
+            }
+        });
+
+        // Загружаем тему при загрузке страницы
+        document.addEventListener('DOMContentLoaded', loadTheme);
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

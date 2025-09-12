@@ -1,0 +1,798 @@
+{% extends "base.html" %}
+{% block title %}Календарь{% endblock %}
+
+{% block extra_css %}
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.css' rel='stylesheet'>
+<style>
+    #calendar {
+        max-width: 100%;
+        margin: 0 auto;
+        background: white;
+        padding: 15px;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .fc-event {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border-radius: 6px;
+        border: none;
+        font-size: 0.85rem;
+        padding: 2px 4px;
+    }
+    
+    .fc-event:hover {
+        transform: scale(1.02);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .group-color-picker {
+        display: inline-block;
+        width: 35px;
+        height: 35px;
+        border-radius: 8px;
+        margin: 5px;
+        cursor: pointer;
+        border: 3px solid transparent;
+        transition: all 0.3s ease;
+    }
+    
+    .group-color-picker:hover {
+        transform: scale(1.1);
+    }
+    
+    .group-color-picker.selected {
+        border-color: #333;
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    
+    .legend-item {
+        display: inline-block;
+        margin: 0 10px 10px 0;
+        padding: 5px 10px;
+        background: rgba(255,255,255,0.8);
+        border-radius: 15px;
+        font-size: 0.9rem;
+    }
+    
+    .legend-color {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    
+    /* Мобильная адаптация календаря */
+    @media (max-width: 768px) {
+        #calendar {
+            padding: 10px;
+            margin: 10px 0;
+        }
+        
+        .fc-toolbar {
+            flex-direction: column !important;
+            gap: 10px !important;
+        }
+        
+        .fc-toolbar-chunk {
+            display: flex !important;
+            justify-content: center !important;
+            flex-wrap: wrap !important;
+            gap: 5px !important;
+        }
+        
+        .fc-button {
+            font-size: 0.75rem !important;
+            padding: 0.25rem 0.5rem !important;
+            border-radius: 6px !important;
+        }
+        
+        .fc-toolbar-title {
+            font-size: 1.2rem !important;
+            text-align: center !important;
+        }
+        
+        .fc-daygrid-event {
+            font-size: 0.7rem !important;
+            padding: 1px 3px !important;
+        }
+        
+        .fc-timegrid-event {
+            font-size: 0.7rem !important;
+        }
+        
+        .fc-col-header-cell {
+            font-size: 0.8rem !important;
+            padding: 8px 4px !important;
+        }
+        
+        .fc-timegrid-slot {
+            height: 2em !important;
+        }
+        
+        .fc-timegrid-axis {
+            font-size: 0.7rem !important;
+        }
+        
+        /* Кнопки управления */
+        .btn-group {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 5px !important;
+            justify-content: center !important;
+        }
+        
+        .btn-group .btn {
+            flex: 1 !important;
+            min-width: 80px !important;
+            font-size: 0.8rem !important;
+            padding: 0.375rem 0.5rem !important;
+        }
+        
+        /* Легенда */
+        .legend {
+            text-align: center !important;
+            margin-bottom: 15px !important;
+        }
+        
+        .legend-item {
+            display: inline-block !important;
+            margin: 2px 5px !important;
+            padding: 3px 8px !important;
+            font-size: 0.8rem !important;
+        }
+        
+        /* Модальные окна */
+        .modal-dialog {
+            margin: 10px !important;
+            max-width: calc(100% - 20px) !important;
+        }
+        
+        .modal-body {
+            padding: 15px !important;
+        }
+        
+        .modal-header {
+            padding: 15px !important;
+        }
+        
+        .modal-footer {
+            padding: 10px 15px !important;
+        }
+        
+        /* Формы */
+        .form-control, .form-select {
+            font-size: 16px !important; /* Предотвращает зум на iOS */
+            margin-bottom: 10px !important;
+        }
+        
+        /* Цветовая палитра */
+        .group-color-picker {
+            width: 30px !important;
+            height: 30px !important;
+            margin: 3px !important;
+        }
+    }
+    
+    /* Планшеты */
+    @media (min-width: 769px) and (max-width: 1024px) {
+        #calendar {
+            padding: 20px;
+        }
+        
+        .fc-toolbar {
+            flex-direction: row !important;
+        }
+        
+        .fc-button {
+            font-size: 0.85rem !important;
+        }
+        
+        .btn-group .btn {
+            min-width: 100px !important;
+        }
+    }
+    
+    /* Улучшения для всех размеров */
+    .fc-daygrid-day-number {
+        font-weight: 600 !important;
+    }
+    
+    .fc-day-today {
+        background-color: rgba(102, 126, 234, 0.1) !important;
+    }
+    
+    .fc-daygrid-event-harness {
+        margin: 1px !important;
+    }
+    
+    .fc-timegrid-event-harness {
+        margin: 1px !important;
+    }
+
+    /* Поддержка темной темы для календаря */
+    [data-theme="dark"] #calendar {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] .fc-theme-standard .fc-scrollgrid {
+        border-color: var(--border-color);
+    }
+
+    [data-theme="dark"] .fc-theme-standard th,
+    [data-theme="dark"] .fc-theme-standard td {
+        border-color: var(--border-color);
+    }
+
+    [data-theme="dark"] .fc-col-header-cell {
+        background: var(--table-header-bg);
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] .fc-daygrid-day-number {
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] .fc-timegrid-slot-label {
+        color: var(--text-secondary);
+    }
+
+    [data-theme="dark"] .fc-button {
+        background: var(--bg-secondary);
+        border-color: var(--border-color);
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] .fc-button:hover {
+        background: var(--hover-bg);
+        border-color: var(--border-color);
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] .fc-button:disabled {
+        background: var(--bg-primary);
+        color: var(--text-secondary);
+    }
+
+    [data-theme="dark"] .fc-button-primary {
+        background: #667eea;
+        border-color: #667eea;
+    }
+
+    [data-theme="dark"] .fc-button-primary:hover {
+        background: #5a67d8;
+        border-color: #5a67d8;
+    }
+
+    [data-theme="dark"] .fc-today-button {
+        background: var(--bg-secondary);
+        border-color: var(--border-color);
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] .legend-item {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Календарь занятий</h1>
+
+<div class="row mb-3">
+    <div class="col-md-8">
+        <div class="legend">
+            {% for group in groups %}
+            <span class="legend-item">
+                <span class="legend-color" style="background-color: {{ group.color or '#3788d8' }}"></span>
+                {{ group.name }}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="btn-group w-100" role="group">
+            <button class="btn btn-primary" onclick="showEventModal()">
+                <i class="bi bi-plus"></i> <span class="d-none d-md-inline">Добавить занятие</span>
+            </button>
+            <button class="btn btn-success" onclick="suggestSlot()">
+                <i class="bi bi-robot"></i> <span class="d-none d-md-inline">ИИ</span>
+            </button>
+            <button class="btn btn-info" onclick="checkConflicts()">
+                <i class="bi bi-exclamation-triangle"></i> <span class="d-none d-md-inline">Конфликты</span>
+            </button>
+            <button class="btn btn-secondary" onclick="refreshCalendar()">
+                <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Обновить</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id='calendar'></div>
+
+<div class="modal fade" id="eventModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Новое занятие</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Название</label>
+                    <input type="text" id="eventTitle" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Группа</label>
+                    <select id="eventGroup" class="form-select">
+                        {% for group in groups %}
+                        <option value="{{ group.id }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Дата</label>
+                            <input type="date" id="eventDate" class="form-control">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Начало</label>
+                            <input type="time" id="eventStart" class="form-control">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Конец</label>
+                            <input type="time" id="eventEnd" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Цвет</label>
+                    <div id="colorPicker">
+                        <span class="group-color-picker" style="background-color: #3788d8" data-color="#3788d8"></span>
+                        <span class="group-color-picker" style="background-color: #28a745" data-color="#28a745"></span>
+                        <span class="group-color-picker" style="background-color: #dc3545" data-color="#dc3545"></span>
+                        <span class="group-color-picker" style="background-color: #ffc107" data-color="#ffc107"></span>
+                        <span class="group-color-picker" style="background-color: #6f42c1" data-color="#6f42c1"></span>
+                        <span class="group-color-picker" style="background-color: #e83e8c" data-color="#e83e8c"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger d-none" id="deleteBtn" onclick="deleteEvent()">
+                    Удалить
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveEvent()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="aiSuggestModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">ИИ-предложение времени</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Длительность (минут)</label>
+                    <input type="number" id="suggestDuration" class="form-control" value="90">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Предпочтительные дни</label>
+                    <div class="form-check">
+                        <input class="form-check-input day-check" type="checkbox" value="Monday" checked>
+                        <label class="form-check-label">Понедельник</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input day-check" type="checkbox" value="Tuesday" checked>
+                        <label class="form-check-label">Вторник</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input day-check" type="checkbox" value="Wednesday" checked>
+                        <label class="form-check-label">Среда</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input day-check" type="checkbox" value="Thursday" checked>
+                        <label class="form-check-label">Четверг</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input day-check" type="checkbox" value="Friday" checked>
+                        <label class="form-check-label">Пятница</label>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="getAISuggestion()">Получить предложение</button>
+                <div id="suggestionResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="conflictsModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Конфликты в расписании</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="conflictsList"></div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Свободные слоты</h5>
+            </div>
+            <div class="card-body" id="freeSlotsContainer">
+                <button class="btn btn-sm btn-info" onclick="findFreeSlots()">Найти свободные слоты</button>
+                <div id="freeSlotsList" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js'></script>
+<script>
+let calendar;
+let currentEvent = null;
+let selectedColor = '#3788d8';
+
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+
+    calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        locale: 'ru',
+        firstDay: 1, // Неделя начинается с понедельника (0 = воскресенье, 1 = понедельник)
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        slotMinTime: '08:00',
+        slotMaxTime: '20:00',
+        slotDuration: '00:30',
+        height: 'auto',
+        weekends: true,
+        events: loadEvents,
+        eventClick: function(info) {
+            editEvent(info.event);
+        },
+        dateClick: function(info) {
+            document.getElementById('eventDate').value = info.dateStr.split('T')[0];
+            if (info.dateStr.includes('T')) {
+                document.getElementById('eventStart').value = info.dateStr.split('T')[1].substring(0, 5);
+            }
+            showEventModal();
+        },
+        eventDrop: function(info) {
+            updateEventTime(info.event);
+        },
+        eventResize: function(info) {
+            updateEventTime(info.event);
+        },
+        editable: true,
+        droppable: true
+    });
+
+    calendar.render();
+
+    document.querySelectorAll('.group-color-picker').forEach(picker => {
+        picker.addEventListener('click', function() {
+            document.querySelectorAll('.group-color-picker').forEach(p => p.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedColor = this.dataset.color;
+        });
+    });
+});
+
+function loadEvents(info, successCallback, failureCallback) {
+    console.log('Loading events for period:', info.startStr, 'to', info.endStr);
+    
+    fetch(`/api/schedule/events?start=${info.startStr}&end=${info.endStr}`)
+        .then(r => {
+            console.log('Response status:', r.status);
+            if (!r.ok) {
+                throw new Error(`HTTP error! status: ${r.status}`);
+            }
+            return r.json();
+        })
+        .then(events => {
+            console.log('Loaded events:', events);
+            console.log('Number of events:', events.length);
+            
+            // Проверяем, есть ли ошибка в ответе
+            if (events.error) {
+                console.error('API Error:', events.error);
+                failureCallback(new Error(events.error));
+                return;
+            }
+            
+            successCallback(events);
+        })
+        .catch(error => {
+            console.error('Error loading events:', error);
+            failureCallback(error);
+        });
+}
+
+function showEventModal() {
+    currentEvent = null;
+    document.getElementById('modalTitle').textContent = 'Новое занятие';
+    document.getElementById('deleteBtn').classList.add('d-none');
+    document.getElementById('eventTitle').value = '';
+    document.getElementById('eventDate').value = '';
+    document.getElementById('eventStart').value = '';
+    document.getElementById('eventEnd').value = '';
+    new bootstrap.Modal(document.getElementById('eventModal')).show();
+}
+
+function editEvent(event) {
+    currentEvent = event;
+    document.getElementById('modalTitle').textContent = 'Редактировать занятие';
+    document.getElementById('deleteBtn').classList.remove('d-none');
+    document.getElementById('eventTitle').value = event.title;
+    document.getElementById('eventDate').value = event.startStr.split('T')[0];
+    document.getElementById('eventStart').value = event.start.toTimeString().substring(0, 5);
+    document.getElementById('eventEnd').value = event.end.toTimeString().substring(0, 5);
+    document.getElementById('eventGroup').value = event.extendedProps.groupId;
+    selectedColor = event.backgroundColor;
+
+    document.querySelectorAll('.group-color-picker').forEach(p => {
+        p.classList.toggle('selected', p.dataset.color === selectedColor);
+    });
+
+    new bootstrap.Modal(document.getElementById('eventModal')).show();
+}
+
+function saveEvent() {
+    const title = document.getElementById('eventTitle').value;
+    const date = document.getElementById('eventDate').value;
+    const start = document.getElementById('eventStart').value;
+    const end = document.getElementById('eventEnd').value;
+    const groupId = document.getElementById('eventGroup').value;
+
+    if (!title || !date || !start || !end || !groupId) {
+        alert('Заполните все поля');
+        return;
+    }
+
+    const eventData = {
+        title: title,
+        start: `${date}T${start}:00`,
+        end: `${date}T${end}:00`,
+        group_id: parseInt(groupId),
+        color: selectedColor
+    };
+
+    const url = currentEvent
+        ? `/api/schedule/update/${currentEvent.id}`
+        : '/api/schedule/create';
+
+    const method = currentEvent ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(eventData)
+    })
+    .then(r => {
+        if (!r.ok) {
+            throw new Error(`HTTP error! status: ${r.status}`);
+        }
+        return r.json();
+    })
+    .then(data => {
+        if (data.status === 'success' || data.id) {
+            // Закрываем модальное окно
+            bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+            
+            // Обновляем календарь
+            calendar.refetchEvents();
+            
+            // Показываем сообщение об успехе
+            if (!currentEvent) {
+                alert('Занятие успешно создано!');
+            } else {
+                alert('Занятие успешно обновлено!');
+            }
+        } else {
+            alert('Ошибка при сохранении занятия');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при сохранении занятия: ' + error.message);
+    });
+}
+
+function deleteEvent() {
+    if (!currentEvent || !confirm('Удалить это занятие?')) return;
+
+    fetch(`/api/schedule/delete/${currentEvent.id}`, {
+        method: 'DELETE'
+    })
+    .then(r => r.json())
+    .then(data => {
+        calendar.refetchEvents();
+        bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+    });
+}
+
+function updateEventTime(event) {
+    fetch(`/api/schedule/update/${event.id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            start: event.start.toISOString(),
+            end: event.end.toISOString()
+        })
+    });
+}
+
+function suggestSlot() {
+    new bootstrap.Modal(document.getElementById('aiSuggestModal')).show();
+}
+
+function getAISuggestion() {
+    const duration = document.getElementById('suggestDuration').value;
+    const days = Array.from(document.querySelectorAll('.day-check:checked')).map(cb => cb.value);
+
+    fetch('/api/schedule/suggest-slot', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            duration: parseInt(duration),
+            preferred_days: days
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        let html = '<div class="alert alert-info">';
+        if (data.error) {
+            html += `Ошибка: ${data.error}`;
+        } else {
+            html += `
+                <strong>Рекомендуемое время:</strong><br>
+                День: ${data.day}<br>
+                Время: ${data.time}<br>
+                Обоснование: ${data.reason}<br>
+                <button class="btn btn-sm btn-success mt-2" onclick="applyAISuggestion('${data.day}', '${data.time}')">
+                    Применить
+                </button>
+            `;
+        }
+        html += '</div>';
+        document.getElementById('suggestionResult').innerHTML = html;
+    });
+}
+
+function applyAISuggestion(day, time) {
+    const daysMap = {
+        'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
+        'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 0
+    };
+
+    const today = new Date();
+    const targetDay = daysMap[day];
+    const daysUntilTarget = (targetDay - today.getDay() + 7) % 7 || 7;
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + daysUntilTarget);
+
+    document.getElementById('eventDate').value = targetDate.toISOString().split('T')[0];
+    document.getElementById('eventStart').value = time;
+
+    const [hours, minutes] = time.split(':');
+    const endTime = new Date();
+    endTime.setHours(parseInt(hours) + 1, parseInt(minutes) + 30);
+    document.getElementById('eventEnd').value = endTime.toTimeString().substring(0, 5);
+
+    bootstrap.Modal.getInstance(document.getElementById('aiSuggestModal')).hide();
+    showEventModal();
+}
+
+function checkConflicts() {
+    fetch('/api/schedule/conflicts')
+        .then(r => r.json())
+        .then(data => {
+            let html = '';
+            if (data.conflicts.length === 0) {
+                html = '<div class="alert alert-success">Конфликтов не обнаружено</div>';
+            } else {
+                html = '<div class="alert alert-warning">Обнаружены пересечения:</div><ul>';
+                data.conflicts.forEach(c => {
+                    html += `
+                        <li>
+                            "${c.event1.title}" и "${c.event2.title}"<br>
+                            Пересечение: ${c.overlap_minutes} минут
+                        </li>
+                    `;
+                });
+                html += '</ul>';
+            }
+            document.getElementById('conflictsList').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('conflictsModal')).show();
+        });
+}
+
+function findFreeSlots() {
+    fetch('/api/schedule/optimize', {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        let html = '<div class="list-group">';
+        data.free_slots.forEach(slot => {
+            html += `
+                <div class="list-group-item">
+                    <strong>${slot.day}</strong> в ${slot.time}
+                    <button class="btn btn-sm btn-primary float-end"
+                            onclick="createEventAtSlot('${slot.date}')">
+                        Создать занятие
+                    </button>
+                </div>
+            `;
+        });
+        html += '</div>';
+        document.getElementById('freeSlotsList').innerHTML = html;
+    });
+}
+
+function createEventAtSlot(dateTime) {
+    const date = dateTime.split('T')[0];
+    const time = dateTime.split('T')[1].substring(0, 5);
+
+    document.getElementById('eventDate').value = date;
+    document.getElementById('eventStart').value = time;
+
+    const [hours, minutes] = time.split(':');
+    const endTime = new Date();
+    endTime.setHours(parseInt(hours) + 1, parseInt(minutes) + 30);
+    document.getElementById('eventEnd').value = endTime.toTimeString().substring(0, 5);
+
+    showEventModal();
+}
+
+function refreshCalendar() {
+    console.log('Manually refreshing calendar...');
+    calendar.refetchEvents();
+    
+    // Также проверим события напрямую через API
+    fetch('/api/schedule/all-events')
+        .then(r => r.json())
+        .then(data => {
+            console.log('Direct API call - all events:', data);
+            if (data.total_events > 0) {
+                alert(`Найдено ${data.total_events} событий в базе данных. Проверьте консоль для деталей.`);
+                console.log('Events details:', data.events);
+            } else {
+                alert('События в базе данных не найдены.');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching events directly:', error);
+            alert('Ошибка при получении событий: ' + error.message);
+        });
+}
+</script>
+{% endblock %}
