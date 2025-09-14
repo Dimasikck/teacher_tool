@@ -23,11 +23,11 @@ class Config:
     WEBDAV_LOGIN = os.environ.get('WEBDAV_LOGIN') or 'dmitriy.aleksandrovich.subbotin@mail.ru'
     WEBDAV_PASSWORD = os.environ.get('WEBDAV_PASSWORD') or 'UDfLpjHfnl9kkcfx3jdh'
     WEBDAV_ROOT_PATH = os.environ.get('WEBDAV_ROOT_PATH') or '/'
-
+ 
     # GitHub webhook / deployment settings (for PythonAnywhere)
-    GITHUB_WEBHOOK_SECRET = os.environ.get('GITHUB_WEBHOOK_SECRET') or ''
-    REPO_PATH = os.environ.get('REPO_PATH') or os.path.abspath('.')
+    GITHUB_WEBHOOK_SECRET = os.environ.get('UDfLpjHfnl9kkcfx3jdh') or ''
+    REPO_PATH = os.environ.get('/home/Dimasikck/teacher_tool)') or os.path.abspath('.')
     # Option 1: path to WSGI file to touch for reload
-    WSGI_FILE_PATH = os.environ.get('WSGI_FILE_PATH') or ''
+    WSGI_FILE_PATH = os.environ.get('/var/www/teachertool_pythonanywhere_com_wsgi.py') or ''
     # Option 2: explicit reload command (e.g., 'pa_reload_webapp.py <username>.pythonanywhere.com')
     RELOAD_CMD = os.environ.get('RELOAD_CMD') or ''
