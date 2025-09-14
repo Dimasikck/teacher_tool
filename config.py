@@ -25,9 +25,9 @@ class Config:
     WEBDAV_ROOT_PATH = os.environ.get('WEBDAV_ROOT_PATH') or '/'
  
     # GitHub webhook / deployment settings (for PythonAnywhere)
-    GITHUB_WEBHOOK_SECRET = os.environ.get('UDfLpjHfnl9kkcfx3jdh') or ''
-    REPO_PATH = os.environ.get('/home/Dimasikck/teacher_tool)') or os.path.abspath('.')
+    GITHUB_WEBHOOK_SECRET = os.environ.get('GITHUB_WEBHOOK_SECRET') or 'UDfLpjHfnl9kkcfx3jdh'
+    REPO_PATH = os.environ.get('REPO_PATH') or '/home/Dimasikck/teacher_tool'
     # Option 1: path to WSGI file to touch for reload
-    WSGI_FILE_PATH = os.environ.get('/var/www/teachertool_pythonanywhere_com_wsgi.py') or ''
+    WSGI_FILE_PATH = os.environ.get('WSGI_FILE_PATH') or '/var/www/teachertool_pythonanywhere_com_wsgi.py'
     # Option 2: explicit reload command (e.g., 'pa_reload_webapp.py <username>.pythonanywhere.com')
-    RELOAD_CMD = os.environ.get('RELOAD_CMD') or ''
+    RELOAD_CMD = os.environ.get('RELOAD_CMD') or 'pa_reload_webapp.py teachertool.pythonanywhere.com'
