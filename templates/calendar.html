@@ -119,6 +119,11 @@
             font-size: 0.7rem !important;
         }
         
+        .fc-timegrid-slot-label {
+            font-size: 0.8rem !important;
+            font-weight: 500 !important;
+        }
+        
         /* Кнопки управления */
         .btn-group {
             display: flex !important;
@@ -241,6 +246,8 @@
 
     [data-theme="dark"] .fc-timegrid-slot-label {
         color: var(--text-secondary);
+        font-size: 0.8rem !important;
+        font-weight: 500 !important;
     }
 
     [data-theme="dark"] .fc-button {
@@ -359,6 +366,11 @@
                     </div>
                 </div>
                 <div class="mb-3">
+                    <label class="form-label">Аудитория</label>
+                    <input type="text" id="eventClassroom" class="form-control" placeholder="Например: 101, А-201, Лекторий">
+                    <div class="form-text">Необязательное поле</div>
+                </div>
+                <div class="mb-3">
                     <label class="form-label">Цвет</label>
                     <div id="colorPicker">
                         <span class="group-color-picker" style="background-color: #3788d8" data-color="#3788d8"></span>
@@ -469,8 +481,19 @@ document.addEventListener('DOMContentLoaded', function() {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
-        slotMinTime: '08:00',
-        slotMaxTime: '20:00',
+        buttonText: {
+            today: 'Сегодня',
+            month: 'Месяц',
+            week: 'Неделя',
+            day: 'День'
+        },
+        slotLabelFormat: {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        },
+        slotMinTime: '09:00',
+        slotMaxTime: '22:00',
         slotDuration: '00:30',
         height: 'auto',
         weekends: true,
@@ -544,6 +567,7 @@ function showEventModal() {
     document.getElementById('eventDate').value = '';
     document.getElementById('eventStart').value = '';
     document.getElementById('eventEnd').value = '';
+    document.getElementById('eventClassroom').value = '';
     new bootstrap.Modal(document.getElementById('eventModal')).show();
 }
 
@@ -556,6 +580,7 @@ function editEvent(event) {
     document.getElementById('eventStart').value = event.start.toTimeString().substring(0, 5);
     document.getElementById('eventEnd').value = event.end.toTimeString().substring(0, 5);
     document.getElementById('eventGroup').value = event.extendedProps.groupId;
+    document.getElementById('eventClassroom').value = event.extendedProps.classroom || '';
     selectedColor = event.backgroundColor;
 
     document.querySelectorAll('.group-color-picker').forEach(p => {
@@ -571,9 +596,10 @@ function saveEvent() {
     const start = document.getElementById('eventStart').value;
     const end = document.getElementById('eventEnd').value;
     const groupId = document.getElementById('eventGroup').value;
+    const classroom = document.getElementById('eventClassroom').value;
 
     if (!title || !date || !start || !end || !groupId) {
-        alert('Заполните все поля');
+        alert('Заполните все обязательные поля');
         return;
     }
 
@@ -582,7 +608,8 @@ function saveEvent() {
         start: `${date}T${start}:00`,
         end: `${date}T${end}:00`,
         group_id: parseInt(groupId),
-        color: selectedColor
+        color: selectedColor,
+        classroom: classroom
     };
 
     const url = currentEvent

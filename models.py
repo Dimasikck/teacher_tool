@@ -45,6 +45,7 @@ class Lesson(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'))
     topic = db.Column(db.String(200), nullable=False)
     notes = db.Column(db.Text)
+    classroom = db.Column(db.String(50))  # Аудитория
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
 
 

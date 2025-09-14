@@ -64,9 +64,14 @@
                 <h5 class="mb-0">
                     <i class="bi bi-person-lines-fill"></i> Список студентов
                 </h5>
-                <button class="btn btn-primary btn-sm" onclick="showAddStudentModal()">
-                    <i class="bi bi-plus-circle"></i> Добавить студента
-                </button>
+                <div class="btn-group">
+                    <button class="btn btn-primary btn-sm" onclick="showAddStudentModal()">
+                        <i class="bi bi-plus-circle"></i> Добавить студента
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="showAddStudentsBatchModal()">
+                        <i class="bi bi-plus-square"></i> Добавить списком
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 {% if students %}
@@ -106,9 +111,14 @@
                     <i class="bi bi-person-x display-1 text-muted"></i>
                     <h4 class="text-muted">Студенты не найдены</h4>
                     <p class="text-muted">Добавьте первого студента в группу</p>
-                    <button class="btn btn-primary" onclick="showAddStudentModal()">
-                        <i class="bi bi-plus-circle"></i> Добавить студента
-                    </button>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="showAddStudentModal()">
+                            <i class="bi bi-plus-circle"></i> Добавить студента
+                        </button>
+                        <button class="btn btn-success" onclick="showAddStudentsBatchModal()">
+                            <i class="bi bi-plus-square"></i> Добавить списком
+                        </button>
+                    </div>
                 </div>
                 {% endif %}
             </div>
@@ -174,6 +184,34 @@
     </div>
 </div>
 
+<!-- Модальное окно массового добавления студентов -->
+<div class="modal fade" id="addStudentsBatchModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить студентов списком</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="studentsText" class="form-label">Список студентов *</label>
+                    <textarea class="form-control" id="studentsText" rows="10" 
+                              placeholder="Введите список студентов, каждый с новой строки:&#10;Иван Петров&#10;Мария Сидорова&#10;Алексей Козлов, alexey@example.com&#10;&#10;Поддерживаемые форматы:&#10;- Имя Фамилия&#10;- Имя Фамилия, email@example.com"></textarea>
+                    <div class="form-text">Каждый студент на новой строке. Email необязателен.</div>
+                </div>
+                <div id="batchResult" class="mt-3" style="display: none;">
+                    <div id="batchSuccess" class="alert alert-success" style="display: none;"></div>
+                    <div id="batchErrors" class="alert alert-danger" style="display: none;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-success" onclick="addStudentsBatch()">Добавить студентов</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Модальное окно подтверждения удаления студента -->
 <div class="modal fade" id="deleteStudentModal" tabindex="-1">
     <div class="modal-dialog">
@@ -202,6 +240,152 @@ function showAddStudentModal() {
     new bootstrap.Modal(document.getElementById('addStudentModal')).show();
 }
 
+function showAddStudentsBatchModal() {
+    document.getElementById('studentsText').value = '';
+    document.getElementById('batchResult').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('addStudentsBatchModal')).show();
+}
+
+function updateStudentsList(newStudents) {
+    const tbody = document.querySelector('table tbody');
+    const noStudentsDiv = document.querySelector('.text-center.py-4');
+    const studentsCount = document.querySelector('.text-primary');
+    
+    if (!tbody) return;
+    
+    // Если есть блок "студенты не найдены", скрываем его
+    if (noStudentsDiv) {
+        noStudentsDiv.style.display = 'none';
+    }
+    
+    // Показываем таблицу если она была скрыта
+    const tableContainer = document.querySelector('.table-responsive');
+    if (tableContainer) {
+        tableContainer.style.display = 'block';
+    }
+    
+    // Добавляем новых студентов в таблицу
+    newStudents.forEach((student, index) => {
+        const currentRowCount = tbody.querySelectorAll('tr').length;
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+            <td>${currentRowCount + index + 1}</td>
+            <td>${student.name}</td>
+            <td>${student.email || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" 
+                        onclick="editStudent(${student.id || 0}, '${student.name}', '${student.email || ''}')">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" 
+                        onclick="deleteStudent(${student.id || 0}, '${student.name}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(newRow);
+    });
+    
+    // Обновляем счетчик студентов
+    if (studentsCount) {
+        const currentCount = parseInt(studentsCount.textContent);
+        studentsCount.textContent = currentCount + newStudents.length;
+    }
+    
+    // Показываем уведомление об успешном добавлении
+    showSuccessNotification(`Добавлено ${newStudents.length} студентов`);
+}
+
+function showSuccessNotification(message) {
+    // Создаем уведомление
+    const notification = document.createElement('div');
+    notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Автоматически скрываем через 3 секунды
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 3000);
+}
+
+function updateStudentInTable(studentId, studentData) {
+    // Находим строку с нужным студентом
+    const rows = document.querySelectorAll('table tbody tr');
+    rows.forEach(row => {
+        const editButton = row.querySelector('button[onclick*="editStudent"]');
+        if (editButton && editButton.getAttribute('onclick').includes(`'${studentId}'`)) {
+            // Обновляем данные в строке
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 3) {
+                cells[1].textContent = studentData.name;
+                cells[2].textContent = studentData.email || '-';
+                
+                // Обновляем onclick атрибуты
+                const editBtn = cells[3].querySelector('button[onclick*="editStudent"]');
+                const deleteBtn = cells[3].querySelector('button[onclick*="deleteStudent"]');
+                
+                if (editBtn) {
+                    editBtn.setAttribute('onclick', `editStudent(${studentId}, '${studentData.name}', '${studentData.email || ''}')`);
+                }
+                if (deleteBtn) {
+                    deleteBtn.setAttribute('onclick', `deleteStudent(${studentId}, '${studentData.name}')`);
+                }
+            }
+        }
+    });
+    
+    showSuccessNotification('Студент обновлен');
+}
+
+function removeStudentFromTable(studentId) {
+    // Находим и удаляем строку с нужным студентом
+    const rows = document.querySelectorAll('table tbody tr');
+    rows.forEach(row => {
+        const editButton = row.querySelector('button[onclick*="editStudent"]');
+        if (editButton && editButton.getAttribute('onclick').includes(`'${studentId}'`)) {
+            row.remove();
+        }
+    });
+    
+    // Обновляем номера строк
+    const remainingRows = document.querySelectorAll('table tbody tr');
+    remainingRows.forEach((row, index) => {
+        const firstCell = row.querySelector('td:first-child');
+        if (firstCell) {
+            firstCell.textContent = index + 1;
+        }
+    });
+    
+    // Обновляем счетчик студентов
+    const studentsCount = document.querySelector('.text-primary');
+    if (studentsCount) {
+        const currentCount = parseInt(studentsCount.textContent);
+        studentsCount.textContent = currentCount - 1;
+    }
+    
+    // Если студентов не осталось, показываем сообщение
+    if (remainingRows.length === 0) {
+        const noStudentsDiv = document.querySelector('.text-center.py-4');
+        if (noStudentsDiv) {
+            noStudentsDiv.style.display = 'block';
+        }
+        const tableContainer = document.querySelector('.table-responsive');
+        if (tableContainer) {
+            tableContainer.style.display = 'none';
+        }
+    }
+    
+    showSuccessNotification('Студент удален');
+}
+
 function addStudent() {
     const name = document.getElementById('studentName').value;
     const email = document.getElementById('studentEmail').value;
@@ -224,7 +408,14 @@ function addStudent() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            // Закрываем модальное окно
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Обновляем список студентов на странице
+            updateStudentsList([data.student]);
         } else {
             alert(data.error || 'Ошибка при добавлении студента');
         }
@@ -232,6 +423,83 @@ function addStudent() {
     .catch(error => {
         console.error('Error:', error);
         alert('Ошибка при добавлении студента');
+    });
+}
+
+function addStudentsBatch() {
+    const studentsText = document.getElementById('studentsText').value;
+    
+    if (!studentsText.trim()) {
+        alert('Введите список студентов');
+        return;
+    }
+    
+    fetch(`/groups/{{ group.id }}/students/batch`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            students_text: studentsText
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Batch add response:', data);
+        
+        const resultDiv = document.getElementById('batchResult');
+        const successDiv = document.getElementById('batchSuccess');
+        const errorsDiv = document.getElementById('batchErrors');
+        
+        // Проверяем, что элементы существуют
+        if (!resultDiv || !successDiv || !errorsDiv) {
+            console.error('Required DOM elements not found');
+            return;
+        }
+        
+        resultDiv.style.display = 'block';
+        
+        // Скрываем предыдущие сообщения
+        successDiv.style.display = 'none';
+        errorsDiv.style.display = 'none';
+        
+        // Показываем успешные добавления
+        if (data.added_count > 0) {
+            successDiv.innerHTML = `<strong>Успешно добавлено ${data.added_count} студентов:</strong><br>` + 
+                data.students.map(s => `• ${s.name}${s.email ? ' (' + s.email + ')' : ''}`).join('<br>');
+            successDiv.style.display = 'block';
+        } else if (data.total_processed > 0) {
+            // Если обработали студентов, но никого не добавили
+            successDiv.innerHTML = '<strong>Ни один студент не был добавлен</strong><br>Возможно, все студенты уже существуют в группе';
+            successDiv.style.display = 'block';
+        }
+        
+        // Показываем ошибки
+        if (data.errors && data.errors.length > 0) {
+            errorsDiv.innerHTML = '<strong>Ошибки:</strong><br>' + data.errors.join('<br>');
+            errorsDiv.style.display = 'block';
+        }
+        
+        // Если есть успешные добавления, закрываем модальное окно и обновляем список
+        if (data.added_count > 0) {
+            // Закрываем модальное окно
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentsBatchModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Обновляем список студентов на странице
+            updateStudentsList(data.students);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при добавлении студентов');
     });
 }
 
@@ -264,7 +532,14 @@ function saveStudent() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            // Закрываем модальное окно
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editStudentModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Обновляем строку в таблице
+            updateStudentInTable(currentStudentId, data.student);
         } else {
             alert(data.error || 'Ошибка при сохранении студента');
         }
@@ -289,7 +564,14 @@ document.getElementById('confirmDeleteStudent').addEventListener('click', functi
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                // Закрываем модальное окно
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteStudentModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // Удаляем строку из таблицы
+                removeStudentFromTable(currentStudentId);
             } else {
                 alert('Ошибка при удалении студента');
             }

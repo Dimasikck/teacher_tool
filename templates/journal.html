@@ -1,632 +1,195 @@
 {% extends "base.html" %}
-{% block title %}Журнал посещаемости{% endblock %}
-
-{% block extra_css %}
-<style>
-    .journal-container {
-        display: flex;
-        gap: 20px;
-        height: calc(100vh - 200px);
-    }
-    
-    .journal-main {
-        flex: 1;
-        overflow: auto;
-    }
-    
-    .lesson-panel {
-        width: 350px;
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 2px 15px var(--shadow-light);
-        display: none;
-        position: sticky;
-        top: 20px;
-        max-height: calc(100vh - 120px);
-        overflow-y: auto;
-    }
-    
-    .lesson-panel.show {
-        display: block;
-    }
-    
-    .attendance-table {
-        background: var(--bg-secondary);
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 2px 15px var(--shadow-light);
-    }
-    
-    .attendance-table table {
-        margin: 0;
-        min-width: 100%;
-    }
-    
-    .attendance-table th {
-        background: var(--table-header-bg);
-        color: var(--text-primary);
-        padding: 12px 8px;
-        text-align: center;
-        font-weight: 600;
-        border: none;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-    
-    .attendance-table td {
-        padding: 8px;
-        text-align: center;
-        border: 1px solid var(--border-color);
-        vertical-align: middle;
-    }
-    
-    .attendance-table .student-name {
-        text-align: left;
-        font-weight: 500;
-        background: var(--table-header-bg);
-        position: sticky;
-        left: 0;
-        z-index: 5;
-        min-width: 150px;
-        max-width: 150px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .attendance-cell {
-        min-width: 60px;
-        height: 40px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        position: relative;
-    }
-    
-    .attendance-cell:hover {
-        background: var(--hover-bg);
-        transform: scale(1.05);
-    }
-    
-    .attendance-cell.selected {
-        background: #667eea;
-        color: white;
-        transform: scale(1.05);
-    }
-    
-    .attendance-cell.has-lesson {
-        background: #e3f2fd;
-        border: 2px solid #2196f3;
-    }
-    
-    .attendance-cell.has-lesson:hover {
-        background: #bbdefb;
-    }
-    
-    .attendance-input {
-        width: 100%;
-        height: 100%;
-        border: none;
-        background: transparent;
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: inherit;
-    }
-    
-    .attendance-input:focus {
-        outline: 2px solid #667eea;
-        outline-offset: -2px;
-        background: white;
-        color: #333;
-    }
-    
-    .lesson-date {
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: var(--text-secondary);
-    }
-    
-    .group-selector {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 15px var(--shadow-light);
-    }
-    
-    .lesson-topic {
-        background: var(--input-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 12px;
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-        min-height: 100px;
-        resize: vertical;
-    }
-    
-    .lesson-notes {
-        background: var(--input-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 12px;
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-        min-height: 80px;
-        resize: vertical;
-    }
-    
-    @media (max-width: 1200px) {
-        .journal-container {
-            flex-direction: column;
-            height: auto;
-        }
-        
-        .lesson-panel {
-            width: 100%;
-            position: relative;
-            top: auto;
-            max-height: none;
-        }
-        
-        .attendance-table {
-            overflow-x: auto;
-        }
-    }
-    
-    @media (max-width: 768px) {
-        .attendance-table th,
-        .attendance-table td {
-            padding: 6px 4px;
-            font-size: 0.8rem;
-        }
-        
-        .attendance-table .student-name {
-            min-width: 120px;
-            max-width: 120px;
-        }
-        
-        .attendance-cell {
-            min-width: 45px;
-            height: 35px;
-        }
-        
-        .lesson-panel {
-            padding: 15px;
-        }
-    }
-</style>
-{% endblock %}
+{% block title %}Журнал{% endblock %}
 
 {% block content %}
 <h1 class="mb-4">Журнал посещаемости</h1>
 
-<div class="group-selector">
-    <div class="row align-items-center">
-        <div class="col-md-6">
-            <label for="groupSelect" class="form-label"><strong>Выберите группу:</strong></label>
-            <select id="groupSelect" class="form-select">
-                <option value="">Выберите группу</option>
-                {% for group in groups %}
-                <option value="{{ group.id }}">{{ group.name }} - {{ group.course }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-6">
-            <div class="d-flex gap-2 mt-4">
-                <button class="btn btn-success" onclick="addLesson()">
-                    <i class="bi bi-plus-circle"></i> Добавить занятие
-                </button>
-                <button class="btn btn-info" onclick="exportJournal()">
-                    <i class="bi bi-download"></i> Экспорт
-                </button>
+<div class="row mb-3">
+    <div class="col-md-4">
+        <select id="groupSelect" class="form-select">
+            <option value="">Выберите группу</option>
+            {% for group in groups %}
+            <option value="{{ group.id }}">{{ group.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <input type="date" id="lessonDate" class="form-control">
+    </div>
+    <div class="col-md-4">
+        <button class="btn btn-primary" onclick="loadAttendance()">Загрузить</button>
+        <button class="btn btn-success" onclick="showAddLesson()">Новое занятие</button>
+        <button class="btn btn-info" onclick="exportData()">Экспорт</button>
+    </div>
+</div>
+
+<div id="attendanceTable"></div>
+
+<div class="modal fade" id="lessonModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Новое занятие</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Тема занятия</label>
+                    <input type="text" id="lessonTopic" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Заметки</label>
+                    <textarea id="lessonNotes" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="createLesson()">Создать</button>
             </div>
         </div>
     </div>
 </div>
 
-<div class="journal-container">
-    <div class="journal-main">
-        <div id="journalContent" class="text-center py-5">
-            <i class="bi bi-journal-text display-1 text-muted"></i>
-            <h3 class="text-muted mt-3">Выберите группу для просмотра журнала</h3>
-            <p class="text-muted">Выберите группу из списка выше, чтобы начать работу с журналом посещаемости</p>
-        </div>
-    </div>
-    
-    <div class="lesson-panel" id="lessonPanel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0">Занятие</h5>
-            <button type="button" class="btn-close" onclick="closeLessonPanel()"></button>
-        </div>
-        
-        <div class="mb-3">
-            <label class="form-label"><strong>Дата:</strong></label>
-            <div class="lesson-date" id="lessonDateDisplay"></div>
-        </div>
-        
-        <div class="mb-3">
-            <label for="lessonTopic" class="form-label"><strong>Тема занятия:</strong></label>
-            <textarea id="lessonTopic" class="lesson-topic" placeholder="Введите тему занятия..."></textarea>
-        </div>
-        
-        <div class="mb-3">
-            <label for="lessonNotes" class="form-label"><strong>Заметки:</strong></label>
-            <textarea id="lessonNotes" class="lesson-notes" placeholder="Дополнительные заметки..."></textarea>
-        </div>
-        
-        <div class="d-grid gap-2">
-            <button class="btn btn-primary" onclick="saveLesson()">
-                <i class="bi bi-check-circle"></i> Сохранить
-            </button>
-            <button class="btn btn-secondary" onclick="closeLessonPanel()">
-                <i class="bi bi-x-circle"></i> Отмена
-            </button>
-        </div>
-    </div>
+<div class="mt-4">
+    <h3>Статистика посещаемости</h3>
+    <div id="statsContainer"></div>
 </div>
 
 <script>
-let currentGroupId = null;
-let currentGroupStudents = [];
-let currentLessons = [];
-let selectedCell = null;
+let currentLesson = null;
 
-// Загрузка журнала при выборе группы
-document.getElementById('groupSelect').addEventListener('change', function() {
-    const groupId = this.value;
-    if (groupId) {
-        currentGroupId = groupId;
-        loadJournal(groupId);
-    } else {
-        showEmptyState();
-    }
-});
+function loadAttendance() {
+    const groupId = document.getElementById('groupSelect').value;
+    const date = document.getElementById('lessonDate').value;
 
-function loadJournal(groupId) {
-    console.log('Loading journal for group:', groupId);
-    
-    // Загружаем студентов и занятия параллельно
-    Promise.all([
-        fetch(`/api/students?group_id=${groupId}`)
-            .then(r => {
-                console.log('Students API response status:', r.status);
-                if (!r.ok) {
-                    throw new Error(`Students API error: ${r.status}`);
-                }
-                return r.json();
-            }),
-        fetch(`/api/lessons?group_id=${groupId}`)
-            .then(r => {
-                console.log('Lessons API response status:', r.status);
-                if (!r.ok) {
-                    throw new Error(`Lessons API error: ${r.status}`);
-                }
-                return r.json();
-            })
-    ]).then(([students, lessons]) => {
-        console.log('Loaded students:', students);
-        console.log('Loaded lessons:', lessons);
-        
-        currentGroupStudents = students;
-        currentLessons = lessons;
-        
-        if (students.length === 0) {
-            showNoStudentsState();
-            return;
-        }
-        
-        buildJournalTable(students, lessons);
-    }).catch(error => {
-        console.error('Error loading journal:', error);
-        alert('Ошибка при загрузке журнала: ' + error.message);
-    });
-}
-
-function buildJournalTable(students, lessons) {
-    // Получаем все уникальные даты занятий
-    const dates = [...new Set(lessons.map(lesson => lesson.date.split('T')[0]))]
-        .sort((a, b) => new Date(a) - new Date(b));
-    
-    if (dates.length === 0) {
-        showNoLessonsState(students);
+    if (!groupId || !date) {
+        alert('Выберите группу и дату');
         return;
     }
-    
-    let html = '<div class="attendance-table"><table class="table table-bordered">';
-    
-    // Заголовок таблицы
-    html += '<thead><tr>';
-    html += '<th class="student-name">Студент</th>';
-    dates.forEach(date => {
-        const lesson = lessons.find(l => l.date.startsWith(date));
-        html += `<th class="lesson-date" title="${lesson ? lesson.topic : ''}">
-            ${formatDate(date)}
-        </th>`;
-    });
-    html += '</tr></thead>';
-    
-    // Строки студентов
-    html += '<tbody>';
-    students.forEach(student => {
-        html += `<tr><td class="student-name" title="${student.name}">${student.name}</td>`;
-        
-        dates.forEach(date => {
+
+    fetch(`/api/lessons?group_id=${groupId}`)
+        .then(r => r.json())
+        .then(lessons => {
             const lesson = lessons.find(l => l.date.startsWith(date));
-            const attendance = lesson ? getStudentAttendance(student.id, lesson.id) : null;
-            const cellClass = lesson ? 'has-lesson' : '';
-            
-            html += `<td class="attendance-cell ${cellClass}" 
-                data-student="${student.id}" 
-                data-date="${date}" 
-                data-lesson="${lesson ? lesson.id : ''}"
-                onclick="selectCell(this)">
-                <input type="text" class="attendance-input" 
-                    value="${attendance ? attendance : ''}" 
-                    maxlength="3"
-                    onchange="saveAttendance(this)"
-                    placeholder="Н">
-            </td>`;
+            if (lesson) {
+                currentLesson = lesson;
+                loadStudents(groupId, lesson.id);
+            } else {
+                alert('Занятие не найдено. Создайте новое.');
+            }
         });
-        
-        html += '</tr>';
-    });
-    
-    html += '</tbody></table></div>';
-    
-    document.getElementById('journalContent').innerHTML = html;
-    
-    // Загружаем посещаемость для всех ячеек
-    loadAllAttendance(students, lessons);
 }
 
-function loadAllAttendance(students, lessons) {
-    // Загружаем посещаемость для всех студентов и занятий
-    students.forEach(student => {
-        lessons.forEach(lesson => {
-            fetch(`/api/attendance/${student.id}/${lesson.id}`)
-                .then(r => r.json())
-                .then(data => {
-                    const cell = document.querySelector(
-                        `td[data-student="${student.id}"][data-lesson="${lesson.id}"]`
-                    );
-                    if (cell) {
-                        const input = cell.querySelector('.attendance-input');
-                        if (input && data.attendance) {
-                            input.value = data.attendance;
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading attendance:', error);
-                });
+function loadStudents(groupId, lessonId) {
+    fetch(`/api/students?group_id=${groupId}`)
+        .then(r => r.json())
+        .then(students => {
+            let html = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Студент</th>
+                            <th>Присутствие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            students.forEach(s => {
+                html += `
+                    <tr>
+                        <td>${s.name}</td>
+                        <td>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input attendance-check"
+                                       type="checkbox" data-student="${s.id}">
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+                <button class="btn btn-success" onclick="saveAttendance()">Сохранить</button>
+            `;
+
+            document.getElementById('attendanceTable').innerHTML = html;
         });
+}
+
+function saveAttendance() {
+    const attendance = {};
+    document.querySelectorAll('.attendance-check').forEach(cb => {
+        attendance[cb.dataset.student] = cb.checked;
     });
-}
 
-function getStudentAttendance(studentId, lessonId) {
-    // Возвращаем пустую строку, так как данные будут загружены отдельно
-    return '';
-}
-
-function selectCell(cell) {
-    // Убираем выделение с предыдущей ячейки
-    if (selectedCell) {
-        selectedCell.classList.remove('selected');
-    }
-    
-    // Выделяем новую ячейку
-    cell.classList.add('selected');
-    selectedCell = cell;
-    
-    // Показываем панель занятия
-    const date = cell.dataset.date;
-    const lessonId = cell.dataset.lesson;
-    
-    showLessonPanel(date, lessonId);
-}
-
-function showLessonPanel(date, lessonId) {
-    const panel = document.getElementById('lessonPanel');
-    const dateDisplay = document.getElementById('lessonDateDisplay');
-    const topicInput = document.getElementById('lessonTopic');
-    const notesInput = document.getElementById('lessonNotes');
-    
-    dateDisplay.textContent = formatDate(date);
-    
-    if (lessonId) {
-        // Редактирование существующего занятия
-        const lesson = currentLessons.find(l => l.id == lessonId);
-        if (lesson) {
-            topicInput.value = lesson.topic || '';
-            notesInput.value = lesson.notes || '';
-        }
-    } else {
-        // Новое занятие
-        topicInput.value = '';
-        notesInput.value = '';
-    }
-    
-    panel.classList.add('show');
-}
-
-function closeLessonPanel() {
-    const panel = document.getElementById('lessonPanel');
-    panel.classList.remove('show');
-    
-    if (selectedCell) {
-        selectedCell.classList.remove('selected');
-        selectedCell = null;
-    }
-}
-
-function saveLesson() {
-    const topic = document.getElementById('lessonTopic').value;
-    const notes = document.getElementById('lessonNotes').value;
-    const date = selectedCell ? selectedCell.dataset.date : null;
-    const lessonId = selectedCell ? selectedCell.dataset.lesson : null;
-    
-    if (!date || !currentGroupId) {
-        alert('Ошибка: не выбрана дата или группа');
-        return;
-    }
-    
-    const data = {
-        group_id: currentGroupId,
-        date: date + 'T09:00:00',
-        topic: topic,
-        notes: notes
-    };
-    
-    const url = lessonId ? `/api/lessons/${lessonId}` : '/api/lessons';
-    const method = lessonId ? 'PUT' : 'POST';
-    
-    fetch(url, {
-        method: method,
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-    })
-    .then(r => r.json())
-    .then(result => {
-        if (result.status === 'success' || result.id) {
-            // Перезагружаем журнал
-            loadJournal(currentGroupId);
-            closeLessonPanel();
-            alert('Занятие сохранено');
-        } else {
-            alert('Ошибка при сохранении занятия');
-        }
-    })
-    .catch(error => {
-        console.error('Error saving lesson:', error);
-        alert('Ошибка при сохранении занятия');
-    });
-}
-
-function saveAttendance(input) {
-    const studentId = input.closest('td').dataset.student;
-    const lessonId = input.closest('td').dataset.lesson;
-    const attendance = input.value.toUpperCase();
-    
-    if (!lessonId) {
-        alert('Сначала создайте занятие для этой даты');
-        input.value = '';
-        return;
-    }
-    
     fetch('/api/attendance', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-            student_id: studentId,
-            lesson_id: lessonId,
+            lesson_id: currentLesson.id,
             attendance: attendance
         })
     })
     .then(r => r.json())
-    .then(result => {
-        if (result.status === 'success') {
-            // Визуальная обратная связь
-            input.style.background = '#d4edda';
-            setTimeout(() => {
-                input.style.background = '';
-            }, 1000);
-        } else {
-            alert('Ошибка при сохранении посещаемости');
-        }
-    })
-    .catch(error => {
-        console.error('Error saving attendance:', error);
-        alert('Ошибка при сохранении посещаемости');
+    .then(data => {
+        alert('Посещаемость сохранена');
+        loadStats();
     });
 }
 
-function addLesson() {
-    if (!currentGroupId) {
-        alert('Сначала выберите группу');
-        return;
-    }
-    
-    // Выбираем сегодняшнюю дату
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Создаем фиктивную ячейку для показа панели
-    const tempCell = {
-        dataset: {
-            date: today,
-            lesson: ''
-        }
-    };
-    
-    selectCell(tempCell);
+function showAddLesson() {
+    new bootstrap.Modal(document.getElementById('lessonModal')).show();
 }
 
-function exportJournal() {
-    if (!currentGroupId) {
-        alert('Сначала выберите группу');
-        return;
-    }
-    
-    fetch(`/export/attendance/${currentGroupId}`)
-        .then(r => r.json())
-        .then(data => {
-            window.open(data.file, '_blank');
+function createLesson() {
+    const groupId = document.getElementById('groupSelect').value;
+    const date = document.getElementById('lessonDate').value;
+    const topic = document.getElementById('lessonTopic').value;
+    const notes = document.getElementById('lessonNotes').value;
+
+    fetch('/api/lessons', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            group_id: groupId,
+            date: date + 'T09:00:00',
+            topic: topic,
+            notes: notes
         })
-        .catch(error => {
-            console.error('Error exporting journal:', error);
-            alert('Ошибка при экспорте журнала');
+    })
+    .then(r => r.json())
+    .then(data => {
+        bootstrap.Modal.getInstance(document.getElementById('lessonModal')).hide();
+        loadAttendance();
+    });
+}
+
+function loadStats() {
+    const groupId = document.getElementById('groupSelect').value;
+
+    fetch(`/api/attendance/stats?group_id=${groupId}`)
+        .then(r => r.json())
+        .then(stats => {
+            let html = '<table class="table"><thead><tr><th>Студент</th><th>Посещаемость</th></tr></thead><tbody>';
+            stats.forEach(s => {
+                html += `<tr><td>${s.student}</td><td>${s.percentage}% (${s.present}/${s.total})</td></tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('statsContainer').innerHTML = html;
         });
 }
 
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit'
-    });
-}
+function exportData() {
+    const groupId = document.getElementById('groupSelect').value;
+    if (!groupId) return;
 
-function showEmptyState() {
-    document.getElementById('journalContent').innerHTML = `
-        <div class="text-center py-5">
-            <i class="bi bi-journal-text display-1 text-muted"></i>
-            <h3 class="text-muted mt-3">Выберите группу для просмотра журнала</h3>
-            <p class="text-muted">Выберите группу из списка выше, чтобы начать работу с журналом посещаемости</p>
-        </div>
-    `;
+    fetch(`/export/attendance/${groupId}`)
+        .then(r => r.json())
+        .then(data => {
+            window.open(data.file, '_blank');
+        });
 }
-
-function showNoStudentsState() {
-    document.getElementById('journalContent').innerHTML = `
-        <div class="text-center py-5">
-            <i class="bi bi-person-x display-1 text-muted"></i>
-            <h3 class="text-muted mt-3">В группе нет студентов</h3>
-            <p class="text-muted">Добавьте студентов в группу, чтобы начать ведение журнала</p>
-        </div>
-    `;
-}
-
-function showNoLessonsState(students) {
-    let html = '<div class="attendance-table"><table class="table table-bordered">';
-    html += '<thead><tr><th class="student-name">Студент</th><th class="text-center">Нет занятий</th></tr></thead>';
-    html += '<tbody>';
-    
-    students.forEach(student => {
-        html += `<tr><td class="student-name">${student.name}</td><td class="text-muted">-</td></tr>`;
-    });
-    
-    html += '</tbody></table></div>';
-    
-    document.getElementById('journalContent').innerHTML = html;
-}
-
-// Инициализация
-document.addEventListener('DOMContentLoaded', function() {
-    showEmptyState();
-});
 </script>
 {% endblock %}

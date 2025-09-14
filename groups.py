@@ -153,6 +153,94 @@ def add_student(group_id):
     })
 
 
+@groups_bp.route('/<int:group_id>/students/batch', methods=['POST'])
+@login_required
+def add_students_batch(group_id):
+    """Массовое добавление студентов в группу"""
+    group = Group.query.filter_by(
+        id=group_id, 
+        teacher_id=current_user.id
+    ).first_or_404()
+    
+    data = request.get_json()
+    students_text = data.get('students_text', '')
+    
+    if not students_text.strip():
+        return jsonify({'error': 'Список студентов не может быть пустым'}), 400
+    
+    # Парсим список студентов
+    students_lines = [line.strip() for line in students_text.split('\n') if line.strip()]
+    
+    if not students_lines:
+        return jsonify({'error': 'Не найдено ни одного студента для добавления'}), 400
+    
+    added_students = []
+    errors = []
+    
+    for i, line in enumerate(students_lines, 1):
+        # Поддерживаем формат "Имя Фамилия" или "Имя Фамилия, email@example.com"
+        if ',' in line:
+            name, email = line.split(',', 1)
+            name = name.strip()
+            email = email.strip()
+        else:
+            name = line.strip()
+            email = ''
+        
+        if not name:
+            errors.append(f'Строка {i}: имя студента не может быть пустым')
+            continue
+        
+        # Проверяем, что студент с таким именем не существует в группе
+        existing_student = Student.query.filter_by(
+            name=name, 
+            group_id=group_id
+        ).first()
+        
+        if existing_student:
+            errors.append(f'Строка {i}: студент "{name}" уже существует в группе')
+            continue
+        
+        new_student = Student(
+            name=name,
+            email=email,
+            group_id=group_id
+        )
+        
+        db.session.add(new_student)
+        # Добавляем студента в список для отображения (без id пока)
+        added_students.append({
+            'name': new_student.name,
+            'email': new_student.email
+        })
+    
+    if added_students:
+        db.session.commit()
+        print(f"Successfully added {len(added_students)} students to group {group_id}")
+        
+        # Получаем ID добавленных студентов после коммита
+        for i, student_data in enumerate(added_students):
+            student = Student.query.filter_by(
+                name=student_data['name'],
+                group_id=group_id
+            ).first()
+            if student:
+                added_students[i]['id'] = student.id
+    else:
+        print(f"No students were added to group {group_id}")
+    
+    if errors:
+        print(f"Errors during batch add: {errors}")
+    
+    return jsonify({
+        'success': len(added_students) > 0,
+        'added_count': len(added_students),
+        'students': added_students,
+        'errors': errors,
+        'total_processed': len(students_lines)
+    })
+
+
 @groups_bp.route('/<int:group_id>/students/<int:student_id>', methods=['PUT'])
 @login_required
 def edit_student(group_id, student_id):

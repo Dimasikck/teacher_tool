@@ -139,6 +139,16 @@ def ensure_startup_state():
             except Exception:
                 pass  # Таблица может не существовать
             
+            # Миграция таблицы lesson
+            try:
+                result = db.session.execute(text("PRAGMA table_info('lesson')")).all()
+                column_names = {row[1] for row in result}
+                
+                if 'classroom' not in column_names:
+                    db.session.execute(text("ALTER TABLE 'lesson' ADD COLUMN classroom VARCHAR(50)"))
+            except Exception:
+                pass  # Таблица может не существовать
+            
             db.session.commit()
         except Exception:
             pass

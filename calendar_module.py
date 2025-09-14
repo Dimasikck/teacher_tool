@@ -52,13 +52,26 @@ def get_events():
         events = []
         for event in all_events:
             group = Group.query.get(event.group_id)
+            
+            # Получаем информацию об аудитории из соответствующего занятия
+            lesson = Lesson.query.filter_by(
+                group_id=event.group_id,
+                teacher_id=current_user.id,
+                topic=event.title
+            ).first()
+            
+            classroom_info = ""
+            if lesson and lesson.classroom:
+                classroom_info = f" (Аудитория: {lesson.classroom})"
+            
             event_data = {
                 'id': event.id,
-                'title': f"{event.title} - {group.name if group else 'Неизвестная группа'}",
+                'title': f"{event.title} - {group.name if group else 'Неизвестная группа'}{classroom_info}",
                 'start': event.start_time.isoformat(),
                 'end': event.end_time.isoformat(),
                 'color': event.color or '#3788d8',
-                'groupId': event.group_id
+                'groupId': event.group_id,
+                'classroom': lesson.classroom if lesson else ''
             }
             events.append(event_data)
             print(f"DEBUG: Event: {event_data}")
@@ -137,6 +150,7 @@ def create_event():
             group_id=event.group_id,
             topic=event.title,
             notes=f"Занятие создано из календаря. Время: {event.start_time.strftime('%H:%M')} - {event.end_time.strftime('%H:%M')}",
+            classroom=data.get('classroom', ''),
             teacher_id=current_user.id
         )
         db.session.add(lesson)
@@ -186,6 +200,8 @@ def update_event(event_id):
             lesson.date = event.start_time
             lesson.topic = event.title
             lesson.notes = f"Занятие обновлено из календаря. Время: {event.start_time.strftime('%H:%M')} - {event.end_time.strftime('%H:%M')}"
+            if 'classroom' in data:
+                lesson.classroom = data['classroom']
 
         db.session.commit()
         return jsonify({'status': 'success', 'message': 'Занятие успешно обновлено'})
