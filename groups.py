@@ -10,8 +10,56 @@ groups_bp = Blueprint('groups', __name__, url_prefix='/groups')
 @login_required
 def groups():
     """Список всех групп преподавателя"""
-    groups = Group.query.filter_by(teacher_id=current_user.id).all()
-    return render_template('groups.html', groups=groups)
+    # Параметры фильтрации и сортировки
+    selected_course = request.args.get('course', '').strip()
+    selected_education_form = request.args.get('education_form', '').strip()
+    sort_by = request.args.get('sort', 'name_asc').strip()
+
+    query = Group.query.filter_by(teacher_id=current_user.id)
+
+    if selected_course:
+        query = query.filter(Group.course == selected_course)
+
+    if selected_education_form:
+        query = query.filter(Group.education_form == selected_education_form)
+
+    # Сортировка
+    sort_map = {
+        'name_asc': Group.name.asc(),
+        'name_desc': Group.name.desc(),
+        'course_asc': Group.course.asc(),
+        'course_desc': Group.course.desc(),
+        'form_asc': Group.education_form.asc(),
+        'form_desc': Group.education_form.desc(),
+    }
+    query = query.order_by(sort_map.get(sort_by, Group.name.asc()))
+
+    groups = query.all()
+
+    # Списки для фильтров
+    courses = [c[0] for c in db.session.query(Group.course)
+               .filter_by(teacher_id=current_user.id)
+               .filter(Group.course.isnot(None))
+               .distinct()
+               .order_by(Group.course.asc())
+               .all()]
+
+    education_forms = [e[0] for e in db.session.query(Group.education_form)
+                       .filter_by(teacher_id=current_user.id)
+                       .filter(Group.education_form.isnot(None))
+                       .distinct()
+                       .order_by(Group.education_form.asc())
+                       .all()]
+
+    return render_template(
+        'groups.html',
+        groups=groups,
+        courses=courses,
+        education_forms=education_forms,
+        selected_course=selected_course,
+        selected_education_form=selected_education_form,
+        sort_by=sort_by
+    )
 
 
 @groups_bp.route('/create', methods=['GET', 'POST'])

@@ -5,10 +5,47 @@
 <h1 class="mb-4">Управление группами</h1>
 
 <div class="row mb-4">
-    <div class="col-md-12">
+    <div class="col-md-8">
+        <form class="row g-2" method="get">
+            <div class="col-sm-4">
+                <label class="form-label mb-1">Курс</label>
+                <select name="course" class="form-select" onchange="this.form.submit()">
+                    <option value="">Все</option>
+                    {% for c in courses %}
+                    <option value="{{ c }}" {% if selected_course==c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-4">
+                <label class="form-label mb-1">Форма обучения</label>
+                <select name="education_form" class="form-select" onchange="this.form.submit()">
+                    <option value="">Все</option>
+                    {% for f in education_forms %}
+                    <option value="{{ f }}" {% if selected_education_form==f %}selected{% endif %}>{{ f }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-4">
+                <label class="form-label mb-1">Сортировка</label>
+                <select name="sort" class="form-select" onchange="this.form.submit()">
+                    <option value="name_asc" {% if sort_by=='name_asc' %}selected{% endif %}>По названию (А→Я)</option>
+                    <option value="name_desc" {% if sort_by=='name_desc' %}selected{% endif %}>По названию (Я→А)</option>
+                    <option value="course_asc" {% if sort_by=='course_asc' %}selected{% endif %}>По курсу (рост)</option>
+                    <option value="course_desc" {% if sort_by=='course_desc' %}selected{% endif %}>По курсу (убыль)</option>
+                    <option value="form_asc" {% if sort_by=='form_asc' %}selected{% endif %}>По форме (А→Я)</option>
+                    <option value="form_desc" {% if sort_by=='form_desc' %}selected{% endif %}>По форме (Я→А)</option>
+                </select>
+            </div>
+            <div class="col-12 d-none">
+                <button type="submit" class="btn btn-secondary">Применить</button>
+            </div>
+        </form>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
         <a href="{{ url_for('groups.create_group') }}" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Создать группу
         </a>
+        <a href="{{ url_for('groups.groups') }}" class="btn btn-outline-secondary ms-2">Сбросить</a>
     </div>
 </div>
 

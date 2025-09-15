@@ -171,7 +171,28 @@ def github_webhook():
 
     repo_path = app.config.get('REPO_PATH')
     try:
-        subprocess.check_call(['git', '-C', repo_path, 'pull', '--ff-only'])
+        # Проверяем, что путь существует и это git репозиторий
+        import os
+        if not os.path.exists(repo_path):
+            return jsonify({'status': 'repo path does not exist', 'path': repo_path}), 500
+        
+        if not os.path.exists(os.path.join(repo_path, '.git')):
+            return jsonify({'status': 'not a git repository', 'path': repo_path}), 500
+        
+        # Выполняем git pull с подробным выводом
+        result = subprocess.run(['git', '-C', repo_path, 'pull', '--ff-only'], 
+                              capture_output=True, text=True, timeout=30)
+        
+        if result.returncode != 0:
+            return jsonify({
+                'status': 'git pull failed', 
+                'error': result.stderr,
+                'stdout': result.stdout,
+                'returncode': result.returncode
+            }), 500
+            
+    except subprocess.TimeoutExpired:
+        return jsonify({'status': 'git pull timeout'}), 500
     except Exception as e:
         return jsonify({'status': 'git pull failed', 'error': str(e)}), 500
 
