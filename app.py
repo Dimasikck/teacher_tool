@@ -154,6 +154,21 @@ def ensure_startup_state():
             pass
 
 
+@app.route('/manifest.json')
+def manifest():
+    """Возвращает манифест PWA"""
+    return app.send_static_file('manifest.json')
+
+@app.route('/sw.js')
+def service_worker():
+    """Возвращает Service Worker"""
+    return app.send_static_file('sw.js')
+
+@app.route('/browserconfig.xml')
+def browserconfig():
+    """Возвращает browserconfig.xml для Windows"""
+    return app.send_static_file('browserconfig.xml')
+
 @app.route('/github/webhook', methods=['POST'])
 def github_webhook():
     secret = app.config.get('GITHUB_WEBHOOK_SECRET')

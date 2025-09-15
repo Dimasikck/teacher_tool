@@ -4,6 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Система управления обучением{% endblock %}</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Система для управления группами, студентами, заданиями и расписанием занятий">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Teacher Tools">
+    <meta name="msapplication-TileColor" content="#667eea">
+    <meta name="msapplication-config" content="/static/browserconfig.xml">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+    
+    <!-- PWA Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-180x180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/static/icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/static/icons/icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/static/icons/icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/static/icons/icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/static/icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/static/icons/icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="/static/icons/icon-57x57.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
@@ -705,6 +730,188 @@
 
         // Загружаем тему при загрузке страницы
         document.addEventListener('DOMContentLoaded', loadTheme);
+        
+        // PWA функциональность
+        let deferredPrompt;
+        let isInstalled = false;
+        
+        // Проверяем, установлено ли приложение
+        if (window.matchMedia('(display-mode: standalone)').matches || 
+            window.navigator.standalone === true) {
+            isInstalled = true;
+        }
+        
+        // Регистрируем Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                        
+                        // Проверяем обновления
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Новое обновление доступно
+                                    showUpdateNotification();
+                                }
+                            });
+                        });
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+        
+        // Перехватываем событие beforeinstallprompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Предотвращаем автоматическое отображение промпта
+            e.preventDefault();
+            // Сохраняем событие для последующего использования
+            deferredPrompt = e;
+            // Показываем кнопку установки
+            showInstallButton();
+        });
+        
+        // Обработка установки приложения
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            isInstalled = true;
+            hideInstallButton();
+            showNotification('Приложение успешно установлено!', 'success');
+        });
+        
+        // Функция показа кнопки установки
+        function showInstallButton() {
+            if (isInstalled || !deferredPrompt) return;
+            
+            // Создаем кнопку установки
+            const installButton = document.createElement('button');
+            installButton.id = 'installButton';
+            installButton.className = 'btn btn-primary position-fixed';
+            installButton.style.cssText = `
+                bottom: 80px;
+                right: 20px;
+                z-index: 1000;
+                border-radius: 25px;
+                padding: 10px 20px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                animation: pulse 2s infinite;
+            `;
+            installButton.innerHTML = '<i class="bi bi-download"></i> Установить приложение';
+            
+            // Добавляем стили для анимации
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes pulse {
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                    100% { transform: scale(1); }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            installButton.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    // Показываем промпт установки
+                    deferredPrompt.prompt();
+                    
+                    // Ждем ответа пользователя
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to the install prompt: ${outcome}`);
+                    
+                    // Очищаем сохраненный промпт
+                    deferredPrompt = null;
+                    
+                    // Скрываем кнопку
+                    hideInstallButton();
+                }
+            });
+            
+            document.body.appendChild(installButton);
+        }
+        
+        // Функция скрытия кнопки установки
+        function hideInstallButton() {
+            const installButton = document.getElementById('installButton');
+            if (installButton) {
+                installButton.remove();
+            }
+        }
+        
+        // Функция показа уведомления об обновлении
+        function showUpdateNotification() {
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
+            notification.style.cssText = `
+                top: 20px;
+                right: 20px;
+                z-index: 1050;
+                max-width: 300px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            `;
+            notification.innerHTML = `
+                <strong>Доступно обновление!</strong><br>
+                <small>Перезагрузите страницу для получения новой версии.</small>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-primary" onclick="window.location.reload()">
+                        Обновить
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Автоматически скрываем через 10 секунд
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 10000);
+        }
+        
+        // Функция показа уведомлений
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            notification.style.cssText = `
+                top: 20px;
+                right: 20px;
+                z-index: 1050;
+                max-width: 300px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            `;
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Автоматически скрываем через 5 секунд
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+        
+        // Обработка офлайн/онлайн событий
+        window.addEventListener('online', () => {
+            showNotification('Соединение восстановлено', 'success');
+        });
+        
+        window.addEventListener('offline', () => {
+            showNotification('Нет подключения к интернету. Приложение работает в офлайн режиме.', 'warning');
+        });
+        
+        // Проверяем статус подключения при загрузке
+        if (!navigator.onLine) {
+            showNotification('Нет подключения к интернету. Приложение работает в офлайн режиме.', 'warning');
+        }
     </script>
     
     {% block extra_js %}{% endblock %}

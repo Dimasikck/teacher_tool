@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор иконок PWA</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .icon-preview { margin: 10px; display: inline-block; }
+        canvas { border: 1px solid #ccc; margin: 5px; }
+        .download-btn { margin: 5px; padding: 5px 10px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Генератор иконок PWA для Teacher Tools</h1>
+    <p>Нажмите на кнопки для скачивания иконок нужного размера:</p>
+    
+    <div id="icons-container"></div>
+
+    <script>
+        const sizes = [16, 32, 57, 60, 72, 76, 96, 114, 120, 128, 144, 152, 180, 192, 384, 512];
+        
+        function createIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Создаем градиент
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            
+            // Фон
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Белый круг
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size * 0.4, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Книга
+            const bookWidth = size * 0.4;
+            const bookHeight = size * 0.3;
+            const bookX = size/2 - bookWidth/2;
+            const bookY = size/2 - bookHeight/2;
+            
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(bookX, bookY, bookWidth, bookHeight);
+            
+            // Линии в книге
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = size * 0.02;
+            ctx.lineCap = 'round';
+            
+            for (let i = 0; i < 4; i++) {
+                const y = bookY + bookHeight * 0.2 + i * bookHeight * 0.15;
+                ctx.beginPath();
+                ctx.moveTo(bookX + bookWidth * 0.1, y);
+                ctx.lineTo(bookX + bookWidth * 0.9, y);
+                ctx.stroke();
+            }
+            
+            return canvas;
+        }
+        
+        function downloadCanvas(canvas, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        sizes.forEach(size => {
+            const container = document.createElement('div');
+            container.className = 'icon-preview';
+            
+            const canvas = createIcon(size);
+            container.appendChild(canvas);
+            
+            const btn = document.createElement('button');
+            btn.className = 'download-btn';
+            btn.textContent = `Скачать ${size}x${size}`;
+            btn.onclick = () => downloadCanvas(canvas, `icon-${size}x${size}.png`);
+            container.appendChild(btn);
+            
+            document.getElementById('icons-container').appendChild(container);
+        });
+    </script>
+</body>
+</html>

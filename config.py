@@ -26,7 +26,7 @@ class Config:
  
     # GitHub webhook / deployment settings (for PythonAnywhere)
     GITHUB_WEBHOOK_SECRET = os.environ.get('GITHUB_WEBHOOK_SECRET') or 'UDfLpjHfnl9kkcfx3jdh'
-    REPO_PATH = os.environ.get('REPO_PATH') or '/home/TeacherTool/teacher_tool'
+    REPO_PATH = os.environ.get('REPO_PATH') or '/home/teachertool/teacher_tool'
     # Option 1: path to WSGI file to touch for reload
     WSGI_FILE_PATH = os.environ.get('WSGI_FILE_PATH') or '/var/www/teachertool_pythonanywhere_com_wsgi.py'
     # Option 2: explicit reload command (e.g., 'pa_reload_webapp.py <username>.pythonanywhere.com')
