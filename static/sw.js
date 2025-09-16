@@ -227,3 +227,7 @@ async function doBackgroundSync() {
   // Здесь можно добавить логику синхронизации данных
   console.log('Background sync triggered');
 }
+
+
+
+

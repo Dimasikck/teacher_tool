@@ -70,6 +70,137 @@ def lessons():
     } for l in lessons.all()])
 
 
+@journal_bp.route('/api/journal/group')
+@login_required
+def group_journal():
+    """Возвращает структуру журнала для группы: список студентов, список занятий и отметки."""
+    group_id = request.args.get('group_id', type=int)
+    month_str = request.args.get('month')  # Ожидаем формат YYYY-MM
+    if not group_id:
+        return jsonify({'error': 'group_id is required'}), 400
+
+    # Проверяем, что группа принадлежит преподавателю
+    group = Group.query.filter_by(id=group_id, teacher_id=current_user.id).first_or_404()
+
+    students = Student.query.filter_by(group_id=group_id).order_by(Student.name.asc()).all()
+
+    lessons_query = Lesson.query.filter_by(group_id=group_id, teacher_id=current_user.id)
+
+    # Фильтрация по месяцу, если указано
+    if month_str:
+        try:
+            from datetime import datetime, timedelta
+            start = datetime.strptime(month_str + '-01', '%Y-%m-%d')
+            # вычисляем следующий месяц
+            if start.month == 12:
+                end = start.replace(year=start.year + 1, month=1, day=1)
+            else:
+                end = start.replace(month=start.month + 1, day=1)
+            lessons_query = lessons_query.filter(Lesson.date >= start, Lesson.date < end)
+        except Exception:
+            pass
+
+    lessons = lessons_query.order_by(Lesson.date.asc()).all()
+
+    # Подсчеты занятий
+    month_count = len(lessons)
+    total_count = Lesson.query.filter_by(group_id=group_id, teacher_id=current_user.id).count()
+
+    # Загружаем все Attendance для данной группы разом
+    attendance_rows = db.session.query(Attendance).join(Student, Attendance.student_id == Student.id).join(Lesson, Attendance.lesson_id == Lesson.id).filter(
+        Student.group_id == group_id,
+        Lesson.group_id == group_id
+    ).all()
+
+    marks = {}
+    for a in attendance_rows:
+        key = f"{a.student_id}:{a.lesson_id}"
+        marks[key] = {
+            'present': bool(a.present),
+            'mark': a.attendance_mark or ''
+        }
+
+    # Определяем читаемое название дисциплины: если course пустой/числовой, берём самое частое Lesson.topic
+    subject = (group.course or '').strip()
+    def _is_numeric(value: str) -> bool:
+        try:
+            float(value)
+            return True
+        except Exception:
+            return False
+
+    if not subject or _is_numeric(subject):
+        topics = [l.topic.strip() for l in lessons if (l.topic or '').strip()]
+        if topics:
+            from collections import Counter
+            subject = Counter(topics).most_common(1)[0][0]
+
+    return jsonify({
+        'group': {
+            'id': group.id,
+            'name': group.name,
+            'course': group.course,
+            'subject': subject or group.course,
+            'education_form': group.education_form
+        },
+        'students': [{'id': s.id, 'name': s.name} for s in students],
+        'lessons': [{'id': l.id, 'date': l.date.isoformat(), 'topic': l.topic, 'notes': l.notes} for l in lessons],
+        'marks': marks,
+        'stats': {
+            'month_lessons': month_count,
+            'total_lessons': total_count
+        }
+    })
+
+
+@journal_bp.route('/api/journal/mark', methods=['POST'])
+@login_required
+def save_mark():
+    """Сохраняет отметку/оценку для студента на занятии. Значения: 'н' (отсутствовал) или оценка."""
+    data = request.get_json(force=True)
+    student_id = data.get('student_id')
+    lesson_id = data.get('lesson_id')
+    value = (data.get('value') or '').strip()
+
+    if not student_id or not lesson_id:
+        return jsonify({'error': 'student_id and lesson_id are required'}), 400
+
+    # Проверяем принадлежность к преподавателю
+    lesson = Lesson.query.filter_by(id=lesson_id, teacher_id=current_user.id).first_or_404()
+    student = Student.query.filter_by(id=student_id, group_id=lesson.group_id).first_or_404()
+
+    is_absent = value.lower() in ('н', 'n', 'неявка', 'отс', 'н.')
+
+    attendance = Attendance.query.filter_by(student_id=student.id, lesson_id=lesson.id).first()
+    if not attendance:
+        attendance = Attendance(student_id=student.id, lesson_id=lesson.id)
+        db.session.add(attendance)
+
+    if is_absent:
+        attendance.present = False
+        attendance.attendance_mark = 'Н'
+    else:
+        attendance.present = True
+        attendance.attendance_mark = value if value != '' else None
+
+    db.session.commit()
+
+    return jsonify({'status': 'success', 'present': attendance.present, 'mark': attendance.attendance_mark or ''})
+
+
+@journal_bp.route('/api/lesson/<int:lesson_id>')
+@login_required
+def lesson_detail(lesson_id):
+    """Детали занятия по id"""
+    lesson = Lesson.query.filter_by(id=lesson_id, teacher_id=current_user.id).first_or_404()
+    return jsonify({
+        'id': lesson.id,
+        'date': lesson.date.isoformat(),
+        'topic': lesson.topic,
+        'notes': lesson.notes or ''
+    })
+
+
 @journal_bp.route('/api/students')
 @login_required
 def api_students():

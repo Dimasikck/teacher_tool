@@ -20,11 +20,14 @@
         border: none;
         font-size: 0.85rem;
         padding: 2px 4px;
+        overflow: hidden; /* по умолчанию контент не выходит за блок */
     }
     
     .fc-event:hover {
-        transform: scale(1.02);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        transform: scale(1.06); /* сильнее увеличиваем на ховере */
+        box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+        z-index: 1000; /* поверх соседних событий */
+        overflow: visible; /* разрешаем показать полный контент при ховере */
     }
     
     .group-color-picker {
@@ -65,6 +68,144 @@
         margin-right: 8px;
         vertical-align: middle;
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    
+    /* Значок группы внутри события */
+    .fc-event .group-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 2px;
+        white-space: nowrap;
+    }
+    .fc-event .group-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+    }
+    .fc-event .group-name {
+        font-weight: 600;
+        font-size: 0.8rem;
+        opacity: 0.95;
+    }
+
+    /* Шапка события: время слева, аудитория справа */
+    .fc-event .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        line-height: 1.1;
+    }
+    .fc-event .event-time {
+        font-weight: 600;
+    }
+    .fc-event .event-classroom {
+        font-size: 0.75rem;
+        opacity: 0.85;
+        white-space: nowrap;
+        margin-left: 6px;
+    }
+
+    /* Обрезка текста внутри событий и аккуратный перенос */
+    .fc-event .fc-event-time,
+    .fc-event .fc-event-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Разрешаем выход увеличенного события за контейнеры */
+    .fc .fc-timegrid-col-frame,
+    .fc .fc-timegrid-events,
+    .fc .fc-daygrid-event-harness,
+    .fc .fc-daygrid-day-frame {
+        overflow: visible !important;
+    }
+
+    /* Для представления Неделя/День: на ховере событие расширяется по высоте */
+    .fc-timegrid-event {
+        overflow: hidden !important;       /* по умолчанию обрезаем текст */
+        transition: all 0.3s ease;        /* плавная анимация */
+        position: relative;               /* для z-index */
+    }
+    .fc-timegrid-event:hover {
+        height: auto !important;          /* высота по содержимому */
+        max-height: none !important;      /* убираем ограничение */
+        min-height: auto !important;      /* убираем ограничение минимальной высоты */
+        overflow: visible !important;     /* показываем весь контент */
+        z-index: 1000 !important;         /* поверх соседних событий */
+        transform: scale(1.02);           /* легкое увеличение */
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3); /* тень */
+    }
+    .fc-timegrid-event .fc-event-main {
+        overflow: hidden;                 /* по умолчанию обрезаем */
+        height: 100%;                     /* занимаем всю высоту */
+    }
+    .fc-timegrid-event:hover .fc-event-main {
+        overflow: visible !important;     /* на ховере показываем всё */
+        height: auto !important;          /* высота по содержимому */
+    }
+    .fc-timegrid-event .fc-event-title,
+    .fc-timegrid-event .event-header {
+        white-space: nowrap;              /* по умолчанию в одну строку */
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .fc-timegrid-event:hover .fc-event-title,
+    .fc-timegrid-event:hover .event-header {
+        white-space: normal !important;    /* на ховере разрешаем перенос */
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    /* Для представления Месяц: также расширяем событие по высоте на ховере */
+    .fc-daygrid-day-events {
+        overflow: visible !important;      /* разрешаем расширение */
+    }
+    .fc-daygrid-event {
+        overflow: hidden !important;       /* по умолчанию обрезаем */
+        transition: all 0.3s ease;         /* плавная анимация */
+        position: relative;               /* для z-index */
+    }
+    .fc-daygrid-event-harness:hover {
+        z-index: 1000 !important;          /* поверх соседей */
+    }
+    .fc-daygrid-event:hover {
+        overflow: visible !important;     /* показываем контент */
+        height: auto !important;          /* высота по содержимому */
+        max-height: none !important;      /* убираем ограничение */
+        min-height: auto !important;      /* убираем ограничение минимальной высоты */
+        transform: scale(1.05);           /* легкое увеличение */
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3); /* тень */
+    }
+    .fc-daygrid-event .fc-event-main {
+        overflow: hidden;                 /* по умолчанию обрезаем */
+        height: 100%;                     /* занимаем всю высоту */
+    }
+    .fc-daygrid-event:hover .fc-event-main {
+        overflow: visible !important;     /* на ховере показываем всё */
+        height: auto !important;          /* высота по содержимому */
+    }
+    .fc-daygrid-event .fc-event-title,
+    .fc-daygrid-event .event-header {
+        white-space: nowrap;              /* по умолчанию в одну строку */
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .fc-daygrid-event:hover .fc-event-title,
+    .fc-daygrid-event:hover .event-header {
+        white-space: normal !important;    /* на ховере разрешаем перенос */
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    /* Ховер-состояние: позволяем тексту переноситься, чтобы был виден полностью */
+    .fc-event:hover .fc-event-time,
+    .fc-event:hover .fc-event-title {
+        white-space: normal;
     }
     
     /* Мобильная адаптация календаря */
@@ -498,6 +639,72 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 'auto',
         weekends: true,
         events: loadEvents,
+        eventContent: function(arg) {
+            const groupName = arg.event.extendedProps.groupName || '';
+            const color = arg.event.extendedProps.groupColor || arg.event.backgroundColor || arg.event.borderColor || '#3788d8';
+            const classroom = (arg.event.extendedProps.classroom || '').trim();
+
+            const container = document.createElement('div');
+
+            if (groupName) {
+                const badge = document.createElement('div');
+                badge.className = 'group-badge';
+
+                const dot = document.createElement('span');
+                dot.className = 'group-dot';
+                dot.style.background = color;
+
+                const name = document.createElement('span');
+                name.className = 'group-name';
+                name.textContent = groupName;
+
+                badge.appendChild(dot);
+                badge.appendChild(name);
+                container.appendChild(badge);
+            }
+
+            // Шапка: время + аудитория справа (сокращение до "ауд.")
+            if (arg.timeText || classroom) {
+                const header = document.createElement('div');
+                header.className = 'event-header';
+                header.style.display = 'flex';
+                header.style.justifyContent = 'space-between';
+                header.style.alignItems = 'center';
+                header.style.width = '100%';
+
+                if (arg.timeText) {
+                    const time = document.createElement('div');
+                    time.className = 'event-time';
+                    time.textContent = arg.timeText;
+                    time.style.fontSize = '0.8rem';
+                    time.style.fontWeight = 'bold';
+                    time.style.flexShrink = '0';
+                    header.appendChild(time);
+                }
+
+                if (classroom) {
+                    const room = document.createElement('div');
+                    room.className = 'event-classroom';
+                    room.textContent = `ауд. ${classroom}`;
+                    room.style.fontSize = '0.75rem';
+                    room.style.color = 'rgba(255,255,255,0.8)';
+                    room.style.marginLeft = 'auto';
+                    room.style.flexShrink = '0';
+                    header.appendChild(room);
+                }
+
+                container.appendChild(header);
+            }
+
+            if (arg.event.title) {
+                const title = document.createElement('div');
+                title.className = 'fc-event-title';
+                title.textContent = arg.event.title;
+                container.appendChild(title);
+            }
+
+            return { domNodes: [container] };
+        },
         eventClick: function(info) {
             editEvent(info.event);
         },

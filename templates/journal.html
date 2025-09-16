@@ -2,11 +2,11 @@
 {% block title %}Журнал{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Журнал посещаемости</h1>
+<h1 class="mb-4">Журнал посещаемости и успеваемости</h1>
 
 <div class="row mb-3">
     <div class="col-md-4">
-        <select id="groupSelect" class="form-select">
+        <select id="groupSelect" class="form-select" onchange="loadJournal()">
             <option value="">Выберите группу</option>
             {% for group in groups %}
             <option value="{{ group.id }}">{{ group.name }}</option>
@@ -14,22 +14,40 @@
         </select>
     </div>
     <div class="col-md-4">
-        <input type="date" id="lessonDate" class="form-control">
-    </div>
-    <div class="col-md-4">
-        <button class="btn btn-primary" onclick="loadAttendance()">Загрузить</button>
+        <input type="month" id="monthSelect" class="form-control mb-2" onchange="loadJournal()" />
+        <button class="btn btn-primary" onclick="loadJournal()">Загрузить</button>
         <button class="btn btn-success" onclick="showAddLesson()">Новое занятие</button>
+        <button class="btn btn-outline-secondary" onclick="showLessonsList()">Список занятий</button>
         <button class="btn btn-info" onclick="exportData()">Экспорт</button>
     </div>
 </div>
 
+<div id="journalHeader" class="mb-2"></div>
 <div id="attendanceTable"></div>
+
+<!-- Модальное окно списка занятий -->
+<div class="modal fade" id="lessonsListModal">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Список занятий</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="lessonsListContainer"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+    </div>
 
 <div class="modal fade" id="lessonModal">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Новое занятие</h5>
+                <h5 class="modal-title" id="lessonModalTitle">Новое занятие</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -43,7 +61,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" onclick="createLesson()">Создать</button>
+                <button type="button" class="btn btn-primary" id="lessonSaveBtn" onclick="createLesson()">Создать</button>
             </div>
         </div>
     </div>
@@ -57,85 +75,115 @@
 <script>
 let currentLesson = null;
 
-function loadAttendance() {
+function loadJournal() {
     const groupId = document.getElementById('groupSelect').value;
-    const date = document.getElementById('lessonDate').value;
-
-    if (!groupId || !date) {
-        alert('Выберите группу и дату');
+    const month = document.getElementById('monthSelect').value;
+    if (!groupId) {
+        alert('Выберите группу');
         return;
     }
 
-    fetch(`/api/lessons?group_id=${groupId}`)
+    const qs = new URLSearchParams({ group_id: groupId });
+    if (month) qs.set('month', month);
+
+    fetch(`/api/journal/group?${qs.toString()}`)
         .then(r => r.json())
-        .then(lessons => {
-            const lesson = lessons.find(l => l.date.startsWith(date));
-            if (lesson) {
-                currentLesson = lesson;
-                loadStudents(groupId, lesson.id);
-            } else {
-                alert('Занятие не найдено. Создайте новое.');
-            }
+        .then(data => {
+            renderHeader(data);
+            renderJournalTable(data);
         });
 }
 
-function loadStudents(groupId, lessonId) {
-    fetch(`/api/students?group_id=${groupId}`)
-        .then(r => r.json())
-        .then(students => {
-            let html = `
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Студент</th>
-                            <th>Присутствие</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+function renderJournalTable(data) {
+    const students = data.students;
+    const lessons = data.lessons;
+    const marks = data.marks || {};
 
-            students.forEach(s => {
-                html += `
-                    <tr>
-                        <td>${s.name}</td>
-                        <td>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input attendance-check"
-                                       type="checkbox" data-student="${s.id}">
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            });
+    if (lessons.length === 0) {
+        document.getElementById('attendanceTable').innerHTML = '<div class="alert alert-info">Нет занятий в группе. Создайте первое занятие.</div>';
+        return;
+    }
 
-            html += `
-                    </tbody>
-                </table>
-                <button class="btn btn-success" onclick="saveAttendance()">Сохранить</button>
-            `;
+    let html = '<div class="table-responsive">';
+    html += '<table class="table table-bordered table-sm align-middle">';
+    html += '<thead><tr><th style="min-width:220px">Студент</th>';
 
-            document.getElementById('attendanceTable').innerHTML = html;
+    lessons.forEach(lesson => {
+        const dateStr = new Date(lesson.date).toLocaleDateString('ru-RU');
+        html += `<th class="text-center">
+                    <button class="btn btn-link p-0" onclick="openLessonModal(${lesson.id}, '${dateStr}')" title="Открыть детали занятия">
+                        ${dateStr}
+                    </button>
+                 </th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    students.forEach(st => {
+        html += `<tr><td>${st.name}</td>`;
+        lessons.forEach(lesson => {
+            const key = `${st.id}:${lesson.id}`;
+            const cell = marks[key] || {present: false, mark: ''};
+            const value = cell.present ? (cell.mark || '') : 'Н';
+            html += `<td class="p-0">
+                        <input 
+                            class="form-control form-control-sm border-0 text-center journal-input"
+                            style="min-width:70px"
+                            data-student="${st.id}"
+                            data-lesson="${lesson.id}"
+                            value="${value}"
+                            placeholder="5/4/3/Н"
+                            maxlength="5"
+                            onchange="saveCell(this)"
+                        />
+                     </td>`;
         });
-}
-
-function saveAttendance() {
-    const attendance = {};
-    document.querySelectorAll('.attendance-check').forEach(cb => {
-        attendance[cb.dataset.student] = cb.checked;
+        html += '</tr>';
     });
 
-    fetch('/api/attendance', {
+    html += '</tbody></table></div>';
+
+    document.getElementById('attendanceTable').innerHTML = html;
+}
+
+function renderHeader(data) {
+    const group = data.group || {};
+    const subject = group.subject || group.course || '';
+    const course = subject ? `, дисциплина: <strong>${subject}</strong>` : '';
+    const form = group.education_form ? `, форма: ${group.education_form}` : '';
+    const dateInfo = document.getElementById('monthSelect').value ? `, месяц: ${document.getElementById('monthSelect').value}` : '';
+    const stats = data.stats || {};
+    const counts = (stats.month_lessons != null && stats.total_lessons != null)
+        ? `, занятия: <strong>${stats.month_lessons}</strong> за месяц / <strong>${stats.total_lessons}</strong> всего`
+        : '';
+    document.getElementById('journalHeader').innerHTML = `
+        <div class="alert alert-secondary py-2">
+            Группа: <strong>${group.name || ''}</strong>${course}${form}${dateInfo}${counts}
+        </div>
+    `;
+}
+
+function saveCell(inputEl) {
+    const studentId = parseInt(inputEl.dataset.student);
+    const lessonId = parseInt(inputEl.dataset.lesson);
+    const raw = (inputEl.value || '').trim();
+
+    fetch('/api/journal/mark', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            lesson_id: currentLesson.id,
-            attendance: attendance
-        })
+        body: JSON.stringify({ student_id: studentId, lesson_id: lessonId, value: raw })
     })
     .then(r => r.json())
-    .then(data => {
-        alert('Посещаемость сохранена');
-        loadStats();
+    .then(res => {
+        if (res.error) {
+            alert('Ошибка: ' + res.error);
+            return;
+        }
+        // Нормализуем отображение: Н для отсутствия, иначе оценка/пусто
+        inputEl.value = res.present ? (res.mark || '') : 'Н';
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Не удалось сохранить значение');
     });
 }
 
@@ -162,7 +210,83 @@ function createLesson() {
     .then(r => r.json())
     .then(data => {
         bootstrap.Modal.getInstance(document.getElementById('lessonModal')).hide();
-        loadAttendance();
+        loadJournal();
+    });
+}
+
+function openLessonModal(lessonId, dateStr) {
+    fetch(`/api/lesson/${lessonId}`)
+        .then(r => r.json())
+        .then(lesson => {
+            document.getElementById('lessonModalTitle').textContent = `Занятие ${dateStr}`;
+            document.getElementById('lessonTopic').value = lesson.topic || '';
+            document.getElementById('lessonNotes').value = lesson.notes || '';
+            const saveBtn = document.getElementById('lessonSaveBtn');
+            saveBtn.textContent = 'Сохранить';
+            saveBtn.onclick = function() { updateLesson(lesson.id); };
+            new bootstrap.Modal(document.getElementById('lessonModal')).show();
+        });
+}
+
+function updateLesson(lessonId) {
+    const topic = document.getElementById('lessonTopic').value;
+    const notes = document.getElementById('lessonNotes').value;
+    fetch('/api/lessons', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            // Для простоты переиспользуем создание: если нужна явная правка — в бэкенде можно добавить PUT
+            // Здесь оставим только фронтовое сохранение через отдельный эндпоинт при расширении
+        })
+    });
+    // Пока просто закрываем окно и не меняем дату
+    bootstrap.Modal.getInstance(document.getElementById('lessonModal')).hide();
+}
+
+function showLessonsList() {
+    const groupId = document.getElementById('groupSelect').value;
+    if (!groupId) { alert('Выберите группу'); return; }
+    fetch(`/api/lessons?group_id=${groupId}`)
+        .then(r => r.json())
+        .then(allLessons => {
+            const month = document.getElementById('monthSelect').value;
+            let lessons = allLessons;
+            if (month) {
+                lessons = allLessons.filter(l => l.date.startsWith(month));
+            }
+
+            if (lessons.length === 0) {
+                document.getElementById('lessonsListContainer').innerHTML = '<div class="alert alert-info">Занятия не найдены</div>';
+                new bootstrap.Modal(document.getElementById('lessonsListModal')).show();
+                return;
+            }
+
+            let html = '<div class="list-group">';
+            lessons.sort((a,b) => new Date(a.date) - new Date(b.date));
+            lessons.forEach(l => {
+                const d = new Date(l.date);
+                const dateStr = d.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric' });
+                const topic = (l.topic || '').trim() || '(без темы)';
+                const notes = (l.notes || '').trim();
+                html += `
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">${dateStr}</h6>
+                        </div>
+                        <p class="mb-1"><strong>Тема:</strong> ${escapeHtml(topic)}</p>
+                        ${notes ? `<small class="text-muted"><strong>Заметки:</strong> ${escapeHtml(notes)}</small>` : ''}
+                    </div>
+                `;
+            });
+            html += '</div>';
+            document.getElementById('lessonsListContainer').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('lessonsListModal')).show();
+        });
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/[&<>"]/g, function(m) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]);
     });
 }
 

@@ -60,18 +60,16 @@ def get_events():
                 topic=event.title
             ).first()
             
-            classroom_info = ""
-            if lesson and lesson.classroom:
-                classroom_info = f" (Аудитория: {lesson.classroom})"
-            
             event_data = {
                 'id': event.id,
-                'title': f"{event.title} - {group.name if group else 'Неизвестная группа'}{classroom_info}",
+                'title': event.title,  # Убираем группу и аудиторию из заголовка
                 'start': event.start_time.isoformat(),
                 'end': event.end_time.isoformat(),
                 'color': event.color or '#3788d8',
                 'groupId': event.group_id,
-                'classroom': lesson.classroom if lesson else ''
+                'classroom': lesson.classroom if lesson else '',
+                'groupName': group.name if group else '',
+                'groupColor': (group.color if (group and group.color) else (event.color or '#3788d8'))
             }
             events.append(event_data)
             print(f"DEBUG: Event: {event_data}")
