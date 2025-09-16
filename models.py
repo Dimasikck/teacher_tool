@@ -79,3 +79,26 @@ class Schedule(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'))
     color = db.Column(db.String(7))
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
+
+
+class TaskList(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    position = db.Column(db.Integer, default=0)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    tasks = db.relationship('Task', backref='list', lazy=True, cascade='all, delete-orphan')
+
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    status = db.Column(db.String(50), default='new')
+    due_date = db.Column(db.DateTime)
+    position = db.Column(db.Integer, default=0, index=True)
+    list_id = db.Column(db.Integer, db.ForeignKey('task_list.id'), index=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

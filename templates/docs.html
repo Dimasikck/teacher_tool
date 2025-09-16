@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+{% block title %}Документация{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-file-earmark-text"></i> Документация</h2>
+        <div>
+            <button class="btn btn-primary" onclick="showUploadModal()">
+                <i class="bi bi-cloud-upload"></i> Загрузить файл
+            </button>
+            <button class="btn btn-outline-secondary" onclick="refreshFiles()">
+                <i class="bi bi-arrow-clockwise"></i> Обновить
+            </button>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-files text-primary" style="font-size: 2rem;"></i>
+                    <h5 class="mt-2">{{ files|length }}</h5>
+                    <p class="text-muted mb-0">Всего файлов</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 2rem;"></i>
+                    <h5 class="mt-2">{{ files|selectattr('name', 'match', '.*\\.pdf$')|list|length }}</h5>
+                    <p class="text-muted mb-0">PDF документы</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-image text-success" style="font-size: 2rem;"></i>
+                    <h5 class="mt-2">{{ files|selectattr('name', 'match', '.*\\.(jpg|jpeg|png|gif)$')|list|length }}</h5>
+                    <p class="text-muted mb-0">Изображения</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-code text-warning" style="font-size: 2rem;"></i>
+                    <h5 class="mt-2">{{ files|selectattr('name', 'match', '.*\\.(py|js|html|css|java|cpp|c)$')|list|length }}</h5>
+                    <p class="text-muted mb-0">Код</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры и поиск -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" id="searchInput" class="form-control" placeholder="Поиск файлов..." onkeyup="filterFiles()">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select id="typeFilter" class="form-select" onchange="filterFiles()">
+                <option value="">Все типы</option>
+                <option value="pdf">PDF</option>
+                <option value="image">Изображения</option>
+                <option value="document">Документы</option>
+                <option value="code">Код</option>
+                <option value="archive">Архивы</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select id="sortBy" class="form-select" onchange="sortFiles()">
+                <option value="date">По дате</option>
+                <option value="name">По имени</option>
+                <option value="size">По размеру</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Список файлов -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-cloud"></i> Облачное хранилище</h5>
+        </div>
+        <div class="card-body">
+            <div id="filesList" class="row">
+                {% if files %}
+                    {% for file in files %}
+                    <div class="col-md-6 col-lg-4 mb-3 file-item" data-name="{{ file.name }}" data-type="{{ file.type }}" data-size="{{ file.size }}">
+                        <div class="card h-100 file-card">
+                            <div class="card-body">
+                                <div class="d-flex align-items-start">
+                                    <div class="me-3">
+                                        <i class="bi {{ file.icon }}" style="font-size: 2rem; color: #667eea;"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="card-title mb-1" title="{{ file.name }}">{{ file.name[:30] }}{% if file.name|length > 30 %}...{% endif %}</h6>
+                                        <p class="card-text text-muted small mb-2">
+                                            <i class="bi bi-hdd"></i> {{ file.size_formatted }}<br>
+                                            <i class="bi bi-clock"></i> {{ file.modified.strftime('%d.%m.%Y %H:%M') }}
+                                        </p>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button class="btn btn-outline-primary" onclick="viewFile('{{ file.name }}')" title="Просмотр">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-success" onclick="downloadFile('{{ file.name }}')" title="Скачать">
+                                                <i class="bi bi-download"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" onclick="deleteFile('{{ file.name }}')" title="Удалить">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-cloud-slash" style="font-size: 4rem; color: #ccc;"></i>
+                        <h4 class="mt-3 text-muted">Нет файлов</h4>
+                        <p class="text-muted">Загрузите первый файл, чтобы начать работу с документацией</p>
+                        <button class="btn btn-primary" onclick="showUploadModal()">
+                            <i class="bi bi-cloud-upload"></i> Загрузить файл
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно загрузки -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> Загрузка файла</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="fileInput" class="form-label">Выберите файл</label>
+                        <input type="file" class="form-control" id="fileInput" name="file" required>
+                        <div class="form-text">Поддерживаемые форматы: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, изображения, архивы, код</div>
+                    </div>
+                    <div class="progress mb-3" style="display: none;" id="uploadProgress">
+                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="uploadFile()">Загрузить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.file-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid #e9ecef;
+}
+
+.file-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.file-item {
+    transition: opacity 0.3s ease;
+}
+
+.file-item.hidden {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: none;
+}
+
+.stat-card:hover {
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .file-item {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+</style>
+
+<script>
+let allFiles = [];
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    // Сохраняем все файлы для фильтрации
+    allFiles = Array.from(document.querySelectorAll('.file-item'));
+});
+
+function showUploadModal() {
+    const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
+    modal.show();
+}
+
+function uploadFile() {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Выберите файл для загрузки');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const progressBar = document.getElementById('uploadProgress');
+    const progressBarFill = progressBar.querySelector('.progress-bar');
+    
+    // Показываем прогресс
+    progressBar.style.display = 'block';
+    
+    fetch('/docs/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        progressBar.style.display = 'none';
+        
+        if (data.success) {
+            // Закрываем модальное окно
+            const modal = bootstrap.Modal.getInstance(document.getElementById('uploadModal'));
+            modal.hide();
+            
+            // Очищаем форму
+            fileInput.value = '';
+            
+            // Показываем уведомление
+            showNotification(data.message, 'success');
+            
+            // Обновляем страницу
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        progressBar.style.display = 'none';
+        showNotification('Ошибка при загрузке файла', 'error');
+        console.error('Error:', error);
+    });
+}
+
+function downloadFile(filename) {
+    window.open(`/docs/download/${encodeURIComponent(filename)}`, '_blank');
+}
+
+function viewFile(filename) {
+    window.open(`/docs/view/${encodeURIComponent(filename)}`, '_blank');
+}
+
+function deleteFile(filename) {
+    if (!confirm(`Вы уверены, что хотите удалить файл "${filename}"?`)) {
+        return;
+    }
+    
+    fetch(`/docs/delete/${encodeURIComponent(filename)}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Ошибка при удалении файла', 'error');
+        console.error('Error:', error);
+    });
+}
+
+function refreshFiles() {
+    location.reload();
+}
+
+function filterFiles() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const typeFilter = document.getElementById('typeFilter').value;
+    
+    allFiles.forEach(item => {
+        const fileName = item.dataset.name.toLowerCase();
+        const fileType = item.dataset.type.toLowerCase();
+        
+        let matchesSearch = fileName.includes(searchTerm);
+        let matchesType = true;
+        
+        if (typeFilter) {
+            switch(typeFilter) {
+                case 'pdf':
+                    matchesType = fileName.endsWith('.pdf');
+                    break;
+                case 'image':
+                    matchesType = /\.(jpg|jpeg|png|gif)$/.test(fileName);
+                    break;
+                case 'document':
+                    matchesType = /\.(doc|docx|xls|xlsx|ppt|pptx|txt)$/.test(fileName);
+                    break;
+                case 'code':
+                    matchesType = /\.(py|js|html|css|java|cpp|c|h)$/.test(fileName);
+                    break;
+                case 'archive':
+                    matchesType = /\.(zip|rar)$/.test(fileName);
+                    break;
+            }
+        }
+        
+        if (matchesSearch && matchesType) {
+            item.classList.remove('hidden');
+        } else {
+            item.classList.add('hidden');
+        }
+    });
+}
+
+function sortFiles() {
+    const sortBy = document.getElementById('sortBy').value;
+    const filesList = document.getElementById('filesList');
+    const items = Array.from(filesList.children);
+    
+    items.sort((a, b) => {
+        switch(sortBy) {
+            case 'name':
+                return a.dataset.name.localeCompare(b.dataset.name);
+            case 'size':
+                return parseInt(b.dataset.size) - parseInt(a.dataset.size);
+            case 'date':
+            default:
+                return 0; // Уже отсортировано по дате на сервере
+        }
+    });
+    
+    items.forEach(item => filesList.appendChild(item));
+}
+
+function showNotification(message, type) {
+    // Создаем уведомление
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Автоматически удаляем через 5 секунд
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

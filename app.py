@@ -6,7 +6,9 @@ from auth import auth_bp
 from journal import journal_bp
 from assignments import assignments_bp
 from calendar_module import calendar_bp
+from tasks import tasks_bp
 from groups import groups_bp
+from docs import docs_bp
 import os
 import hmac
 import hashlib
@@ -31,7 +33,9 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(journal_bp)
 app.register_blueprint(assignments_bp)
 app.register_blueprint(calendar_bp)
+app.register_blueprint(tasks_bp)
 app.register_blueprint(groups_bp)
+app.register_blueprint(docs_bp)
 
 
 @app.route('/')

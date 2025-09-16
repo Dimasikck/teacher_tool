@@ -525,13 +525,19 @@
                         <i class="bi bi-people"></i> Группы
                     </a>
                     <a href="{{ url_for('journal.journal') }}" onclick="closeSidebar()">
-                        <i class="bi bi-journal-text"></i> Журнал
+                        <i class="bi bi-journal-text"></i> Журналы
                     </a>
                     <a href="{{ url_for('assignments.assignments') }}" onclick="closeSidebar()">
                         <i class="bi bi-file-earmark-text"></i> Задания
                     </a>
                     <a href="{{ url_for('calendar.calendar') }}" onclick="closeSidebar()">
-                        <i class="bi bi-calendar3"></i> Календарь
+                        <i class="bi bi-calendar3"></i> Календарь занятий
+                    </a>
+                    <a href="{{ url_for('tasks.board') }}" onclick="closeSidebar()">
+                        <i class="bi bi-kanban"></i> Задачи
+                    </a>
+                    <a href="{{ url_for('docs.index') }}" onclick="closeSidebar()">
+                        <i class="bi bi-file-earmark-text"></i> Документация
                     </a>
                     <a href="{{ url_for('auth.logout') }}" onclick="closeSidebar()">
                         <i class="bi bi-box-arrow-right"></i> Выход

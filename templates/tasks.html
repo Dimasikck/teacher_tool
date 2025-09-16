@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% block title %}Задачи{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Задачи</h3>
+        <button class="btn btn-primary" onclick="createList()">Новый список</button>
+    </div>
+    <div id="board" class="d-flex gap-3 flex-nowrap overflow-auto"></div>
+</div>
+
+<style>
+    /* Канбан: цвета и контрасты по темам */
+    .kanban-list {
+        min-width: 320px; max-width: 360px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 12px;
+        box-shadow: 0 2px 12px var(--shadow-light);
+    }
+    .kanban-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .kanban-title { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); }
+    .kanban-tasks { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .kanban-card {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 10px;
+        cursor: grab; box-shadow: 0 1px 6px var(--shadow-light);
+        transition: box-shadow .2s ease, transform .1s ease;
+    }
+    .kanban-card:hover { box-shadow: 0 4px 16px var(--shadow-medium); }
+    .kanban-card:active { cursor: grabbing; transform: scale(0.99); }
+    .drop-target { outline: 2px dashed #667eea; outline-offset: 4px; }
+    .muted { color: var(--text-secondary); font-size: 0.85rem; }
+    .btn-xxs { padding: 2px 6px; font-size: 0.75rem; }
+
+    /* Инпуты и текстареи под тему */
+    .input-inline {
+        background: var(--input-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 6px; padding: 4px 6px;
+    }
+    .input-inline::placeholder { color: var(--text-secondary); opacity: .8; }
+    .input-inline:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25); }
+
+    #board .form-control, #board .form-control:focus, #board textarea.form-control, #board .form-select {
+        background: var(--input-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+    #board .form-control::placeholder, #board textarea.form-control::placeholder { color: var(--text-secondary); }
+    
+    /* Статус и дата в карточках */
+    .kanban-card .form-select-sm, .kanban-card .form-control-sm {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Кнопки в теме */
+    #board .btn-light { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); }
+    #board .btn-light:hover { background: var(--hover-bg); }
+
+    /* Фон доски адаптируется к теме */
+    #board { padding-bottom: 12px; }
+</style>
+
+<script>
+const listsData = {{ lists|tojson|safe }};
+
+function el(tag, attrs={}, children=[]) {
+    const node = document.createElement(tag);
+    Object.entries(attrs).forEach(([k,v]) => {
+        if (k === 'class') node.className = v; else if (k === 'dataset') Object.assign(node.dataset, v); else node[k] = v;
+    });
+    children.forEach(c => node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+    return node;
+}
+
+async function api(url, opts={}) {
+    const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', ...opts });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+}
+
+function renderBoard() {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+    listsData.forEach(({list, tasks}) => {
+        board.appendChild(renderList(list, tasks));
+    });
+}
+
+function renderList(list, tasks) {
+    const title = el('input', { value: list.name, class: 'input-inline kanban-title' });
+    title.addEventListener('change', async () => {
+        await api(`/tasks/api/lists/${list.id}`, { method: 'PUT', body: JSON.stringify({ name: title.value }) });
+        list.name = title.value;
+    });
+
+    const addBtn = el('button', { class: 'btn btn-sm btn-light' }, [document.createTextNode('+ Задача')]);
+    addBtn.addEventListener('click', async () => {
+        const data = await api('/tasks/api/tasks', { method: 'POST', body: JSON.stringify({ list_id: list.id, title: 'Новая задача', status: 'new' }) });
+        const column = container.querySelector('.kanban-tasks');
+        const card = renderCard({ id: data.id, title: 'Новая задача', description: null, status: 'new', due_date: null, list_id: list.id, position: data.position });
+        column.appendChild(card);
+        attachDnD(card);
+    });
+
+    const header = el('div', { class: 'kanban-header' }, [title, addBtn]);
+    const column = el('div', { class: 'kanban-tasks', dataset: { listId: list.id } });
+
+    tasks.forEach(t => {
+        const card = renderCard(t);
+        column.appendChild(card);
+        attachDnD(card);
+    });
+
+    const container = el('div', { class: 'kanban-list', dataset: { listId: list.id } }, [header, column]);
+    container.addEventListener('dragover', ev => {
+        ev.preventDefault();
+        column.classList.add('drop-target');
+    });
+    container.addEventListener('dragleave', () => column.classList.remove('drop-target'));
+    container.addEventListener('drop', async ev => {
+        ev.preventDefault();
+        column.classList.remove('drop-target');
+        const taskId = Number(ev.dataTransfer.getData('text/plain'));
+        const after = Array.from(column.children).findIndex(ch => ch.classList && ch.classList.contains('placeholder'));
+        const newPos = after >= 0 ? after : column.children.length;
+        await moveTask(taskId, list.id, newPos);
+    });
+
+    return container;
+}
+
+function getStatusEmoji(status) {
+    const statusMap = {
+        'new': '🆕',
+        'in_progress': '⚡',
+        'completed': '✅'
+    };
+    return statusMap[status] || '🆕';
+}
+
+function getStatusText(status) {
+    const statusMap = {
+        'new': 'Новая',
+        'in_progress': 'В работе',
+        'completed': 'Завершена'
+    };
+    return statusMap[status] || 'Новая';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('ru-RU');
+}
+
+function renderCard(task) {
+    const title = el('input', { value: task.title, class: 'input-inline w-100' });
+    title.addEventListener('change', async () => {
+        await api(`/tasks/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ title: title.value }) });
+    });
+
+    const del = el('button', { class: 'btn btn-danger btn-xxs ms-2' }, ['Удалить']);
+    del.addEventListener('click', async () => {
+        await api(`/tasks/api/tasks/${task.id}`, { method: 'DELETE' });
+        card.remove();
+    });
+
+    const head = el('div', { class: 'd-flex align-items-center justify-content-between' }, [title, del]);
+
+    // Статус с эмоджи
+    const statusSelect = el('select', { class: 'form-select form-select-sm mt-2' });
+    ['new', 'in_progress', 'completed'].forEach(status => {
+        const option = el('option', { value: status }, [`${getStatusEmoji(status)} ${getStatusText(status)}`]);
+        if (status === task.status) option.selected = true;
+        statusSelect.appendChild(option);
+    });
+    statusSelect.addEventListener('change', async () => {
+        await api(`/tasks/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ status: statusSelect.value }) });
+    });
+
+    // Срок выполнения
+    const dueDateInput = el('input', { 
+        type: 'date', 
+        class: 'form-control form-control-sm mt-2',
+        value: task.due_date ? task.due_date.split('T')[0] : ''
+    });
+    dueDateInput.addEventListener('change', async () => {
+        const value = dueDateInput.value ? new Date(dueDateInput.value).toISOString() : '';
+        await api(`/tasks/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ due_date: value }) });
+    });
+
+    const desc = el('textarea', { class: 'form-control form-control-sm mt-2', rows: 2, placeholder: 'Описание...' });
+    if (task.description) desc.value = task.description;
+    desc.addEventListener('change', async () => {
+        await api(`/tasks/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ description: desc.value }) });
+    });
+
+    const card = el('div', { class: 'kanban-card', draggable: true, dataset: { taskId: task.id } }, [
+        head, 
+        statusSelect, 
+        dueDateInput, 
+        desc
+    ]);
+    return card;
+}
+
+function attachDnD(card) {
+    card.addEventListener('dragstart', ev => {
+        ev.dataTransfer.setData('text/plain', card.dataset.taskId);
+        ev.dataTransfer.effectAllowed = 'move';
+        card.classList.add('opacity-50');
+    });
+    card.addEventListener('dragend', () => {
+        card.classList.remove('opacity-50');
+        document.querySelectorAll('.drop-target').forEach(n => n.classList.remove('drop-target'));
+    });
+}
+
+async function moveTask(taskId, listId, position) {
+    await api(`/tasks/api/tasks/${taskId}/move`, { method: 'POST', body: JSON.stringify({ list_id: listId, position }) });
+    // Reload UI minimally: re-fetch board
+    const res = await fetch('/tasks/');
+    const html = await res.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const fresh = doc.querySelector('#board');
+    document.querySelector('#board').replaceWith(fresh);
+}
+
+async function createList() {
+    const data = await api('/tasks/api/lists', { method: 'POST', body: JSON.stringify({ name: 'Новый список' }) });
+    listsData.push({ list: { id: data.id, name: data.name, position: data.position }, tasks: [] });
+    renderBoard();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderBoard();
+});
+</script>
+{% endblock %}
+
+
+
+
