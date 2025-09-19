@@ -110,6 +110,42 @@
           "sizes": "96x96"
         }
       ]
+    },
+    {
+      "name": "Журнал",
+      "short_name": "Журнал",
+      "description": "Журнал посещаемости и успеваемости",
+      "url": "/journal",
+      "icons": [
+        {
+          "src": "/static/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Задачи",
+      "short_name": "Задачи",
+      "description": "Управление задачами и проектами",
+      "url": "/tasks",
+      "icons": [
+        {
+          "src": "/static/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Документация",
+      "short_name": "Документы",
+      "description": "Управление документами и файлами",
+      "url": "/docs",
+      "icons": [
+        {
+          "src": "/static/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
     }
   ],
   "related_applications": [],

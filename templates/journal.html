@@ -16,7 +16,8 @@
     <div class="col-md-4">
         <input type="month" id="monthSelect" class="form-control mb-2" onchange="loadJournal()" />
         <button class="btn btn-primary" onclick="loadJournal()">Загрузить</button>
-        <button class="btn btn-success" onclick="showAddLesson()">Новое занятие</button>
+        <button class="btn btn-success" onclick="showAddControlPoint()">Добавить КТ</button>
+        <button class="btn btn-warning" onclick="syncFromCalendar()">Синхронизировать</button>
         <button class="btn btn-outline-secondary" onclick="showLessonsList()">Список занятий</button>
         <button class="btn btn-info" onclick="exportData()">Экспорт</button>
     </div>
@@ -43,25 +44,62 @@
     </div>
     </div>
 
-<div class="modal fade" id="lessonModal">
+<!-- Модальное окно для добавления контрольной точки -->
+<div class="modal fade" id="controlPointModal">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="lessonModalTitle">Новое занятие</h5>
+                <h5 class="modal-title" id="controlPointModalTitle">Добавить контрольную точку</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Тема занятия</label>
-                    <input type="text" id="lessonTopic" class="form-control">
+                    <label class="form-label">Дата</label>
+                    <input type="date" id="controlPointDate" class="form-control" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Заметки</label>
-                    <textarea id="lessonNotes" class="form-control" rows="3"></textarea>
+                    <label class="form-label">Название</label>
+                    <input type="text" id="controlPointTitle" class="form-control" value="КТ" placeholder="КТ">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Максимальный балл</label>
+                    <input type="number" id="controlPointMaxPoints" class="form-control" value="100" min="1" max="1000">
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="lessonSaveBtn" onclick="createLesson()">Создать</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="controlPointSaveBtn" onclick="createControlPoint()">Создать</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для редактирования контрольной точки -->
+<div class="modal fade" id="editControlPointModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать контрольную точку</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Дата</label>
+                    <input type="date" id="editControlPointDate" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Название</label>
+                    <input type="text" id="editControlPointTitle" class="form-control" placeholder="КТ">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Максимальный балл</label>
+                    <input type="number" id="editControlPointMaxPoints" class="form-control" min="1" max="1000">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="deleteControlPointBtn" onclick="deleteControlPoint()">Удалить</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="updateControlPoint()">Сохранить</button>
             </div>
         </div>
     </div>
@@ -97,10 +135,12 @@ function loadJournal() {
 function renderJournalTable(data) {
     const students = data.students;
     const lessons = data.lessons;
+    const controlPoints = data.control_points || [];
     const marks = data.marks || {};
+    const controlPointMarks = data.control_point_marks || {};
 
-    if (lessons.length === 0) {
-        document.getElementById('attendanceTable').innerHTML = '<div class="alert alert-info">Нет занятий в группе. Создайте первое занятие.</div>';
+    if (lessons.length === 0 && controlPoints.length === 0) {
+        document.getElementById('attendanceTable').innerHTML = '<div class="alert alert-info">Нет занятий и контрольных точек в группе. Создайте первое занятие или контрольную точку.</div>';
         return;
     }
 
@@ -108,6 +148,7 @@ function renderJournalTable(data) {
     html += '<table class="table table-bordered table-sm align-middle">';
     html += '<thead><tr><th style="min-width:220px">Студент</th>';
 
+    // Добавляем заголовки для занятий
     lessons.forEach(lesson => {
         const dateStr = new Date(lesson.date).toLocaleDateString('ru-RU');
         html += `<th class="text-center">
@@ -116,29 +157,77 @@ function renderJournalTable(data) {
                     </button>
                  </th>`;
     });
+
+    // Добавляем заголовки для контрольных точек
+    controlPoints.forEach(cp => {
+        const dateStr = new Date(cp.date).toLocaleDateString('ru-RU');
+        html += `<th class="text-center bg-warning bg-opacity-25">
+                    <button class="btn btn-link p-0" onclick="openControlPointModal(${cp.id}, '${dateStr}', '${cp.title}', ${cp.max_points})" title="Редактировать контрольную точку">
+                        ${dateStr}<br><small>${cp.title}</small>
+                    </button>
+                 </th>`;
+    });
     html += '</tr></thead><tbody>';
 
-    students.forEach(st => {
-        html += `<tr><td>${st.name}</td>`;
-        lessons.forEach(lesson => {
-            const key = `${st.id}:${lesson.id}`;
-            const cell = marks[key] || {present: false, mark: ''};
-            const value = cell.present ? (cell.mark || '') : 'Н';
-            html += `<td class="p-0">
-                        <input 
-                            class="form-control form-control-sm border-0 text-center journal-input"
-                            style="min-width:70px"
-                            data-student="${st.id}"
-                            data-lesson="${lesson.id}"
-                            value="${value}"
-                            placeholder="5/4/3/Н"
-                            maxlength="5"
-                            onchange="saveCell(this)"
-                        />
-                     </td>`;
-        });
-        html += '</tr>';
-    });
+     students.forEach(st => {
+         html += `<tr><td>${st.name}</td>`;
+         
+         // Ячейки для занятий
+         lessons.forEach(lesson => {
+             const key = `${st.id}:${lesson.id}`;
+             const cell = marks[key] || {present: null, mark: ''};
+             // Если present === null, то ячейка пустая (новое занятие)
+             // Если present === false, то студент отсутствовал (Н)
+             // Если present === true, то студент присутствовал (оценка или пусто)
+             let value = '';
+             if (cell.present === false) {
+                 value = 'Н';
+             } else if (cell.present === true) {
+                 value = cell.mark || '';
+             }
+             // Если present === null, value остается пустым
+             
+             const cellClass = getCellClass(value);
+             html += `<td class="p-0">
+                         <input 
+                             class="form-control form-control-sm border-0 text-center journal-input ${cellClass}"
+                             style="min-width:70px; font-weight: ${value ? 'bold' : 'normal'};"
+                             data-student="${st.id}"
+                             data-lesson="${lesson.id}"
+                             value="${value}"
+                             maxlength="5"
+                             onclick="showCellTooltip(this)"
+                             onchange="saveCell(this)"
+                             onblur="hideCellTooltip(this)"
+                         />
+                      </td>`;
+         });
+
+         // Ячейки для контрольных точек
+         controlPoints.forEach(cp => {
+             const key = `${st.id}:${cp.id}`;
+             const cell = controlPointMarks[key] || {points: null};
+             const value = cell.points !== null ? cell.points : '';
+             
+             html += `<td class="p-0 bg-warning bg-opacity-10">
+                         <input 
+                             class="form-control form-control-sm border-0 text-center control-point-input"
+                             style="min-width:70px; font-weight: ${value ? 'bold' : 'normal'};"
+                             data-student="${st.id}"
+                             data-control-point="${cp.id}"
+                             data-max-points="${cp.max_points}"
+                             value="${value}"
+                             type="number"
+                             min="0"
+                             max="${cp.max_points}"
+                             placeholder="0-${cp.max_points}"
+                             onchange="saveControlPointScore(this)"
+                         />
+                      </td>`;
+         });
+         
+         html += '</tr>';
+     });
 
     html += '</tbody></table></div>';
 
@@ -162,6 +251,61 @@ function renderHeader(data) {
     `;
 }
 
+function getCellClass(value) {
+    if (!value) return '';
+    switch(value.toString().trim()) {
+        case '5': return 'text-success';
+        case '4': return 'text-primary';
+        case '3': return 'text-warning';
+        case 'Н': case 'н': case 'Н.': case 'н.': return 'text-danger';
+        default: return '';
+    }
+}
+
+function showCellTooltip(inputEl) {
+    if (inputEl.value.trim() === '') {
+        // Показываем подсказку только для пустых ячеек
+        const tooltip = document.createElement('div');
+        tooltip.className = 'cell-tooltip';
+        tooltip.innerHTML = '5/4/3/Н';
+        tooltip.style.cssText = `
+            position: absolute;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            z-index: 1000;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        
+        // Позиционируем подсказку
+        const rect = inputEl.getBoundingClientRect();
+        tooltip.style.left = (rect.left + rect.width / 2 - 35) + 'px';
+        tooltip.style.top = (rect.bottom + 8) + 'px';
+        
+        document.body.appendChild(tooltip);
+        inputEl.dataset.tooltip = 'true';
+        
+        // Убираем подсказку через 2.5 секунды
+        setTimeout(() => {
+            if (tooltip.parentNode) {
+                tooltip.parentNode.removeChild(tooltip);
+            }
+        }, 2500);
+    }
+}
+
+function hideCellTooltip(inputEl) {
+    const tooltips = document.querySelectorAll('.cell-tooltip');
+    tooltips.forEach(tooltip => {
+        if (tooltip.parentNode) {
+            tooltip.parentNode.removeChild(tooltip);
+        }
+    });
+}
+
 function saveCell(inputEl) {
     const studentId = parseInt(inputEl.dataset.student);
     const lessonId = parseInt(inputEl.dataset.lesson);
@@ -178,8 +322,22 @@ function saveCell(inputEl) {
             alert('Ошибка: ' + res.error);
             return;
         }
-        // Нормализуем отображение: Н для отсутствия, иначе оценка/пусто
-        inputEl.value = res.present ? (res.mark || '') : 'Н';
+        
+        // Обновляем отображение ячейки
+        let value = '';
+        if (res.present === false) {
+            value = 'Н';
+        } else if (res.present === true) {
+            value = res.mark || '';
+        }
+        // Если res.present === null, value остается пустым
+        
+        inputEl.value = value;
+        
+        // Обновляем стили
+        const cellClass = getCellClass(value);
+        inputEl.className = `form-control form-control-sm border-0 text-center journal-input ${cellClass}`;
+        inputEl.style.fontWeight = value ? 'bold' : 'normal';
     })
     .catch(err => {
         console.error(err);
@@ -315,5 +473,409 @@ function exportData() {
             window.open(data.file, '_blank');
         });
 }
+
+function syncFromCalendar() {
+    if (!confirm('Синхронизировать занятия из календаря в журнал? Это добавит новые занятия и обновит существующие.')) {
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    const syncBtn = event.target;
+    const originalText = syncBtn.innerHTML;
+    syncBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Синхронизация...';
+    syncBtn.disabled = true;
+    
+    fetch('/api/schedule/sync-to-journal', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(`Синхронизация завершена!\nСоздано занятий: ${data.created}\nОбновлено занятий: ${data.updated}`);
+            // Перезагружаем журнал
+            loadJournal();
+        } else {
+            alert('Ошибка синхронизации: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        alert('Ошибка синхронизации: ' + error.message);
+    })
+    .finally(() => {
+        // Восстанавливаем кнопку
+        syncBtn.innerHTML = originalText;
+        syncBtn.disabled = false;
+    });
+}
+
+// Функции для работы с контрольными точками
+let currentControlPointId = null;
+
+function showAddControlPoint() {
+    const groupId = document.getElementById('groupSelect').value;
+    if (!groupId) {
+        alert('Выберите группу');
+        return;
+    }
+    
+    // Очищаем форму
+    document.getElementById('controlPointDate').value = '';
+    document.getElementById('controlPointTitle').value = 'КТ';
+    document.getElementById('controlPointMaxPoints').value = '100';
+    
+    new bootstrap.Modal(document.getElementById('controlPointModal')).show();
+}
+
+function createControlPoint() {
+    const groupId = document.getElementById('groupSelect').value;
+    const date = document.getElementById('controlPointDate').value;
+    const title = document.getElementById('controlPointTitle').value;
+    const maxPoints = parseInt(document.getElementById('controlPointMaxPoints').value);
+
+    if (!date) {
+        alert('Укажите дату');
+        return;
+    }
+
+    const data = {
+        group_id: parseInt(groupId),
+        date: date,
+        title: title || 'КТ',
+        max_points: maxPoints || 100
+    };
+
+    fetch('/api/control-point/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('controlPointModal')).hide();
+            loadJournal(); // Перезагружаем журнал
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при создании контрольной точки: ' + error.message);
+    });
+}
+
+function openControlPointModal(controlPointId, dateStr, title, maxPoints) {
+    currentControlPointId = controlPointId;
+    
+    document.getElementById('editControlPointDate').value = dateStr.split('.').reverse().join('-');
+    document.getElementById('editControlPointTitle').value = title;
+    document.getElementById('editControlPointMaxPoints').value = maxPoints;
+    
+    new bootstrap.Modal(document.getElementById('editControlPointModal')).show();
+}
+
+function updateControlPoint() {
+    if (!currentControlPointId) return;
+    
+    const date = document.getElementById('editControlPointDate').value;
+    const title = document.getElementById('editControlPointTitle').value;
+    const maxPoints = parseInt(document.getElementById('editControlPointMaxPoints').value);
+
+    const data = {
+        date: date,
+        title: title,
+        max_points: maxPoints
+    };
+
+    fetch(`/api/control-point/${currentControlPointId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('editControlPointModal')).hide();
+            loadJournal(); // Перезагружаем журнал
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при обновлении контрольной точки: ' + error.message);
+    });
+}
+
+function deleteControlPoint() {
+    if (!currentControlPointId) return;
+    
+    if (!confirm('Вы уверены, что хотите удалить эту контрольную точку? Все оценки будут удалены.')) {
+        return;
+    }
+
+    fetch(`/api/control-point/${currentControlPointId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('editControlPointModal')).hide();
+            loadJournal(); // Перезагружаем журнал
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при удалении контрольной точки: ' + error.message);
+    });
+}
+
+function saveControlPointScore(inputEl) {
+    const studentId = inputEl.dataset.student;
+    const controlPointId = inputEl.dataset.controlPoint;
+    const maxPoints = parseInt(inputEl.dataset.maxPoints);
+    let points = inputEl.value.trim();
+
+    // Валидация
+    if (points === '') {
+        points = null;
+    } else {
+        points = parseInt(points);
+        if (isNaN(points) || points < 0 || points > maxPoints) {
+            alert(`Баллы должны быть от 0 до ${maxPoints}`);
+            inputEl.focus();
+            return;
+        }
+    }
+
+    const data = {
+        control_point_id: parseInt(controlPointId),
+        student_id: parseInt(studentId),
+        points: points
+    };
+
+    fetch('/api/control-point/score', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Обновляем стили
+            inputEl.style.fontWeight = points !== null ? 'bold' : 'normal';
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при сохранении оценки: ' + error.message);
+    });
+}
 </script>
+
+<style>
+/* Стили для ячеек журнала */
+.journal-input {
+    transition: all 0.2s ease;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+}
+
+.journal-input:hover {
+    background: rgba(0, 123, 255, 0.1) !important;
+    border: 1px solid rgba(0, 123, 255, 0.3) !important;
+}
+
+.journal-input:focus {
+    background: rgba(0, 123, 255, 0.15) !important;
+    border: 1px solid #007bff !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+/* Цвета для оценок - адаптивные под темы */
+.journal-input.text-success {
+    color: #198754 !important;
+}
+
+.journal-input.text-primary {
+    color: #0d6efd !important;
+}
+
+.journal-input.text-warning {
+    color: #fd7e14 !important;
+}
+
+/* Специальная обработка для Н - серые оттенки */
+.journal-input.text-danger {
+    color: #6c757d !important; /* Темно-серый для светлой темы */
+}
+
+/* Темная тема - переопределение цветов */
+[data-theme="dark"] .journal-input.text-success {
+    color: #20c997 !important;
+}
+
+[data-theme="dark"] .journal-input.text-primary {
+    color: #6ea8fe !important;
+}
+
+[data-theme="dark"] .journal-input.text-warning {
+    color: #ffc107 !important;
+}
+
+[data-theme="dark"] .journal-input.text-danger {
+    color: #adb5bd !important; /* Светло-серый для темной темы */
+}
+
+/* Стили для таблицы - адаптивные под темы */
+.table-bordered th,
+.table-bordered td {
+    border: 1px solid var(--border-color) !important;
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+.table th {
+    background-color: var(--table-header-bg) !important;
+    font-weight: 600;
+    text-align: center;
+    vertical-align: middle;
+    color: var(--text-primary) !important;
+}
+
+.table tbody tr:hover {
+    background-color: var(--table-hover-bg) !important;
+}
+
+/* Стили для заголовков дат */
+.table th button {
+    color: var(--text-primary) !important;
+    text-decoration: none;
+}
+
+.table th button:hover {
+    color: #007bff !important;
+    text-decoration: underline;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .journal-input {
+        min-width: 50px !important;
+        font-size: 0.8rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+}
+
+/* Анимация для подсказок */
+.cell-tooltip {
+    animation: fadeIn 0.3s ease-in-out;
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Дополнительные стили для лучшей интеграции с темами */
+.table-responsive {
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px var(--shadow-light);
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+/* Стили для ячеек с данными */
+.table td {
+    padding: 0.5rem;
+    vertical-align: middle;
+}
+
+/* Улучшенные стили для input полей в ячейках */
+.journal-input {
+    border: 1px solid transparent !important;
+    border-radius: 4px;
+}
+
+.journal-input:not(:focus):not(:hover) {
+    border-color: transparent !important;
+}
+
+/* Стили для пустых ячеек */
+.journal-input:placeholder-shown {
+    color: var(--text-secondary) !important;
+    font-style: italic;
+}
+
+/* Стили для заполненных ячеек */
+.journal-input:not(:placeholder-shown) {
+    font-weight: bold;
+}
+
+/* Стили для контрольных точек */
+.control-point-input {
+    transition: all 0.2s ease;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    border: 1px solid transparent !important;
+    border-radius: 4px;
+}
+
+.control-point-input:hover {
+    background: rgba(255, 193, 7, 0.1) !important;
+    border: 1px solid rgba(255, 193, 7, 0.3) !important;
+}
+
+.control-point-input:focus {
+    background: rgba(255, 193, 7, 0.15) !important;
+    border: 1px solid #ffc107 !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25) !important;
+}
+
+.control-point-input:not(:focus):not(:hover) {
+    border-color: transparent !important;
+}
+
+/* Стили для заголовков контрольных точек */
+.bg-warning.bg-opacity-25 {
+    background-color: rgba(255, 193, 7, 0.25) !important;
+}
+
+.bg-warning.bg-opacity-10 {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+/* Адаптация для темной темы */
+[data-theme="dark"] .bg-warning.bg-opacity-25 {
+    background-color: rgba(255, 193, 7, 0.15) !important;
+}
+
+[data-theme="dark"] .bg-warning.bg-opacity-10 {
+    background-color: rgba(255, 193, 7, 0.05) !important;
+}
+</style>
 {% endblock %}

@@ -58,6 +58,25 @@ class Attendance(db.Model):
     date = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class ControlPoint(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    title = db.Column(db.String(200), default='КТ')
+    max_points = db.Column(db.Integer, default=100)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class ControlPointScore(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    control_point_id = db.Column(db.Integer, db.ForeignKey('control_point.id'), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
+    points = db.Column(db.Integer)  # Баллы от 0 до 100, null если не оценено
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -78,6 +97,7 @@ class Schedule(db.Model):
     end_time = db.Column(db.DateTime, nullable=False)
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'))
     color = db.Column(db.String(7))
+    classroom = db.Column(db.String(50))  # Аудитория
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
 
 
@@ -85,20 +105,16 @@ class TaskList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     position = db.Column(db.Integer, default=0)
-    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
     tasks = db.relationship('Task', backref='list', lazy=True, cascade='all, delete-orphan')
 
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    status = db.Column(db.String(50), default='new')
+    status = db.Column(db.String(20), default='new')  # new, in_progress, completed
     due_date = db.Column(db.DateTime)
-    position = db.Column(db.Integer, default=0, index=True)
-    list_id = db.Column(db.Integer, db.ForeignKey('task_list.id'), index=True)
-    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    position = db.Column(db.Integer, default=0)
+    list_id = db.Column(db.Integer, db.ForeignKey('task_list.id'))
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))

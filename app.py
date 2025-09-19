@@ -6,8 +6,8 @@ from auth import auth_bp
 from journal import journal_bp
 from assignments import assignments_bp
 from calendar_module import calendar_bp
-from tasks import tasks_bp
 from groups import groups_bp
+from tasks import tasks_bp
 from docs import docs_bp
 import os
 import hmac
@@ -33,8 +33,8 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(journal_bp)
 app.register_blueprint(assignments_bp)
 app.register_blueprint(calendar_bp)
-app.register_blueprint(tasks_bp)
 app.register_blueprint(groups_bp)
+app.register_blueprint(tasks_bp)
 app.register_blueprint(docs_bp)
 
 
@@ -158,21 +158,6 @@ def ensure_startup_state():
             pass
 
 
-@app.route('/manifest.json')
-def manifest():
-    """Возвращает манифест PWA"""
-    return app.send_static_file('manifest.json')
-
-@app.route('/sw.js')
-def service_worker():
-    """Возвращает Service Worker"""
-    return app.send_static_file('sw.js')
-
-@app.route('/browserconfig.xml')
-def browserconfig():
-    """Возвращает browserconfig.xml для Windows"""
-    return app.send_static_file('browserconfig.xml')
-
 @app.route('/github/webhook', methods=['POST'])
 def github_webhook():
     secret = app.config.get('GITHUB_WEBHOOK_SECRET')
@@ -190,28 +175,7 @@ def github_webhook():
 
     repo_path = app.config.get('REPO_PATH')
     try:
-        # Проверяем, что путь существует и это git репозиторий
-        import os
-        if not os.path.exists(repo_path):
-            return jsonify({'status': 'repo path does not exist', 'path': repo_path}), 500
-        
-        if not os.path.exists(os.path.join(repo_path, '.git')):
-            return jsonify({'status': 'not a git repository', 'path': repo_path}), 500
-        
-        # Выполняем git pull с подробным выводом
-        result = subprocess.run(['git', '-C', repo_path, 'pull', '--ff-only'], 
-                              capture_output=True, text=True, timeout=30)
-        
-        if result.returncode != 0:
-            return jsonify({
-                'status': 'git pull failed', 
-                'error': result.stderr,
-                'stdout': result.stdout,
-                'returncode': result.returncode
-            }), 500
-            
-    except subprocess.TimeoutExpired:
-        return jsonify({'status': 'git pull timeout'}), 500
+        subprocess.check_call(['git', '-C', repo_path, 'pull', '--ff-only'])
     except Exception as e:
         return jsonify({'status': 'git pull failed', 'error': str(e)}), 500
 

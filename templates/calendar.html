@@ -70,44 +70,63 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
     
-    /* Значок группы внутри события */
-    .fc-event .group-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 2px;
-        white-space: nowrap;
-    }
-    .fc-event .group-dot {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
-    }
-    .fc-event .group-name {
-        font-weight: 600;
-        font-size: 0.8rem;
-        opacity: 0.95;
-    }
+     /* Значок группы внутри события */
+     .fc-event .group-badge {
+         display: flex;
+         align-items: center;
+         gap: 6px;
+         margin-bottom: 2px;
+         white-space: nowrap;
+         overflow: hidden;
+     }
+     .fc-event .group-dot {
+         display: inline-block;
+         width: 8px;
+         height: 8px;
+         border-radius: 50%;
+         flex-shrink: 0;
+     }
+     .fc-event .group-name {
+         font-weight: bold;
+         font-size: 0.8rem;
+         overflow: hidden;
+         text-overflow: ellipsis;
+         white-space: nowrap;
+     }
 
-    /* Шапка события: время слева, аудитория справа */
-    .fc-event .event-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 6px;
-        line-height: 1.1;
-    }
-    .fc-event .event-time {
-        font-weight: 600;
-    }
-    .fc-event .event-classroom {
-        font-size: 0.75rem;
-        opacity: 0.85;
-        white-space: nowrap;
-        margin-left: 6px;
-    }
+     /* Шапка события: время слева, аудитория справа */
+     .fc-event .event-header {
+         display: flex;
+         justify-content: space-between;
+         align-items: center;
+         gap: 6px;
+         line-height: 1.1;
+         margin-bottom: 2px;
+     }
+     .fc-event .event-time {
+         font-weight: 600;
+         font-size: 0.75rem;
+         flex: 1;
+         overflow: hidden;
+         text-overflow: ellipsis;
+         white-space: nowrap;
+     }
+     .fc-event .event-classroom {
+         font-size: 0.7rem;
+         opacity: 0.85;
+         white-space: nowrap;
+         flex-shrink: 0;
+     }
+     
+     /* Название дисциплины */
+     .fc-event .fc-event-title {
+         font-size: 0.75rem;
+         font-style: italic;
+         line-height: 1.1;
+         overflow: hidden;
+         text-overflow: ellipsis;
+         white-space: nowrap;
+     }
 
     /* Обрезка текста внутри событий и аккуратный перенос */
     .fc-event .fc-event-time,
@@ -202,11 +221,16 @@
         text-overflow: clip !important;
     }
 
-    /* Ховер-состояние: позволяем тексту переноситься, чтобы был виден полностью */
-    .fc-event:hover .fc-event-time,
-    .fc-event:hover .fc-event-title {
-        white-space: normal;
-    }
+     /* Ховер-состояние: позволяем тексту переноситься, чтобы был виден полностью */
+     .fc-event:hover .fc-event-time,
+     .fc-event:hover .fc-event-title,
+     .fc-event:hover .group-name,
+     .fc-event:hover .event-time,
+     .fc-event:hover .event-classroom {
+         white-space: normal;
+         overflow: visible;
+         text-overflow: clip;
+     }
     
     /* Мобильная адаптация календаря */
     @media (max-width: 768px) {
@@ -457,6 +481,9 @@
             <button class="btn btn-info" onclick="checkConflicts()">
                 <i class="bi bi-exclamation-triangle"></i> <span class="d-none d-md-inline">Конфликты</span>
             </button>
+            <button class="btn btn-warning" onclick="showExcelUploadModal()">
+                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-md-inline">Excel</span>
+            </button>
             <button class="btn btn-secondary" onclick="refreshCalendar()">
                 <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Обновить</span>
             </button>
@@ -587,6 +614,46 @@
     </div>
 </div>
 
+<div class="modal fade" id="excelUploadModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Загрузка расписания из Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Выберите Excel файл с расписанием</label>
+                    <input type="file" id="excelFileInput" class="form-control" accept=".xls,.xlsx">
+                    <div class="form-text">Поддерживаются файлы .xls и .xlsx</div>
+                </div>
+                <div class="alert alert-info">
+                    <strong>Формат файла:</strong><br>
+                    • Вид занятий (Пр., Лек., лаб.)<br>
+                    • Дисциплина<br>
+                    • Дата (дд.мм.гггг)<br>
+                    • Время (чч.мм-чч.мм)<br>
+                    • Аудитория<br>
+                    • Учебная группа
+                </div>
+                <div id="uploadProgress" class="mt-3" style="display: none;">
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="text-center mt-2">Обработка файла...</div>
+                </div>
+                <div id="uploadResult" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-warning" onclick="uploadExcelFile()">
+                    <i class="bi bi-upload"></i> Загрузить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row mt-4">
     <div class="col-md-12">
         <div class="card">
@@ -639,72 +706,115 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 'auto',
         weekends: true,
         events: loadEvents,
-        eventContent: function(arg) {
-            const groupName = arg.event.extendedProps.groupName || '';
-            const color = arg.event.extendedProps.groupColor || arg.event.backgroundColor || arg.event.borderColor || '#3788d8';
-            const classroom = (arg.event.extendedProps.classroom || '').trim();
+         eventContent: function(arg) {
+             const container = document.createElement('div');
+             
+             // Получаем данные из события
+             const title = arg.event.title || '';
+             const color = arg.event.extendedProps.groupColor || arg.event.backgroundColor || arg.event.borderColor || '#3788d8';
+             const classroom = (arg.event.extendedProps.classroom || '').trim();
+             
+             // Разбираем многострочный заголовок
+             const lines = title.split('\n');
+             
+             if (lines.length >= 3) {
+                 const groupName = lines[0].trim();
+                 const timeAuditoriumLine = lines[1].trim();
+                 const discipline = lines[2].trim();
+                 
+                 // Разделяем время и аудиторию
+                 let timePart = '';
+                 let auditoriumPart = '';
+                 
+                 if (timeAuditoriumLine.includes(' • ')) {
+                     const parts = timeAuditoriumLine.split(' • ');
+                     timePart = parts[0].trim();
+                     auditoriumPart = parts[1].trim();
+                 } else {
+                     timePart = timeAuditoriumLine;
+                 }
+                 
+                 // 1. Кружок группы и название группы
+                 if (groupName) {
+                     const badge = document.createElement('div');
+                     badge.className = 'group-badge';
+                     badge.style.display = 'flex';
+                     badge.style.alignItems = 'center';
+                     badge.style.gap = '6px';
+                     badge.style.marginBottom = '2px';
 
-            const container = document.createElement('div');
+                     const dot = document.createElement('span');
+                     dot.className = 'group-dot';
+                     dot.style.background = color;
+                     dot.style.width = '8px';
+                     dot.style.height = '8px';
+                     dot.style.borderRadius = '50%';
+                     dot.style.display = 'inline-block';
 
-            if (groupName) {
-                const badge = document.createElement('div');
-                badge.className = 'group-badge';
+                     const name = document.createElement('span');
+                     name.className = 'group-name';
+                     name.textContent = groupName;
+                     name.style.fontWeight = 'bold';
+                     name.style.fontSize = '0.8rem';
 
-                const dot = document.createElement('span');
-                dot.className = 'group-dot';
-                dot.style.background = color;
+                     badge.appendChild(dot);
+                     badge.appendChild(name);
+                     container.appendChild(badge);
+                 }
+                 
+                 // 2. Время и аудитория
+                 if (timePart || auditoriumPart) {
+                     const header = document.createElement('div');
+                     header.className = 'event-header';
+                     header.style.display = 'flex';
+                     header.style.justifyContent = 'space-between';
+                     header.style.alignItems = 'center';
+                     header.style.gap = '6px';
+                     header.style.marginBottom = '2px';
 
-                const name = document.createElement('span');
-                name.className = 'group-name';
-                name.textContent = groupName;
+                     if (timePart) {
+                         const time = document.createElement('div');
+                         time.className = 'event-time';
+                         time.textContent = timePart;
+                         time.style.fontSize = '0.75rem';
+                         time.style.fontWeight = '600';
+                         time.style.flex = '1';
+                         header.appendChild(time);
+                     }
 
-                badge.appendChild(dot);
-                badge.appendChild(name);
-                container.appendChild(badge);
-            }
+                     if (auditoriumPart) {
+                         const room = document.createElement('div');
+                         room.className = 'event-classroom';
+                         room.textContent = auditoriumPart;
+                         room.style.fontSize = '0.7rem';
+                         room.style.opacity = '0.85';
+                         room.style.flexShrink = '0';
+                         header.appendChild(room);
+                     }
 
-            // Шапка: время + аудитория справа (сокращение до "ауд.")
-            if (arg.timeText || classroom) {
-                const header = document.createElement('div');
-                header.className = 'event-header';
-                header.style.display = 'flex';
-                header.style.justifyContent = 'space-between';
-                header.style.alignItems = 'center';
-                header.style.width = '100%';
+                     container.appendChild(header);
+                 }
+                 
+                 // 3. Название дисциплины
+                 if (discipline) {
+                     const titleDiv = document.createElement('div');
+                     titleDiv.className = 'fc-event-title';
+                     titleDiv.textContent = discipline;
+                     titleDiv.style.fontSize = '0.75rem';
+                     titleDiv.style.fontStyle = 'italic';
+                     titleDiv.style.lineHeight = '1.1';
+                     container.appendChild(titleDiv);
+                 }
+             } else {
+                 // Для старых событий без нового формата
+                 const titleDiv = document.createElement('div');
+                 titleDiv.className = 'fc-event-title';
+                 titleDiv.textContent = title;
+                 container.appendChild(titleDiv);
+             }
 
-                if (arg.timeText) {
-                    const time = document.createElement('div');
-                    time.className = 'event-time';
-                    time.textContent = arg.timeText;
-                    time.style.fontSize = '0.8rem';
-                    time.style.fontWeight = 'bold';
-                    time.style.flexShrink = '0';
-                    header.appendChild(time);
-                }
-
-                if (classroom) {
-                    const room = document.createElement('div');
-                    room.className = 'event-classroom';
-                    room.textContent = `ауд. ${classroom}`;
-                    room.style.fontSize = '0.75rem';
-                    room.style.color = 'rgba(255,255,255,0.8)';
-                    room.style.marginLeft = 'auto';
-                    room.style.flexShrink = '0';
-                    header.appendChild(room);
-                }
-
-                container.appendChild(header);
-            }
-
-            if (arg.event.title) {
-                const title = document.createElement('div');
-                title.className = 'fc-event-title';
-                title.textContent = arg.event.title;
-                container.appendChild(title);
-            }
-
-            return { domNodes: [container] };
-        },
+             return { domNodes: [container] };
+         },
         eventClick: function(info) {
             editEvent(info.event);
         },
@@ -861,15 +971,59 @@ function saveEvent() {
 }
 
 function deleteEvent() {
-    if (!currentEvent || !confirm('Удалить это занятие?')) return;
+    if (!currentEvent) {
+        alert('Нет выбранного занятия для удаления');
+        return;
+    }
+    
+    if (!confirm('Вы уверены, что хотите удалить это занятие? Это действие нельзя отменить.')) {
+        return;
+    }
 
+    // Показываем индикатор загрузки
+    const deleteBtn = document.getElementById('deleteBtn');
+    const originalText = deleteBtn.innerHTML;
+    deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Удаление...';
+    deleteBtn.disabled = true;
+
+    console.log('Deleting event with ID:', currentEvent.id);
+    
     fetch(`/api/schedule/delete/${currentEvent.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
     })
-    .then(r => r.json())
+    .then(response => {
+        console.log('Delete response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
-        calendar.refetchEvents();
-        bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+        console.log('Delete response data:', data);
+        if (data.status === 'success') {
+            // Закрываем модальное окно
+            bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+            
+            // Обновляем календарь
+            calendar.refetchEvents();
+            
+            // Показываем сообщение об успехе
+            alert('Занятие успешно удалено!');
+        } else {
+            alert('Ошибка при удалении занятия: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting event:', error);
+        alert('Ошибка при удалении занятия: ' + error.message);
+    })
+    .finally(() => {
+        // Восстанавливаем кнопку
+        deleteBtn.innerHTML = originalText;
+        deleteBtn.disabled = false;
     });
 }
 
@@ -1027,6 +1181,86 @@ function refreshCalendar() {
             console.error('Error fetching events directly:', error);
             alert('Ошибка при получении событий: ' + error.message);
         });
+}
+
+function showExcelUploadModal() {
+    // Очищаем предыдущие результаты
+    document.getElementById('uploadResult').innerHTML = '';
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('excelFileInput').value = '';
+    
+    // Показываем модальное окно
+    new bootstrap.Modal(document.getElementById('excelUploadModal')).show();
+}
+
+function uploadExcelFile() {
+    const fileInput = document.getElementById('excelFileInput');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Выберите файл для загрузки');
+        return;
+    }
+    
+    // Показываем прогресс
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('uploadResult').innerHTML = '';
+    
+    // Создаем FormData
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Отправляем запрос
+    fetch('/api/schedule/upload-excel', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('uploadProgress').style.display = 'none';
+        
+        if (data.status === 'success') {
+            // Показываем успешный результат
+            document.getElementById('uploadResult').innerHTML = `
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-check-circle"></i> Загрузка завершена успешно!</h6>
+                    <p>Загружено занятий: <strong>${data.lessons_count}</strong></p>
+                    ${data.lessons && data.lessons.length > 0 ? `
+                        <p><strong>Примеры загруженных занятий:</strong></p>
+                        <ul>
+                            ${data.lessons.map(lesson => `<li>${lesson}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                </div>
+            `;
+            
+            // Обновляем календарь
+            calendar.refetchEvents();
+            
+            // Закрываем модальное окно через 3 секунды
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('excelUploadModal')).hide();
+            }, 3000);
+            
+        } else {
+            // Показываем ошибку
+            document.getElementById('uploadResult').innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Ошибка загрузки</h6>
+                    <p>${data.error || 'Неизвестная ошибка'}</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        document.getElementById('uploadProgress').style.display = 'none';
+        document.getElementById('uploadResult').innerHTML = `
+            <div class="alert alert-danger">
+                <h6><i class="bi bi-exclamation-triangle"></i> Ошибка загрузки</h6>
+                <p>Ошибка сети: ${error.message}</p>
+            </div>
+        `;
+    });
 }
 </script>
 {% endblock %}

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, flash
 from flask_login import login_required, current_user
-from models import db, Student, Group, Attendance, Lesson
+from models import db, Student, Group, Attendance, Lesson, ControlPoint, ControlPointScore
 from datetime import datetime
 import pandas as pd
 
@@ -102,6 +102,25 @@ def group_journal():
 
     lessons = lessons_query.order_by(Lesson.date.asc()).all()
 
+    # Загружаем контрольные точки для группы
+    control_points_query = ControlPoint.query.filter_by(group_id=group_id, teacher_id=current_user.id)
+    
+    # Фильтрация контрольных точек по месяцу, если указано
+    if month_str:
+        try:
+            from datetime import datetime, timedelta
+            start = datetime.strptime(month_str + '-01', '%Y-%m-%d').date()
+            # вычисляем следующий месяц
+            if start.month == 12:
+                end = start.replace(year=start.year + 1, month=1, day=1)
+            else:
+                end = start.replace(month=start.month + 1, day=1)
+            control_points_query = control_points_query.filter(ControlPoint.date >= start, ControlPoint.date < end)
+        except Exception:
+            pass
+
+    control_points = control_points_query.order_by(ControlPoint.date.asc()).all()
+
     # Подсчеты занятий
     month_count = len(lessons)
     total_count = Lesson.query.filter_by(group_id=group_id, teacher_id=current_user.id).count()
@@ -118,6 +137,19 @@ def group_journal():
         marks[key] = {
             'present': bool(a.present),
             'mark': a.attendance_mark or ''
+        }
+
+    # Загружаем все оценки контрольных точек
+    control_point_scores = db.session.query(ControlPointScore).join(Student, ControlPointScore.student_id == Student.id).join(ControlPoint, ControlPointScore.control_point_id == ControlPoint.id).filter(
+        Student.group_id == group_id,
+        ControlPoint.group_id == group_id
+    ).all()
+
+    control_point_marks = {}
+    for score in control_point_scores:
+        key = f"{score.student_id}:{score.control_point_id}"
+        control_point_marks[key] = {
+            'points': score.points
         }
 
     # Определяем читаемое название дисциплины: если course пустой/числовой, берём самое частое Lesson.topic
@@ -145,7 +177,9 @@ def group_journal():
         },
         'students': [{'id': s.id, 'name': s.name} for s in students],
         'lessons': [{'id': l.id, 'date': l.date.isoformat(), 'topic': l.topic, 'notes': l.notes} for l in lessons],
+        'control_points': [{'id': cp.id, 'date': cp.date.isoformat(), 'title': cp.title, 'max_points': cp.max_points} for cp in control_points],
         'marks': marks,
+        'control_point_marks': control_point_marks,
         'stats': {
             'month_lessons': month_count,
             'total_lessons': total_count
@@ -169,6 +203,14 @@ def save_mark():
     lesson = Lesson.query.filter_by(id=lesson_id, teacher_id=current_user.id).first_or_404()
     student = Student.query.filter_by(id=student_id, group_id=lesson.group_id).first_or_404()
 
+    # Если значение пустое, удаляем запись посещаемости (ячейка остается пустой)
+    if not value:
+        attendance = Attendance.query.filter_by(student_id=student.id, lesson_id=lesson.id).first()
+        if attendance:
+            db.session.delete(attendance)
+        db.session.commit()
+        return jsonify({'status': 'success', 'present': None, 'mark': ''})
+
     is_absent = value.lower() in ('н', 'n', 'неявка', 'отс', 'н.')
 
     attendance = Attendance.query.filter_by(student_id=student.id, lesson_id=lesson.id).first()
@@ -181,7 +223,7 @@ def save_mark():
         attendance.attendance_mark = 'Н'
     else:
         attendance.present = True
-        attendance.attendance_mark = value if value != '' else None
+        attendance.attendance_mark = value
 
     db.session.commit()
 
@@ -222,7 +264,7 @@ def attendance_stats():
     query = db.session.query(
         Student.name,
         db.func.count(Attendance.id).label('total'),
-        db.func.sum(db.case([(Attendance.present == True, 1)], else_=0)).label('present')
+        db.func.sum(db.case((Attendance.present == True, 1), else_=0)).label('present')
     ).join(Attendance).join(Lesson)
 
     if group_id:
@@ -265,3 +307,162 @@ def export_attendance(group_id):
     df.to_csv(f'static/exports/{filename}', index=False)
 
     return jsonify({'file': f'/static/exports/{filename}'})
+
+
+@journal_bp.route('/api/control-point/create', methods=['POST'])
+@login_required
+def create_control_point():
+    """Создает новую контрольную точку"""
+    data = request.get_json()
+    group_id = data.get('group_id')
+    date_str = data.get('date')
+    title = data.get('title', 'КТ')
+    max_points = data.get('max_points', 100)
+
+    if not group_id or not date_str:
+        return jsonify({'error': 'group_id and date are required'}), 400
+
+    # Проверяем, что группа принадлежит преподавателю
+    group = Group.query.filter_by(id=group_id, teacher_id=current_user.id).first_or_404()
+
+    try:
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date format'}), 400
+
+    # Проверяем, что контрольная точка с такой датой не существует
+    existing = ControlPoint.query.filter_by(group_id=group_id, date=date, teacher_id=current_user.id).first()
+    if existing:
+        return jsonify({'error': 'Control point with this date already exists'}), 400
+
+    control_point = ControlPoint(
+        group_id=group_id,
+        teacher_id=current_user.id,
+        date=date,
+        title=title,
+        max_points=max_points
+    )
+
+    db.session.add(control_point)
+    db.session.commit()
+
+    return jsonify({
+        'status': 'success',
+        'control_point': {
+            'id': control_point.id,
+            'date': control_point.date.isoformat(),
+            'title': control_point.title,
+            'max_points': control_point.max_points
+        }
+    })
+
+
+@journal_bp.route('/api/control-point/<int:control_point_id>', methods=['PUT', 'DELETE'])
+@login_required
+def manage_control_point(control_point_id):
+    """Обновляет или удаляет контрольную точку"""
+    control_point = ControlPoint.query.filter_by(id=control_point_id, teacher_id=current_user.id).first_or_404()
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        date_str = data.get('date')
+        title = data.get('title')
+        max_points = data.get('max_points')
+
+        if date_str:
+            try:
+                new_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                # Проверяем, что новая дата не конфликтует с существующими КТ
+                if new_date != control_point.date:
+                    existing = ControlPoint.query.filter_by(
+                        group_id=control_point.group_id, 
+                        date=new_date, 
+                        teacher_id=current_user.id
+                    ).first()
+                    if existing:
+                        return jsonify({'error': 'Control point with this date already exists'}), 400
+                control_point.date = new_date
+            except ValueError:
+                return jsonify({'error': 'Invalid date format'}), 400
+
+        if title is not None:
+            control_point.title = title
+        if max_points is not None:
+            control_point.max_points = max_points
+
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'control_point': {
+                'id': control_point.id,
+                'date': control_point.date.isoformat(),
+                'title': control_point.title,
+                'max_points': control_point.max_points
+            }
+        })
+
+    elif request.method == 'DELETE':
+        # Удаляем все оценки для этой контрольной точки
+        ControlPointScore.query.filter_by(control_point_id=control_point_id).delete()
+        db.session.delete(control_point)
+        db.session.commit()
+
+        return jsonify({'status': 'success', 'message': 'Control point deleted'})
+
+
+@journal_bp.route('/api/control-point/score', methods=['POST'])
+@login_required
+def save_control_point_score():
+    """Сохраняет оценку контрольной точки для студента"""
+    data = request.get_json()
+    control_point_id = data.get('control_point_id')
+    student_id = data.get('student_id')
+    points = data.get('points')
+
+    if not control_point_id or not student_id:
+        return jsonify({'error': 'control_point_id and student_id are required'}), 400
+
+    # Проверяем, что контрольная точка принадлежит преподавателю
+    control_point = ControlPoint.query.filter_by(id=control_point_id, teacher_id=current_user.id).first_or_404()
+    
+    # Проверяем, что студент принадлежит группе
+    student = Student.query.filter_by(id=student_id, group_id=control_point.group_id).first_or_404()
+
+    # Валидация баллов
+    if points is not None:
+        try:
+            points = int(points)
+            if points < 0 or points > control_point.max_points:
+                return jsonify({'error': f'Points must be between 0 and {control_point.max_points}'}), 400
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid points value'}), 400
+
+    # Находим или создаем запись оценки
+    score = ControlPointScore.query.filter_by(
+        control_point_id=control_point_id,
+        student_id=student_id
+    ).first()
+
+    if points is None:
+        # Удаляем оценку, если передано None
+        if score:
+            db.session.delete(score)
+    else:
+        if score:
+            score.points = points
+            score.updated_at = datetime.utcnow()
+        else:
+            score = ControlPointScore(
+                control_point_id=control_point_id,
+                student_id=student_id,
+                points=points
+            )
+            db.session.add(score)
+
+    db.session.commit()
+
+    return jsonify({
+        'status': 'success',
+        'points': points
+    })

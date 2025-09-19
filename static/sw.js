@@ -18,7 +18,11 @@ const STATIC_FILES = [
 const API_CACHE_PATTERNS = [
   /^\/api\/schedule\/events/,
   /^\/api\/groups/,
-  /^\/api\/assignments/
+  /^\/api\/assignments/,
+  /^\/api\/journal/,
+  /^\/api\/control-point/,
+  /^\/api\/tasks/,
+  /^\/api\/docs/
 ];
 
 // Установка Service Worker
