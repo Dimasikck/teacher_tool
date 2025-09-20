@@ -65,6 +65,9 @@
                     <i class="bi bi-person-lines-fill"></i> Список студентов
                 </h5>
                 <div class="btn-group">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="sortTableRows()" title="Сортировать по алфавиту">
+                        <i class="bi bi-sort-alpha-down"></i> Сортировать
+                    </button>
                     <button class="btn btn-primary btn-sm" onclick="showAddStudentModal()">
                         <i class="bi bi-plus-circle"></i> Добавить студента
                     </button>
@@ -87,7 +90,7 @@
                         </thead>
                         <tbody>
                             {% for student in students %}
-                            <tr>
+                            <tr data-student-id="{{ student.id }}">
                                 <td>{{ loop.index }}</td>
                                 <td>{{ student.name }}</td>
                                 <td>{{ student.email or '-' }}</td>
@@ -266,10 +269,10 @@ function updateStudentsList(newStudents) {
     
     // Добавляем новых студентов в таблицу
     newStudents.forEach((student, index) => {
-        const currentRowCount = tbody.querySelectorAll('tr').length;
         const newRow = document.createElement('tr');
+        newRow.setAttribute('data-student-id', student.id || 0);
         newRow.innerHTML = `
-            <td>${currentRowCount + index + 1}</td>
+            <td>0</td> <!-- Временно, будет обновлено после сортировки -->
             <td>${student.name}</td>
             <td>${student.email || '-'}</td>
             <td>
@@ -286,6 +289,9 @@ function updateStudentsList(newStudents) {
         tbody.appendChild(newRow);
     });
     
+    // Сортируем все строки по алфавиту (включая новые)
+    sortTableRows();
+    
     // Обновляем счетчик студентов
     if (studentsCount) {
         const currentCount = parseInt(studentsCount.textContent);
@@ -294,6 +300,32 @@ function updateStudentsList(newStudents) {
     
     // Показываем уведомление об успешном добавлении
     showSuccessNotification(`Добавлено ${newStudents.length} студентов`);
+}
+
+function sortTableRows() {
+    const tbody = document.querySelector('table tbody');
+    if (!tbody) return;
+    
+    // Получаем все строки
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Сортируем строки по имени студента (вторая колонка)
+    rows.sort((a, b) => {
+        const nameA = a.querySelector('td:nth-child(2)').textContent.trim();
+        const nameB = b.querySelector('td:nth-child(2)').textContent.trim();
+        return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base' });
+    });
+    
+    // Очищаем tbody и добавляем отсортированные строки
+    tbody.innerHTML = '';
+    rows.forEach((row, index) => {
+        // Обновляем номер строки
+        const firstCell = row.querySelector('td:first-child');
+        if (firstCell) {
+            firstCell.textContent = index + 1;
+        }
+        tbody.appendChild(row);
+    });
 }
 
 function showSuccessNotification(message) {
@@ -317,73 +349,78 @@ function showSuccessNotification(message) {
 }
 
 function updateStudentInTable(studentId, studentData) {
-    // Находим строку с нужным студентом
-    const rows = document.querySelectorAll('table tbody tr');
-    rows.forEach(row => {
-        const editButton = row.querySelector('button[onclick*="editStudent"]');
-        if (editButton && editButton.getAttribute('onclick').includes(`'${studentId}'`)) {
-            // Обновляем данные в строке
-            const cells = row.querySelectorAll('td');
-            if (cells.length >= 3) {
-                cells[1].textContent = studentData.name;
-                cells[2].textContent = studentData.email || '-';
-                
-                // Обновляем onclick атрибуты
-                const editBtn = cells[3].querySelector('button[onclick*="editStudent"]');
-                const deleteBtn = cells[3].querySelector('button[onclick*="deleteStudent"]');
-                
-                if (editBtn) {
-                    editBtn.setAttribute('onclick', `editStudent(${studentId}, '${studentData.name}', '${studentData.email || ''}')`);
-                }
-                if (deleteBtn) {
-                    deleteBtn.setAttribute('onclick', `deleteStudent(${studentId}, '${studentData.name}')`);
-                }
+    // Находим строку с нужным студентом по data-атрибуту
+    const rowToUpdate = document.querySelector(`tr[data-student-id="${studentId}"]`);
+    
+    if (rowToUpdate) {
+        // Обновляем данные в строке
+        const cells = rowToUpdate.querySelectorAll('td');
+        if (cells.length >= 3) {
+            cells[1].textContent = studentData.name;
+            cells[2].textContent = studentData.email || '-';
+            
+            // Обновляем onclick атрибуты
+            const editBtn = cells[3].querySelector('button[onclick*="editStudent"]');
+            const deleteBtn = cells[3].querySelector('button[onclick*="deleteStudent"]');
+            
+            if (editBtn) {
+                editBtn.setAttribute('onclick', `editStudent(${studentId}, '${studentData.name}', '${studentData.email || ''}')`);
+            }
+            if (deleteBtn) {
+                deleteBtn.setAttribute('onclick', `deleteStudent(${studentId}, '${studentData.name}')`);
             }
         }
-    });
-    
-    showSuccessNotification('Студент обновлен');
+        
+        // Пересортируем таблицу после обновления имени
+        sortTableRows();
+        
+        showSuccessNotification('Студент обновлен');
+    } else {
+        console.error('Строка студента не найдена для обновления');
+        showSuccessNotification('Студент обновлен в базе данных');
+    }
 }
 
 function removeStudentFromTable(studentId) {
-    // Находим и удаляем строку с нужным студентом
-    const rows = document.querySelectorAll('table tbody tr');
-    rows.forEach(row => {
-        const editButton = row.querySelector('button[onclick*="editStudent"]');
-        if (editButton && editButton.getAttribute('onclick').includes(`'${studentId}'`)) {
-            row.remove();
-        }
-    });
+    // Находим и удаляем строку с нужным студентом по data-атрибуту
+    const rowToRemove = document.querySelector(`tr[data-student-id="${studentId}"]`);
     
-    // Обновляем номера строк
-    const remainingRows = document.querySelectorAll('table tbody tr');
-    remainingRows.forEach((row, index) => {
-        const firstCell = row.querySelector('td:first-child');
-        if (firstCell) {
-            firstCell.textContent = index + 1;
+    if (rowToRemove) {
+        rowToRemove.remove();
+        
+        // Обновляем номера строк
+        const remainingRows = document.querySelectorAll('table tbody tr');
+        remainingRows.forEach((row, index) => {
+            const firstCell = row.querySelector('td:first-child');
+            if (firstCell) {
+                firstCell.textContent = index + 1;
+            }
+        });
+        
+        // Обновляем счетчик студентов
+        const studentsCount = document.querySelector('.text-primary');
+        if (studentsCount) {
+            const currentCount = parseInt(studentsCount.textContent);
+            studentsCount.textContent = currentCount - 1;
         }
-    });
-    
-    // Обновляем счетчик студентов
-    const studentsCount = document.querySelector('.text-primary');
-    if (studentsCount) {
-        const currentCount = parseInt(studentsCount.textContent);
-        studentsCount.textContent = currentCount - 1;
+        
+        // Если студентов не осталось, показываем сообщение
+        if (remainingRows.length === 0) {
+            const noStudentsDiv = document.querySelector('.text-center.py-4');
+            if (noStudentsDiv) {
+                noStudentsDiv.style.display = 'block';
+            }
+            const tableContainer = document.querySelector('.table-responsive');
+            if (tableContainer) {
+                tableContainer.style.display = 'none';
+            }
+        }
+        
+        showSuccessNotification('Студент удален');
+    } else {
+        console.error('Строка студента не найдена для удаления');
+        showSuccessNotification('Студент удален из базы данных');
     }
-    
-    // Если студентов не осталось, показываем сообщение
-    if (remainingRows.length === 0) {
-        const noStudentsDiv = document.querySelector('.text-center.py-4');
-        if (noStudentsDiv) {
-            noStudentsDiv.style.display = 'block';
-        }
-        const tableContainer = document.querySelector('.table-responsive');
-        if (tableContainer) {
-            tableContainer.style.display = 'none';
-        }
-    }
-    
-    showSuccessNotification('Студент удален');
 }
 
 function addStudent() {

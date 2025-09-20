@@ -5,10 +5,90 @@
 <h1 class="mb-4">Управление группами</h1>
 
 <div class="row mb-4">
-    <div class="col-md-12">
+    <div class="col-md-8">
         <a href="{{ url_for('groups.create_group') }}" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Создать группу
         </a>
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+            <i class="bi bi-funnel"></i> Фильтры и сортировка
+        </button>
+    </div>
+</div>
+
+<!-- Панель фильтров и сортировки -->
+<div class="collapse mb-4" id="filtersCollapse">
+    <div class="card">
+        <div class="card-body">
+            <form method="GET" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="course" class="form-label">Курс</label>
+                        <select class="form-select" id="course" name="course">
+                            <option value="">Все курсы</option>
+                            {% for course in all_courses %}
+                            <option value="{{ course }}" {% if course == current_course %}selected{% endif %}>{{ course }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="education_form" class="form-label">Форма обучения</label>
+                        <select class="form-select" id="education_form" name="education_form">
+                            <option value="">Все формы</option>
+                            {% for form in all_education_forms %}
+                            <option value="{{ form }}" {% if form == current_education_form %}selected{% endif %}>{{ form }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="sort" class="form-label">Сортировка</label>
+                        <select class="form-select" id="sort" name="sort">
+                            <option value="name" {% if current_sort == 'name' %}selected{% endif %}>По названию</option>
+                            <option value="course" {% if current_sort == 'course' %}selected{% endif %}>По курсу</option>
+                            <option value="education_form" {% if current_sort == 'education_form' %}selected{% endif %}>По форме обучения</option>
+                            <option value="students_count" {% if current_sort == 'students_count' %}selected{% endif %}>По количеству студентов</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="order" class="form-label">Порядок</label>
+                        <select class="form-select" id="order" name="order">
+                            <option value="asc" {% if current_order == 'asc' %}selected{% endif %}>По возрастанию</option>
+                            <option value="desc" {% if current_order == 'desc' %}selected{% endif %}>По убыванию</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Применить фильтры
+                        </button>
+                        <a href="{{ url_for('groups.groups') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Сбросить
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Информация о результатах -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted">
+                Найдено групп: <strong>{{ groups|length }}</strong>
+                {% if current_course or current_education_form %}
+                    (с примененными фильтрами)
+                {% endif %}
+            </span>
+            {% if current_course or current_education_form or current_sort != 'name' or current_order != 'asc' %}
+            <a href="{{ url_for('groups.groups') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-clockwise"></i> Сбросить все фильтры
+            </a>
+            {% endif %}
+        </div>
     </div>
 </div>
 
@@ -25,7 +105,8 @@
                 <p class="card-text">
                     <strong>Курс:</strong> {{ group.course }}<br>
                     <strong>Форма обучения:</strong> {{ group.education_form }}<br>
-                    <strong>Студентов:</strong> {{ group.students|length }}
+                    <strong>Студентов:</strong> 
+                    <span class="badge bg-primary">{{ group.students|length }}</span>
                 </p>
             </div>
             <div class="card-footer">
@@ -50,10 +131,17 @@
     <div class="col-12">
         <div class="alert alert-info text-center">
             <h4>Группы не найдены</h4>
-            <p>Создайте свою первую группу для начала работы</p>
-            <a href="{{ url_for('groups.create_group') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> Создать группу
-            </a>
+            {% if current_course or current_education_form %}
+                <p>По заданным фильтрам группы не найдены. Попробуйте изменить параметры поиска.</p>
+                <a href="{{ url_for('groups.groups') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-clockwise"></i> Сбросить фильтры
+                </a>
+            {% else %}
+                <p>Создайте свою первую группу для начала работы</p>
+                <a href="{{ url_for('groups.create_group') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Создать группу
+                </a>
+            {% endif %}
         </div>
     </div>
     {% endfor %}
@@ -96,6 +184,60 @@ document.getElementById('confirmDelete').addEventListener('click', function() {
         document.body.appendChild(form);
         form.submit();
     }
+});
+
+// Автоматическое применение фильтров при изменении
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('filterForm');
+    const courseSelect = document.getElementById('course');
+    const educationFormSelect = document.getElementById('education_form');
+    const sortSelect = document.getElementById('sort');
+    const orderSelect = document.getElementById('order');
+    
+    // Сохраняем состояние панели фильтров
+    const filtersCollapse = document.getElementById('filtersCollapse');
+    const savedState = localStorage.getItem('filtersPanelOpen');
+    if (savedState === 'true') {
+        const bsCollapse = new bootstrap.Collapse(filtersCollapse, { show: true });
+    }
+    
+    // Отслеживаем изменения состояния панели
+    filtersCollapse.addEventListener('shown.bs.collapse', function() {
+        localStorage.setItem('filtersPanelOpen', 'true');
+    });
+    
+    filtersCollapse.addEventListener('hidden.bs.collapse', function() {
+        localStorage.setItem('filtersPanelOpen', 'false');
+    });
+    
+    // Автоматическое применение фильтров при изменении (с небольшой задержкой)
+    let filterTimeout;
+    function applyFilters() {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(() => {
+            filterForm.submit();
+        }, 500); // Задержка 500мс для избежания частых запросов
+    }
+    
+    // Применяем фильтры при изменении селектов
+    courseSelect.addEventListener('change', applyFilters);
+    educationFormSelect.addEventListener('change', applyFilters);
+    sortSelect.addEventListener('change', applyFilters);
+    orderSelect.addEventListener('change', applyFilters);
+    
+    // Показываем индикатор загрузки при отправке формы
+    filterForm.addEventListener('submit', function() {
+        const submitBtn = filterForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Загрузка...';
+        submitBtn.disabled = true;
+        
+        // Восстанавливаем кнопку через 3 секунды на случай, если что-то пойдет не так
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 3000);
+    });
 });
 </script>
 {% endblock %}

@@ -9,9 +9,62 @@ groups_bp = Blueprint('groups', __name__, url_prefix='/groups')
 @groups_bp.route('/')
 @login_required
 def groups():
-    """Список всех групп преподавателя"""
-    groups = Group.query.filter_by(teacher_id=current_user.id).all()
-    return render_template('groups.html', groups=groups)
+    """Список всех групп преподавателя с сортировкой и фильтрацией"""
+    # Получаем параметры фильтрации и сортировки
+    course_filter = request.args.get('course', '')
+    education_form_filter = request.args.get('education_form', '')
+    sort_by = request.args.get('sort', 'name')  # name, course, education_form, students_count
+    sort_order = request.args.get('order', 'asc')  # asc, desc
+    
+    # Базовый запрос
+    query = Group.query.filter_by(teacher_id=current_user.id)
+    
+    # Применяем фильтры
+    if course_filter:
+        query = query.filter(Group.course.ilike(f'%{course_filter}%'))
+    if education_form_filter:
+        query = query.filter(Group.education_form.ilike(f'%{education_form_filter}%'))
+    
+    # Применяем сортировку
+    if sort_by == 'name':
+        if sort_order == 'desc':
+            query = query.order_by(Group.name.desc())
+        else:
+            query = query.order_by(Group.name.asc())
+    elif sort_by == 'course':
+        if sort_order == 'desc':
+            query = query.order_by(Group.course.desc())
+        else:
+            query = query.order_by(Group.course.asc())
+    elif sort_by == 'education_form':
+        if sort_order == 'desc':
+            query = query.order_by(Group.education_form.desc())
+        else:
+            query = query.order_by(Group.education_form.asc())
+    elif sort_by == 'students_count':
+        # Для сортировки по количеству студентов нужен подзапрос
+        from sqlalchemy import func
+        if sort_order == 'desc':
+            query = query.outerjoin(Student).group_by(Group.id).order_by(func.count(Student.id).desc())
+        else:
+            query = query.outerjoin(Student).group_by(Group.id).order_by(func.count(Student.id).asc())
+    else:
+        query = query.order_by(Group.name.asc())
+    
+    groups = query.all()
+    
+    # Получаем уникальные значения для фильтров
+    all_courses = db.session.query(Group.course).filter_by(teacher_id=current_user.id).distinct().all()
+    all_education_forms = db.session.query(Group.education_form).filter_by(teacher_id=current_user.id).distinct().all()
+    
+    return render_template('groups.html', 
+                         groups=groups,
+                         all_courses=[course[0] for course in all_courses if course[0]],
+                         all_education_forms=[form[0] for form in all_education_forms if form[0]],
+                         current_course=course_filter,
+                         current_education_form=education_form_filter,
+                         current_sort=sort_by,
+                         current_order=sort_order)
 
 
 @groups_bp.route('/create', methods=['GET', 'POST'])
@@ -60,7 +113,8 @@ def group_detail(group_id):
         teacher_id=current_user.id
     ).first_or_404()
     
-    students = Student.query.filter_by(group_id=group_id).all()
+    # Сортируем студентов по алфавиту
+    students = Student.query.filter_by(group_id=group_id).order_by(Student.name.asc()).all()
     return render_template('group_detail.html', group=group, students=students)
 
 
@@ -176,6 +230,7 @@ def add_students_batch(group_id):
     
     added_students = []
     errors = []
+    students_to_add = []  # Список объектов Student для добавления
     
     for i, line in enumerate(students_lines, 1):
         # Поддерживаем формат "Имя Фамилия" или "Имя Фамилия, email@example.com"
@@ -207,25 +262,25 @@ def add_students_batch(group_id):
             group_id=group_id
         )
         
-        db.session.add(new_student)
-        # Добавляем студента в список для отображения (без id пока)
-        added_students.append({
-            'name': new_student.name,
-            'email': new_student.email
-        })
+        students_to_add.append(new_student)
     
-    if added_students:
-        db.session.commit()
-        print(f"Successfully added {len(added_students)} students to group {group_id}")
+    if students_to_add:
+        # Добавляем всех студентов в сессию
+        for student in students_to_add:
+            db.session.add(student)
         
-        # Получаем ID добавленных студентов после коммита
-        for i, student_data in enumerate(added_students):
-            student = Student.query.filter_by(
-                name=student_data['name'],
-                group_id=group_id
-            ).first()
-            if student:
-                added_students[i]['id'] = student.id
+        # Коммитим все изменения
+        db.session.commit()
+        
+        print(f"Successfully added {len(students_to_add)} students to group {group_id}")
+        
+        # Теперь у всех студентов есть ID, формируем список для ответа
+        for student in students_to_add:
+            added_students.append({
+                'id': student.id,
+                'name': student.name,
+                'email': student.email
+            })
     else:
         print(f"No students were added to group {group_id}")
     
