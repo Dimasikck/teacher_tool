@@ -37,43 +37,135 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* Основные стили */
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-x: hidden;
+        }
+
+        /* Плавные переходы для всех элементов */
+        * {
+            transition: 
+                background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
         .sidebar {
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            transition: transform 0.3s ease-in-out;
+            background: var(--bg-sidebar);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+            animation: sidebarGlow 8s ease-in-out infinite alternate;
+        }
+
+        /* Дополнительные эффекты для темной темы */
+        [data-theme="dark"] .sidebar::before {
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(45, 55, 72, 0.2) 0%, transparent 70%);
+        }
+
+        @keyframes sidebarGlow {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.6; }
         }
         
         .sidebar a {
-            color: white;
+            color: var(--text-inverse);
             text-decoration: none;
-            padding: 15px;
+            padding: 16px 20px;
             display: block;
-            transition: 0.3s;
-            border-radius: 8px;
-            margin: 2px 8px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 12px;
+            margin: 4px 12px;
+            position: relative;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(10px);
         }
         
         .sidebar a:hover {
-            background: rgba(255,255,255,0.1);
-            transform: translateX(5px);
+            background: var(--bg-glass);
+            transform: translateX(8px) scale(1.02);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar a i {
+            margin-right: 12px;
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
         }
         
         .main-content {
-            padding: 20px;
-            background: #f8f9fa;
+            padding: 24px;
+            background: var(--bg-primary);
             min-height: 100vh;
-            transition: margin-left 0.3s ease-in-out;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .main-content::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(102, 126, 234, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 90% 80%, rgba(118, 75, 162, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
         }
         
         .stat-card {
-            border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.3s;
-            margin-bottom: 20px;
+            border-radius: 20px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-light);
+            box-shadow: 
+                0 4px 20px var(--shadow-light),
+                0 0 0 1px var(--border-light);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 24px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent-gradient);
         }
         
         .stat-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 
+                0 12px 40px var(--shadow-medium),
+                0 0 0 1px var(--border-color);
         }
 
         /* Мобильная адаптация */
@@ -105,39 +197,45 @@
                 top: 0;
                 left: 0;
                 right: 0;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 15px;
+                background: var(--bg-sidebar);
+                backdrop-filter: blur(20px);
+                color: var(--text-inverse);
+                padding: 16px 20px;
                 z-index: 1040;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                height: 60px;
+                box-shadow: 
+                    0 4px 20px var(--shadow-medium),
+                    0 0 0 1px var(--border-light);
+                height: 64px;
                 box-sizing: border-box;
+                transition: all 0.3s ease;
             }
             
             .mobile-menu-btn {
-                background: none;
-                border: none;
-                color: white;
-                font-size: 1.5rem;
+                background: var(--bg-glass);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                color: var(--text-inverse);
+                font-size: 1.3rem;
                 cursor: pointer;
-                padding: 8px 12px;
-                border-radius: 8px;
-                transition: background-color 0.3s ease;
+                padding: 10px 14px;
+                border-radius: 12px;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                min-width: 44px;
-                min-height: 44px;
+                min-width: 48px;
+                min-height: 48px;
                 touch-action: manipulation;
                 -webkit-tap-highlight-color: transparent;
+                backdrop-filter: blur(10px);
             }
             
             .mobile-menu-btn:hover,
             .mobile-menu-btn:active,
             .mobile-menu-btn:focus {
-                background: rgba(255,255,255,0.15);
+                background: rgba(255, 255, 255, 0.15);
+                transform: scale(1.05);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
                 outline: none;
-                transform: none;
             }
             
             .mobile-menu-btn:active {
@@ -308,70 +406,124 @@
             }
         }
 
-        /* Переменные для тем */
+        /* Переменные для тем - Светлая тема */
         :root {
-            --bg-primary: #f8f9fa;
-            --bg-secondary: #ffffff;
+            --bg-primary: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            --bg-secondary: rgba(255, 255, 255, 0.9);
             --bg-sidebar: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --text-primary: #212529;
-            --text-secondary: #6c757d;
+            --bg-card: rgba(255, 255, 255, 0.95);
+            --bg-glass: rgba(255, 255, 255, 0.1);
+            --text-primary: #1a202c;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
             --text-inverse: #ffffff;
-            --border-color: #e0e0e0;
-            --shadow-light: rgba(0,0,0,0.08);
-            --shadow-medium: rgba(0,0,0,0.15);
-            --shadow-dark: rgba(0,0,0,0.25);
-            --hover-bg: #f8f9fa;
-            --input-bg: #ffffff;
-            --table-header-bg: #f8f9fa;
-            --table-hover-bg: #f8f9fa;
+            --border-color: rgba(226, 232, 240, 0.8);
+            --border-light: rgba(226, 232, 240, 0.5);
+            --shadow-light: rgba(0, 0, 0, 0.05);
+            --shadow-medium: rgba(0, 0, 0, 0.1);
+            --shadow-dark: rgba(0, 0, 0, 0.15);
+            --shadow-glass: rgba(0, 0, 0, 0.1);
+            --hover-bg: rgba(102, 126, 234, 0.05);
+            --input-bg: rgba(255, 255, 255, 0.8);
+            --input-focus: rgba(102, 126, 234, 0.1);
+            --table-header-bg: rgba(248, 250, 252, 0.8);
+            --table-hover-bg: rgba(102, 126, 234, 0.03);
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --accent-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+            --error-color: #f56565;
+            --info-color: #4299e1;
         }
 
         /* Темная тема */
         [data-theme="dark"] {
-            --bg-primary: #1a1a1a;
-            --bg-secondary: #2d2d2d;
-            --bg-sidebar: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-            --text-primary: #ffffff;
-            --text-secondary: #a0aec0;
+            --bg-primary: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            --bg-secondary: rgba(45, 55, 72, 0.9);
+            --bg-sidebar: linear-gradient(135deg, #2d3748 0%, #4a5568 50%, #1a202c 100%);
+            --bg-card: rgba(45, 55, 72, 0.95);
+            --bg-glass: rgba(255, 255, 255, 0.05);
+            --text-primary: #f7fafc;
+            --text-secondary: #e2e8f0;
+            --text-muted: #a0aec0;
             --text-inverse: #ffffff;
-            --border-color: #4a5568;
-            --shadow-light: rgba(0,0,0,0.3);
-            --shadow-medium: rgba(0,0,0,0.4);
-            --shadow-dark: rgba(0,0,0,0.6);
-            --hover-bg: #4a5568;
-            --input-bg: #4a5568;
-            --table-header-bg: #4a5568;
-            --table-hover-bg: #4a5568;
+            --border-color: rgba(74, 85, 104, 0.6);
+            --border-light: rgba(74, 85, 104, 0.3);
+            --shadow-light: rgba(0, 0, 0, 0.2);
+            --shadow-medium: rgba(0, 0, 0, 0.3);
+            --shadow-dark: rgba(0, 0, 0, 0.5);
+            --shadow-glass: rgba(0, 0, 0, 0.3);
+            --hover-bg: rgba(102, 126, 234, 0.1);
+            --input-bg: rgba(45, 55, 72, 0.8);
+            --input-focus: rgba(102, 126, 234, 0.2);
+            --table-header-bg: rgba(74, 85, 104, 0.3);
+            --table-hover-bg: rgba(102, 126, 234, 0.05);
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --accent-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-color: #68d391;
+            --warning-color: #f6ad55;
+            --error-color: #fc8181;
+            --info-color: #63b3ed;
         }
 
         /* Кнопка смены темы */
         .theme-toggle {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
+            position: fixed !important;
+            bottom: 24px !important;
+            right: 24px !important;
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
             border: none;
-            background: var(--bg-secondary);
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
             color: var(--text-primary);
-            box-shadow: 0 4px 15px var(--shadow-medium);
+            box-shadow: 
+                0 8px 25px var(--shadow-medium),
+                0 0 0 1px var(--border-light);
             cursor: pointer;
-            z-index: 1000;
-            transition: all 0.3s ease;
+            z-index: 1001 !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
+            overflow: hidden;
+        }
+
+        .theme-toggle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 50%;
+        }
+
+        .theme-toggle:hover::before {
+            opacity: 0.1;
         }
 
         .theme-toggle:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px var(--shadow-dark);
+            transform: scale(1.1) translateY(-2px);
+            box-shadow: 
+                0 12px 35px var(--shadow-dark),
+                0 0 0 1px var(--border-color);
         }
 
         .theme-toggle:active {
-            transform: scale(0.95);
+            transform: scale(1.05) translateY(0);
+        }
+
+        .theme-toggle i {
+            position: relative;
+            z-index: 1;
         }
 
         /* Применение переменных к основным элементам */
@@ -384,91 +536,242 @@
             background: var(--bg-sidebar);
         }
 
+        /* Карточки */
         .card {
-            background: var(--bg-secondary);
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
             color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            box-shadow: 0 2px 15px var(--shadow-light);
+            border: 1px solid var(--border-light);
+            box-shadow: 
+                0 4px 20px var(--shadow-light),
+                0 0 0 1px var(--border-light);
+            border-radius: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover::before {
+            opacity: 1;
         }
 
         .card:hover {
-            box-shadow: 0 4px 25px var(--shadow-medium);
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 
+                0 8px 30px var(--shadow-medium),
+                0 0 0 1px var(--border-color);
         }
 
+        /* Формы */
         .form-control, .form-select {
             background: var(--input-bg);
             color: var(--text-primary);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 12px 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
         }
 
         .form-control:focus, .form-select:focus {
             background: var(--input-bg);
             color: var(--text-primary);
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            border-color: var(--accent-primary);
+            box-shadow: 
+                0 0 0 3px var(--input-focus),
+                0 4px 15px var(--shadow-light);
+            outline: none;
         }
 
-        .table {
+        .form-label {
             color: var(--text-primary);
-            background: var(--bg-secondary);
+            font-weight: 500;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Таблицы */
+        .table {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px var(--shadow-light);
         }
 
         .table th {
             background: var(--table-header-bg);
             color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 16px;
         }
 
         .table td {
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-light);
+            padding: 16px;
+            transition: background-color 0.2s ease;
         }
 
         .table tbody tr:hover {
             background: var(--table-hover-bg);
         }
 
-        .alert {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
+        /* Модальные окна */
         .modal-content {
-            background: var(--bg-secondary);
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
             color: var(--text-primary);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px var(--shadow-dark);
         }
 
         .modal-header {
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-light);
+            background: var(--bg-glass);
         }
 
         .modal-footer {
-            border-top: 1px solid var(--border-color);
+            border-top: 1px solid var(--border-light);
+            background: var(--bg-glass);
         }
 
+        /* Выпадающие меню */
         .dropdown-menu {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            box-shadow: 0 8px 30px var(--shadow-medium);
         }
 
         .dropdown-item {
             color: var(--text-primary);
+            transition: all 0.2s ease;
+            border-radius: 8px;
+            margin: 2px 8px;
         }
 
         .dropdown-item:hover {
             background: var(--hover-bg);
-            color: var(--text-primary);
+            transform: translateX(4px);
         }
 
-        /* Общие улучшения */
+        /* Уведомления */
+        .alert {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow-light);
+        }
+
+        .alert-success {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .alert-warning {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .alert-danger {
+            border-left: 4px solid var(--error-color);
+        }
+
+        .alert-info {
+            border-left: 4px solid var(--info-color);
+        }
+
+        /* Кнопки */
         .btn {
-            border-radius: 8px;
-            transition: all 0.3s ease;
+            border-radius: 12px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
         }
         
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px var(--shadow-medium);
+            box-shadow: 0 8px 25px var(--shadow-medium);
+        }
+
+        .btn-primary {
+            background: var(--accent-gradient);
+            border: none;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+        }
+
+        .btn-secondary:hover {
+            background: var(--hover-bg);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color) 0%, #38a169 100%);
+            border: none;
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #dd6b20 100%);
+            border: none;
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--error-color) 0%, #e53e3e 100%);
+            border: none;
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, var(--info-color) 0%, #3182ce 100%);
+            border: none;
+            color: white;
         }
         
         .stat-card {
@@ -480,11 +783,12 @@
         /* Адаптация кнопки темы для мобильных */
         @media (max-width: 768px) {
             .theme-toggle {
-                bottom: 15px;
-                right: 15px;
-                width: 45px;
-                height: 45px;
-                font-size: 1.1rem;
+                bottom: 20px !important;
+                right: 20px !important;
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+                z-index: 1001 !important;
             }
         }
     </style>
@@ -786,7 +1090,7 @@
                 const installButton = document.createElement('button');
                 installButton.id = 'pwa-install-btn';
                 installButton.className = 'btn btn-primary position-fixed';
-                installButton.style.cssText = 'bottom: 20px; right: 20px; z-index: 1000; display: none;';
+                installButton.style.cssText = 'bottom: 20px; right: 90px; z-index: 1000; display: none;';
                 installButton.innerHTML = '<i class="bi bi-download"></i> Установить приложение';
                 installButton.onclick = installPWA;
                 document.body.appendChild(installButton);

@@ -2,34 +2,294 @@
 {% block title %}Вход в систему{% endblock %}
 
 {% block auth_content %}
-<div class="container">
-    <div class="row justify-content-center mt-5">
-        <div class="col-md-4">
-            <div class="card shadow">
-                <div class="card-body">
-                    <h3 class="text-center mb-4">Вход в систему</h3>
-                    <form method="POST">
-                        {{ form.hidden_tag() }}
-                        <div class="mb-3">
-                            {{ form.username.label(class="form-label") }}
-                            {{ form.username(class="form-control") }}
-                            {% if form.username.errors %}
-                                <div class="text-danger">{{ form.username.errors[0] }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="mb-3">
-                            {{ form.password.label(class="form-label") }}
-                            {{ form.password(class="form-control") }}
-                            {% if form.password.errors %}
-                                <div class="text-danger">{{ form.password.errors[0] }}</div>
-                            {% endif %}
-                        </div>
-                        {{ form.submit(class="btn btn-primary w-100") }}
-                    </form>
-                    <div class="text-center mt-3">
-                        <a href="{{ url_for('auth.register') }}">Регистрация (админ)</a>
-                    </div>
+<style>
+    /* Стили для страницы авторизации */
+    .auth-container {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Анимированный фон */
+    .auth-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+        animation: backgroundShift 20s ease-in-out infinite;
+    }
+
+    @keyframes backgroundShift {
+        0%, 100% { transform: translateX(0) translateY(0); }
+        25% { transform: translateX(-20px) translateY(-10px); }
+        50% { transform: translateX(20px) translateY(10px); }
+        75% { transform: translateX(-10px) translateY(20px); }
+    }
+
+    /* Заголовок */
+    .auth-title {
+        position: absolute;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        text-align: center;
+    }
+
+    .auth-title h1 {
+        font-size: 3.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+        text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+        animation: titleGlow 3s ease-in-out infinite alternate;
+    }
+
+    .auth-title .subtitle {
+        font-size: 1.2rem;
+        color: rgba(255, 255, 255, 0.8);
+        margin-top: 10px;
+        font-weight: 300;
+        letter-spacing: 2px;
+    }
+
+    @keyframes titleGlow {
+        0% { text-shadow: 0 0 30px rgba(102, 126, 234, 0.5); }
+        100% { text-shadow: 0 0 40px rgba(102, 126, 234, 0.8), 0 0 60px rgba(118, 75, 162, 0.3); }
+    }
+
+    /* Окно формы */
+    .auth-form-container {
+        position: relative;
+        z-index: 5;
+        width: 100%;
+        max-width: 420px;
+        padding: 0 20px;
+    }
+
+    .auth-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 
+            0 20px 40px rgba(0, 0, 0, 0.3),
+            0 0 0 1px rgba(255, 255, 255, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        animation: cardFloat 6s ease-in-out infinite;
+    }
+
+    @keyframes cardFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .auth-card h3 {
+        color: #ffffff;
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 1.8rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+    }
+
+    /* Поля формы */
+    .form-group {
+        margin-bottom: 25px;
+        position: relative;
+    }
+
+    .form-label {
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+    }
+
+    .form-control {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        color: #ffffff;
+        padding: 15px 20px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+
+    .form-control:focus {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: #667eea;
+        box-shadow: 
+            0 0 0 3px rgba(102, 126, 234, 0.2),
+            0 0 20px rgba(102, 126, 234, 0.1);
+        outline: none;
+    }
+
+    .form-control::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Кнопка входа */
+    .btn-login {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 12px;
+        color: white;
+        font-weight: 600;
+        font-size: 1.1rem;
+        padding: 15px;
+        width: 100%;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        letter-spacing: 1px;
+    }
+
+    .btn-login::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .btn-login:hover::before {
+        left: 100%;
+    }
+
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 
+            0 10px 25px rgba(102, 126, 234, 0.4),
+            0 0 30px rgba(102, 126, 234, 0.2);
+    }
+
+    .btn-login:active {
+        transform: translateY(0);
+    }
+
+    /* Ссылка регистрации */
+    .auth-link {
+        text-align: center;
+        margin-top: 25px;
+    }
+
+    .auth-link a {
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .auth-link a::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 1px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        transition: width 0.3s ease;
+    }
+
+    .auth-link a:hover {
+        color: #ffffff;
+    }
+
+    .auth-link a:hover::after {
+        width: 100%;
+    }
+
+    /* Ошибки */
+    .text-danger {
+        color: #ff6b6b !important;
+        font-size: 0.9rem;
+        margin-top: 5px;
+        display: block;
+    }
+
+    /* Адаптивность */
+    @media (max-width: 768px) {
+        .auth-title h1 {
+            font-size: 2.5rem;
+        }
+        
+        .auth-title .subtitle {
+            font-size: 1rem;
+        }
+        
+        .auth-card {
+            padding: 30px 25px;
+            margin: 0 10px;
+        }
+        
+        .auth-title {
+            top: 40px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .auth-title h1 {
+            font-size: 2rem;
+        }
+        
+        .auth-card {
+            padding: 25px 20px;
+        }
+    }
+</style>
+
+<div class="auth-container">
+    <!-- Заголовок -->
+    <div class="auth-title">
+        <h1>Teacher Tools</h1>
+        <div class="subtitle">Система управления учебным процессом</div>
+    </div>
+
+    <!-- Форма авторизации -->
+    <div class="auth-form-container">
+        <div class="auth-card">
+            <h3>Вход в систему</h3>
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="form-group">
+                    {{ form.username.label(class="form-label") }}
+                    {{ form.username(class="form-control", placeholder="Введите имя пользователя") }}
+                    {% if form.username.errors %}
+                        <div class="text-danger">{{ form.username.errors[0] }}</div>
+                    {% endif %}
                 </div>
+                <div class="form-group">
+                    {{ form.password.label(class="form-label") }}
+                    {{ form.password(class="form-control", placeholder="Введите пароль") }}
+                    {% if form.password.errors %}
+                        <div class="text-danger">{{ form.password.errors[0] }}</div>
+                    {% endif %}
+                </div>
+                {{ form.submit(class="btn btn-login") }}
+            </form>
+            <div class="auth-link">
+                <a href="{{ url_for('auth.register') }}">Регистрация (админ)</a>
             </div>
         </div>
     </div>
