@@ -6,37 +6,41 @@
 
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card stat-card bg-primary text-white">
+        <div class="card stat-card bg-primary text-white clickable-card" onclick="navigateToGroups()">
             <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-people"></i> Группы</h5>
                 <h2>{{ groups }}</h2>
+                <small class="d-block mt-2"><i class="bi bi-arrow-right"></i> Управление группами</small>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card stat-card bg-success text-white">
+        <div class="card stat-card bg-success text-white clickable-card" onclick="navigateToStudents()">
             <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-person"></i> Студенты</h5>
                 <h2>{{ students }}</h2>
+                <small class="d-block mt-2"><i class="bi bi-arrow-right"></i> Журнал посещаемости</small>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card stat-card bg-info text-white">
+        <div class="card stat-card bg-warning text-white clickable-card" onclick="navigateToLessons()">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-book"></i> Занятия</h5>
+                <h2>{{ lessons }}</h2>
+                <small class="d-block mt-2"><i class="bi bi-arrow-right"></i> Календарь занятий</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-info text-white clickable-card" onclick="navigateToAssignments()">
             <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-file-text"></i> Задания</h5>
                 <h2>{{ assignments }}</h2>
                 {% if unchecked > 0 %}
                 <small>Непроверенных: {{ unchecked }}</small>
                 {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card bg-warning text-white">
-            <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-book"></i> Занятия</h5>
-                <h2>{{ lessons }}</h2>
+                <small class="d-block mt-2"><i class="bi bi-arrow-right"></i> Управление заданиями</small>
             </div>
         </div>
     </div>
@@ -65,7 +69,95 @@
     </div>
 </div>
 
+<style>
+.clickable-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.clickable-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.clickable-card:hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.clickable-card:hover::before {
+    left: 100%;
+}
+
+.clickable-card:active {
+    transform: translateY(-2px);
+}
+
+.stat-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.stat-card .card-body {
+    padding: 1.5rem;
+}
+
+.stat-card h5 {
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.stat-card h2 {
+    font-weight: 700;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card small {
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+/* Анимация при наведении */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.clickable-card:hover {
+    animation: pulse 0.6s ease-in-out;
+}
+</style>
+
 <script>
+// Функции навигации
+function navigateToGroups() {
+    window.location.href = '/groups';
+}
+
+function navigateToStudents() {
+    window.location.href = '/journal';
+}
+
+function navigateToAssignments() {
+    window.location.href = '/assignments';
+}
+
+function navigateToLessons() {
+    window.location.href = '/calendar';
+}
+
+// Загрузка аналитики
 fetch('/api/analytics/overview')
     .then(r => r.json())
     .then(data => {

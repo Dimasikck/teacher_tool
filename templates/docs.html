@@ -1,146 +1,235 @@
 {% extends 'base.html' %}
-{% block title %}Документация{% endblock %}
+{% block title %}Облачная документация{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
+    <!-- Заголовок -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="bi bi-file-earmark-text"></i> Документация</h2>
+        <h2><i class="bi bi-cloud"></i> Облачная документация</h2>
         <div>
-            <button class="btn btn-primary" onclick="showUploadModal()">
-                <i class="bi bi-cloud-upload"></i> Загрузить файл
+            <button class="btn btn-primary" onclick="showCloudSettingsModal()">
+                <i class="bi bi-gear"></i> Настроить облако
             </button>
-            <button class="btn btn-outline-secondary" onclick="refreshFiles()">
-                <i class="bi bi-arrow-clockwise"></i> Обновить
+            <button class="btn btn-success" onclick="showCategoryModal()">
+                <i class="bi bi-folder-plus"></i> Создать категорию
             </button>
         </div>
     </div>
 
-    <!-- Статистика -->
+    <!-- Статус подключения -->
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-files text-primary" style="font-size: 2rem;"></i>
-                    <h5 class="mt-2">{{ files|length }}</h5>
-                    <p class="text-muted mb-0">Всего файлов</p>
+        <div class="col-12">
+            {% if cloud_settings and cloud_settings.is_active %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i>
+                    <strong>Облако подключено:</strong> {{ cloud_settings.cloud_type|title }} Cloud
+                    <button class="btn btn-sm btn-outline-success ms-2" onclick="showCloudSettingsModal()">
+                        <i class="bi bi-pencil"></i> Редактировать
+                    </button>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 2rem;"></i>
-                    <h5 class="mt-2">{{ files|selectattr('name', 'match', '.*\\.pdf$')|list|length }}</h5>
-                    <p class="text-muted mb-0">PDF документы</p>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Облако не настроено</strong> - Нажмите "Настроить облако" для подключения
                 </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-file-earmark-image text-success" style="font-size: 2rem;"></i>
-                    <h5 class="mt-2">{{ files|selectattr('name', 'match', '.*\\.(jpg|jpeg|png|gif)$')|list|length }}</h5>
-                    <p class="text-muted mb-0">Изображения</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-file-earmark-code text-warning" style="font-size: 2rem;"></i>
-                    <h5 class="mt-2">{{ files|selectattr('name', 'match', '.*\\.(py|js|html|css|java|cpp|c)$')|list|length }}</h5>
-                    <p class="text-muted mb-0">Код</p>
-                </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Фильтры и поиск -->
-    <div class="row mb-3">
-        <div class="col-md-6">
-            <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" id="searchInput" class="form-control" placeholder="Поиск файлов..." onkeyup="filterFiles()">
-            </div>
-        </div>
-        <div class="col-md-3">
-            <select id="typeFilter" class="form-select" onchange="filterFiles()">
-                <option value="">Все типы</option>
-                <option value="pdf">PDF</option>
-                <option value="image">Изображения</option>
-                <option value="document">Документы</option>
-                <option value="code">Код</option>
-                <option value="archive">Архивы</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <select id="sortBy" class="form-select" onchange="sortFiles()">
-                <option value="date">По дате</option>
-                <option value="name">По имени</option>
-                <option value="size">По размеру</option>
-            </select>
-        </div>
-    </div>
-
-    <!-- Список файлов -->
-    <div class="card">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="bi bi-cloud"></i> Облачное хранилище</h5>
-        </div>
-        <div class="card-body">
-            <div id="filesList" class="row">
-                {% if files %}
-                    {% for file in files %}
-                    <div class="col-md-6 col-lg-4 mb-3 file-item" data-name="{{ file.name }}" data-type="{{ file.type }}" data-size="{{ file.size }}">
-                        <div class="card h-100 file-card">
+    <!-- Категории -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4><i class="bi bi-folder2"></i> Категории</h4>
+            {% if categories %}
+                <div class="row" id="categoriesList">
+                    {% for category in categories %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card category-card" onclick="openCategory({{ category.id }})">
                             <div class="card-body">
-                                <div class="d-flex align-items-start">
+                                <div class="d-flex align-items-center">
                                     <div class="me-3">
-                                        <i class="bi {{ file.icon }}" style="font-size: 2rem; color: #667eea;"></i>
+                                        <i class="bi bi-folder-fill" style="font-size: 2rem; color: #667eea;"></i>
                                     </div>
                                     <div class="flex-grow-1">
-                                        <h6 class="card-title mb-1" title="{{ file.name }}">{{ file.name[:30] }}{% if file.name|length > 30 %}...{% endif %}</h6>
-                                        <p class="card-text text-muted small mb-2">
-                                            <i class="bi bi-hdd"></i> {{ file.size_formatted }}<br>
-                                            <i class="bi bi-clock"></i> {{ file.modified.strftime('%d.%m.%Y %H:%M') }}
-                                        </p>
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            <button class="btn btn-outline-primary" onclick="viewFile('{{ file.name }}')" title="Просмотр">
-                                                <i class="bi bi-eye"></i>
-                                            </button>
-                                            <button class="btn btn-outline-success" onclick="downloadFile('{{ file.name }}')" title="Скачать">
-                                                <i class="bi bi-download"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger" onclick="deleteFile('{{ file.name }}')" title="Удалить">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
+                                        <h6 class="card-title mb-1">{{ category.name }}</h6>
+                                        <p class="card-text text-muted small mb-2">{{ category.cloud_path }}</p>
+                                        {% if category.description %}
+                                        <p class="card-text small">{{ category.description }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                                            <i class="bi bi-three-dots"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#" onclick="editCategory({{ category.id }})">
+                                                <i class="bi bi-pencil"></i> Редактировать
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="deleteCategory({{ category.id }})">
+                                                <i class="bi bi-trash"></i> Удалить
+                                            </a></li>
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
-                {% else %}
-                    <div class="col-12 text-center py-5">
-                        <i class="bi bi-cloud-slash" style="font-size: 4rem; color: #ccc;"></i>
-                        <h4 class="mt-3 text-muted">Нет файлов</h4>
-                        <p class="text-muted">Загрузите первый файл, чтобы начать работу с документацией</p>
-                        <button class="btn btn-primary" onclick="showUploadModal()">
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-folder-x" style="font-size: 4rem; color: #ccc;"></i>
+                    <h4 class="mt-3 text-muted">Нет категорий</h4>
+                    <p class="text-muted">Создайте первую категорию для организации файлов</p>
+                    <button class="btn btn-primary" onclick="showCategoryModal()">
+                        <i class="bi bi-folder-plus"></i> Создать категорию
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Содержимое категории (скрыто по умолчанию) -->
+    <div id="categoryContent" class="row" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0" id="categoryTitle">
+                        <i class="bi bi-folder2-open"></i> <span id="categoryName"></span>
+                    </h5>
+                    <div>
+                        <button class="btn btn-sm btn-primary" onclick="showUploadModal()">
                             <i class="bi bi-cloud-upload"></i> Загрузить файл
                         </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="closeCategory()">
+                            <i class="bi bi-x"></i> Закрыть
+                        </button>
                     </div>
-                {% endif %}
+                </div>
+                <div class="card-body">
+                    <div id="filesList" class="row">
+                        <!-- Файлы будут загружены динамически -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Модальное окно загрузки -->
+<!-- Модальное окно настроек облака -->
+<div class="modal fade" id="cloudSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-gear"></i> Настройки облака</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="cloudSettingsForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="cloudType" class="form-label">Тип облака</label>
+                                <select class="form-select" id="cloudType" name="cloud_type" required>
+                                    <option value="mail">Mail.ru Cloud</option>
+                                    <option value="yandex">Яндекс.Диск</option>
+                                    <option value="google">Google Drive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="apiUrl" class="form-label">API URL</label>
+                                <input type="url" class="form-control" id="apiUrl" name="api_url" 
+                                       value="https://cloud.mail.ru/api/v2" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clientId" class="form-label">Client ID</label>
+                                <input type="text" class="form-control" id="clientId" name="client_id" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clientSecret" class="form-label">Client Secret</label>
+                                <input type="password" class="form-control" id="clientSecret" name="client_secret" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="accessToken" class="form-label">Access Token</label>
+                                <input type="text" class="form-control" id="accessToken" name="access_token">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="refreshToken" class="form-label">Refresh Token</label>
+                                <input type="text" class="form-control" id="refreshToken" name="refresh_token">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="isActive" name="is_active">
+                            <label class="form-check-label" for="isActive">
+                                Активировать подключение
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveCloudSettings()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно создания категории -->
+<div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder-plus"></i> Создать категорию</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="categoryForm">
+                    <div class="mb-3">
+                        <label for="categoryName" class="form-label">Название категории</label>
+                        <input type="text" class="form-control" id="categoryName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cloudPath" class="form-label">Путь к папке в облаке</label>
+                        <input type="text" class="form-control" id="cloudPath" name="cloud_path" 
+                               placeholder="/Документы/Учебные материалы" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="categoryDescription" class="form-label">Описание</label>
+                        <textarea class="form-control" id="categoryDescription" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveCategory()">Создать</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно загрузки файла -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> Загрузка файла</h5>
+                <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> Загрузить файл</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -148,7 +237,7 @@
                     <div class="mb-3">
                         <label for="fileInput" class="form-label">Выберите файл</label>
                         <input type="file" class="form-control" id="fileInput" name="file" required>
-                        <div class="form-text">Поддерживаемые форматы: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, изображения, архивы, код</div>
+                        <div class="form-text">Поддерживаемые форматы: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, изображения, архивы</div>
                     </div>
                     <div class="progress mb-3" style="display: none;" id="uploadProgress">
                         <div class="progress-bar" role="progressbar" style="width: 0%"></div>
@@ -164,6 +253,17 @@
 </div>
 
 <style>
+.category-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+    border: 1px solid #e9ecef;
+}
+
+.category-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
 .file-card {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     border: 1px solid #e9ecef;
@@ -183,48 +283,249 @@
     pointer-events: none;
 }
 
-.stat-card {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: none;
-}
-
-.stat-card:hover {
-    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-}
-
 /* Адаптивность */
 @media (max-width: 768px) {
-    .file-item {
+    .category-card, .file-card {
         margin-bottom: 1rem;
-    }
-    
-    .btn-group-sm .btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
     }
 }
 </style>
 
 <script>
+let currentCategoryId = null;
 let allFiles = [];
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
-    // Сохраняем все файлы для фильтрации
-    allFiles = Array.from(document.querySelectorAll('.file-item'));
+    // Загружаем настройки облака при загрузке страницы
+    loadCloudSettings();
 });
 
+// === УПРАВЛЕНИЕ НАСТРОЙКАМИ ОБЛАКА ===
+
+function showCloudSettingsModal() {
+    const modal = new bootstrap.Modal(document.getElementById('cloudSettingsModal'));
+    modal.show();
+}
+
+function loadCloudSettings() {
+    fetch('/docs/api/cloud/settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.log('Настройки облака не найдены');
+                return;
+            }
+            
+            // Заполняем форму существующими настройками
+            document.getElementById('cloudType').value = data.cloud_type;
+            document.getElementById('apiUrl').value = data.api_url;
+            document.getElementById('clientId').value = data.client_id;
+            document.getElementById('clientSecret').value = data.client_secret || '';
+            document.getElementById('accessToken').value = data.access_token || '';
+            document.getElementById('refreshToken').value = data.refresh_token || '';
+            document.getElementById('isActive').checked = data.is_active;
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки настроек:', error);
+        });
+}
+
+function saveCloudSettings() {
+    const form = document.getElementById('cloudSettingsForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        cloud_type: formData.get('cloud_type'),
+        api_url: formData.get('api_url'),
+        client_id: formData.get('client_id'),
+        client_secret: formData.get('client_secret'),
+        access_token: formData.get('access_token'),
+        refresh_token: formData.get('refresh_token'),
+        is_active: document.getElementById('isActive').checked
+    };
+    
+    fetch('/docs/api/cloud/settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('cloudSettingsModal'));
+            modal.hide();
+            location.reload();
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Ошибка сохранения настроек', 'error');
+        console.error('Error:', error);
+    });
+}
+
+// === УПРАВЛЕНИЕ КАТЕГОРИЯМИ ===
+
+function showCategoryModal() {
+    const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+    modal.show();
+}
+
+function saveCategory() {
+    const form = document.getElementById('categoryForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        name: formData.get('name'),
+        cloud_path: formData.get('cloud_path'),
+        description: formData.get('description')
+    };
+    
+    fetch('/docs/api/cloud/categories', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
+            modal.hide();
+            location.reload();
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Ошибка создания категории', 'error');
+        console.error('Error:', error);
+    });
+}
+
+function openCategory(categoryId) {
+    currentCategoryId = categoryId;
+    
+    // Получаем название категории
+    const categoryCard = document.querySelector(`[onclick="openCategory(${categoryId})"]`);
+    const categoryName = categoryCard.querySelector('.card-title').textContent;
+    
+    // Показываем содержимое категории
+    document.getElementById('categoryName').textContent = categoryName;
+    document.getElementById('categoryContent').style.display = 'block';
+    
+    // Загружаем файлы категории
+    loadCategoryFiles(categoryId);
+}
+
+function loadCategoryFiles(categoryId) {
+    fetch(`/docs/api/cloud/files/${categoryId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showNotification(data.error, 'error');
+                return;
+            }
+            
+            const filesList = document.getElementById('filesList');
+            filesList.innerHTML = '';
+            
+            if (data.files && data.files.length > 0) {
+                data.files.forEach(file => {
+                    const fileCard = createFileCard(file);
+                    filesList.appendChild(fileCard);
+                });
+            } else {
+                filesList.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-folder-x" style="font-size: 4rem; color: #ccc;"></i>
+                        <h4 class="mt-3 text-muted">Папка пуста</h4>
+                        <p class="text-muted">Загрузите первый файл в эту категорию</p>
+                        <button class="btn btn-primary" onclick="showUploadModal()">
+                            <i class="bi bi-cloud-upload"></i> Загрузить файл
+                        </button>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            showNotification('Ошибка загрузки файлов', 'error');
+            console.error('Error:', error);
+        });
+}
+
+function createFileCard(file) {
+    const col = document.createElement('div');
+    col.className = 'col-md-6 col-lg-4 mb-3 file-item';
+    
+    col.innerHTML = `
+        <div class="card h-100 file-card">
+            <div class="card-body">
+                <div class="d-flex align-items-start">
+                    <div class="me-3">
+                        <i class="bi bi-file-earmark" style="font-size: 2rem; color: #667eea;"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="card-title mb-1" title="${file.name}">${file.name.length > 30 ? file.name.substring(0, 30) + '...' : file.name}</h6>
+                        <p class="card-text text-muted small mb-2">
+                            <i class="bi bi-hdd"></i> ${file.size_formatted || 'Неизвестно'}<br>
+                            <i class="bi bi-clock"></i> ${file.modified || 'Неизвестно'}
+                        </p>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-primary" onclick="viewFile('${file.name}')" title="Просмотр">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-success" onclick="downloadFile('${file.name}')" title="Скачать">
+                                <i class="bi bi-download"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteFile('${file.name}')" title="Удалить">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return col;
+}
+
+function closeCategory() {
+    document.getElementById('categoryContent').style.display = 'none';
+    currentCategoryId = null;
+}
+
+// === ЗАГРУЗКА ФАЙЛОВ ===
+
 function showUploadModal() {
+    if (!currentCategoryId) {
+        showNotification('Выберите категорию для загрузки файла', 'warning');
+        return;
+    }
+    
     const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
     modal.show();
 }
 
 function uploadFile() {
+    if (!currentCategoryId) {
+        showNotification('Выберите категорию для загрузки файла', 'warning');
+        return;
+    }
+    
     const fileInput = document.getElementById('fileInput');
     const file = fileInput.files[0];
     
     if (!file) {
-        alert('Выберите файл для загрузки');
+        showNotification('Выберите файл для загрузки', 'warning');
         return;
     }
     
@@ -234,10 +535,9 @@ function uploadFile() {
     const progressBar = document.getElementById('uploadProgress');
     const progressBarFill = progressBar.querySelector('.progress-bar');
     
-    // Показываем прогресс
     progressBar.style.display = 'block';
     
-    fetch('/docs/upload', {
+    fetch(`/docs/api/cloud/upload/${currentCategoryId}`, {
         method: 'POST',
         body: formData
     })
@@ -246,20 +546,11 @@ function uploadFile() {
         progressBar.style.display = 'none';
         
         if (data.success) {
-            // Закрываем модальное окно
+            showNotification(data.message, 'success');
             const modal = bootstrap.Modal.getInstance(document.getElementById('uploadModal'));
             modal.hide();
-            
-            // Очищаем форму
             fileInput.value = '';
-            
-            // Показываем уведомление
-            showNotification(data.message, 'success');
-            
-            // Обновляем страницу
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
+            loadCategoryFiles(currentCategoryId);
         } else {
             showNotification(data.error, 'error');
         }
@@ -271,12 +562,16 @@ function uploadFile() {
     });
 }
 
-function downloadFile(filename) {
-    window.open(`/docs/download/${encodeURIComponent(filename)}`, '_blank');
-}
+// === ОПЕРАЦИИ С ФАЙЛАМИ ===
 
 function viewFile(filename) {
-    window.open(`/docs/view/${encodeURIComponent(filename)}`, '_blank');
+    // Здесь будет логика просмотра файла
+    showNotification('Просмотр файла в разработке', 'info');
+}
+
+function downloadFile(filename) {
+    // Здесь будет логика скачивания файла
+    showNotification('Скачивание файла в разработке', 'info');
 }
 
 function deleteFile(filename) {
@@ -284,93 +579,15 @@ function deleteFile(filename) {
         return;
     }
     
-    fetch(`/docs/delete/${encodeURIComponent(filename)}`, {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
-        } else {
-            showNotification(data.error, 'error');
-        }
-    })
-    .catch(error => {
-        showNotification('Ошибка при удалении файла', 'error');
-        console.error('Error:', error);
-    });
+    // Здесь будет логика удаления файла
+    showNotification('Удаление файла в разработке', 'info');
 }
 
-function refreshFiles() {
-    location.reload();
-}
-
-function filterFiles() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const typeFilter = document.getElementById('typeFilter').value;
-    
-    allFiles.forEach(item => {
-        const fileName = item.dataset.name.toLowerCase();
-        const fileType = item.dataset.type.toLowerCase();
-        
-        let matchesSearch = fileName.includes(searchTerm);
-        let matchesType = true;
-        
-        if (typeFilter) {
-            switch(typeFilter) {
-                case 'pdf':
-                    matchesType = fileName.endsWith('.pdf');
-                    break;
-                case 'image':
-                    matchesType = /\.(jpg|jpeg|png|gif)$/.test(fileName);
-                    break;
-                case 'document':
-                    matchesType = /\.(doc|docx|xls|xlsx|ppt|pptx|txt)$/.test(fileName);
-                    break;
-                case 'code':
-                    matchesType = /\.(py|js|html|css|java|cpp|c|h)$/.test(fileName);
-                    break;
-                case 'archive':
-                    matchesType = /\.(zip|rar)$/.test(fileName);
-                    break;
-            }
-        }
-        
-        if (matchesSearch && matchesType) {
-            item.classList.remove('hidden');
-        } else {
-            item.classList.add('hidden');
-        }
-    });
-}
-
-function sortFiles() {
-    const sortBy = document.getElementById('sortBy').value;
-    const filesList = document.getElementById('filesList');
-    const items = Array.from(filesList.children);
-    
-    items.sort((a, b) => {
-        switch(sortBy) {
-            case 'name':
-                return a.dataset.name.localeCompare(b.dataset.name);
-            case 'size':
-                return parseInt(b.dataset.size) - parseInt(a.dataset.size);
-            case 'date':
-            default:
-                return 0; // Уже отсортировано по дате на сервере
-        }
-    });
-    
-    items.forEach(item => filesList.appendChild(item));
-}
+// === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 
 function showNotification(message, type) {
-    // Создаем уведомление
     const notification = document.createElement('div');
-    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'info'} alert-dismissible fade show position-fixed`;
     notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
     notification.innerHTML = `
         ${message}
@@ -379,7 +596,6 @@ function showNotification(message, type) {
     
     document.body.appendChild(notification);
     
-    // Автоматически удаляем через 5 секунд
     setTimeout(() => {
         if (notification.parentNode) {
             notification.parentNode.removeChild(notification);

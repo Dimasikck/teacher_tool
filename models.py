@@ -118,3 +118,27 @@ class Task(db.Model):
     position = db.Column(db.Integer, default=0)
     list_id = db.Column(db.Integer, db.ForeignKey('task_list.id'))
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
+
+
+class CloudSettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), nullable=False)
+    cloud_type = db.Column(db.String(50), default='mail')  # mail, yandex, google
+    api_url = db.Column(db.String(500))
+    access_token = db.Column(db.Text)
+    refresh_token = db.Column(db.Text)
+    client_id = db.Column(db.String(200))
+    client_secret = db.Column(db.String(200))
+    is_active = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CloudCategory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    cloud_path = db.Column(db.String(500), nullable=False)
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
