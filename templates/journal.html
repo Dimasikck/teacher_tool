@@ -801,12 +801,53 @@ function saveControlPointScore(inputEl) {
 .table-responsive {
     background-color: var(--bg-secondary);
     border-radius: 8px;
-    overflow: hidden;
+    overflow-x: auto; /* включаем горизонтальную прокрутку */
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; /* плавная прокрутка на мобильных */
+    position: relative; /* для корректных контекстов наложения */
     box-shadow: 0 2px 10px var(--shadow-light);
 }
 
 .table {
     margin-bottom: 0;
+    position: relative; /* повышаем контекст наложения для sticky */
+    border-collapse: separate !important; /* sticky корректно работает с separate */
+    border-spacing: 0; /* сохраняем внешний вид рамок */
+}
+
+/* Не переносим содержимое ячеек, чтобы появлялся горизонтальный скролл */
+.table thead th,
+.table tbody td {
+    white-space: nowrap;
+}
+
+/* Первую колонку (студент) можно переносить для читабельности */
+.table thead th:first-child,
+.table tbody td:first-child {
+    white-space: normal;
+}
+
+/* Закрепляем первый столбец при горизонтальной прокрутке */
+.table thead th:first-child,
+.table tbody td:first-child {
+    position: -webkit-sticky;
+    position: sticky;
+    left: 0;
+    z-index: 2; /* выше остальных ячеек */
+}
+
+/* Заголовок первого столбца поверх данных и с корректным фоном */
+.table thead th:first-child {
+    z-index: 3;
+    background-color: var(--table-header-bg) !important;
+    min-width: 220px;
+}
+
+/* Тело первого столбца: фон и визуальное разделение */
+.table tbody td:first-child {
+    background-color: var(--bg-secondary) !important;
+    box-shadow: 2px 0 0 0 var(--border-color);
+    min-width: 220px;
 }
 
 /* Стили для ячеек с данными */
