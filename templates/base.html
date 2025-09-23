@@ -7,11 +7,11 @@
     
     <!-- PWA Meta Tags -->
     <meta name="description" content="Система для управления группами, студентами, заданиями и расписанием занятий">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#30394b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Teacher Tools">
-    <meta name="msapplication-TileColor" content="#667eea">
+    <meta name="msapplication-TileColor" content="#30394b">
     <meta name="msapplication-config" content="/browserconfig.xml">
     
     <!-- PWA Manifest -->
@@ -816,6 +816,39 @@
                 font-size: 1.2rem;
                 z-index: 1001 !important;
             }
+        }
+
+        /* Улучшение контрастности для тёмной темы */
+        html[data-theme="dark"] a,
+        html[data-theme="dark"] .nav-link,
+        html[data-theme="dark"] .dropdown-item {
+            color: #e2e8f0;
+        }
+
+        html[data-theme="dark"] a:hover,
+        html[data-theme="dark"] .nav-link:hover,
+        html[data-theme="dark"] .dropdown-item:hover {
+            color: #ffffff;
+        }
+
+        html[data-theme="dark"] .text-muted,
+        html[data-theme="dark"] .form-text {
+            color: #cbd5e1 !important;
+        }
+
+        html[data-theme="dark"] .form-control::placeholder,
+        html[data-theme="dark"] .form-select:invalid,
+        html[data-theme="dark"] textarea::placeholder {
+            color: rgba(226, 232, 240, 0.6);
+        }
+
+        html[data-theme="dark"] .btn-secondary {
+            color: #e2e8f0;
+        }
+
+        html[data-theme="dark"] .table th,
+        html[data-theme="dark"] .table td {
+            color: #f7fafc;
         }
     </style>
     {% block extra_css %}{% endblock %}

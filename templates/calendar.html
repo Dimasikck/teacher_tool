@@ -404,9 +404,23 @@
         background: var(--table-header-bg);
         color: var(--text-primary);
     }
+    [data-theme="dark"] .fc-col-header-cell-cushion {
+        color: #273241 !important; /* лучше читается на тёмном фоне */
+        font-weight: 600 !important;
+    }
 
     [data-theme="dark"] .fc-daygrid-day-number {
-        color: var(--text-primary);
+        color: #e2e8f0 !important; /* повысили контраст */
+        font-weight: 700 !important;
+        text-shadow: 0 0 2px rgba(0,0,0,0.25);
+    }
+    [data-theme="dark"] .fc-day-other .fc-daygrid-day-number,
+    [data-theme="dark"] .fc-day-other-month .fc-daygrid-day-number {
+        color: #94a3b8 !important; /* приглушённые даты из соседнего месяца */
+        font-weight: 600 !important;
+    }
+    [data-theme="dark"] .fc-day-today .fc-daygrid-day-number {
+        color: #ffffff !important;
     }
 
     [data-theme="dark"] .fc-timegrid-slot-label {
