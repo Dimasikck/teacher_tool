@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db, Teacher
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
+from wtforms import StringField, PasswordField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Email, Length
 
 auth_bp = Blueprint('auth', __name__)
@@ -11,6 +11,7 @@ auth_bp = Blueprint('auth', __name__)
 class LoginForm(FlaskForm):
     username = StringField('Логин', validators=[DataRequired(), Length(min=3, max=80)])
     password = PasswordField('Пароль', validators=[DataRequired()])
+    remember = BooleanField('Запомнить меня')
     submit = SubmitField('Войти')
 
 
@@ -27,7 +28,8 @@ def login():
     if form.validate_on_submit():
         teacher = Teacher.query.filter_by(username=form.username.data).first()
         if teacher and teacher.check_password(form.password.data):
-            login_user(teacher)
+            # persistent session for PWA installs
+            login_user(teacher, remember=bool(form.remember.data))
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('dashboard'))
         flash('Неверный логин или пароль', 'danger')

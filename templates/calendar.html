@@ -484,6 +484,9 @@
             <button class="btn btn-warning" onclick="showExcelUploadModal()">
                 <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-md-inline">Excel</span>
             </button>
+            <button class="btn btn-success" onclick="exportToExcel()">
+                <i class="bi bi-download"></i> <span class="d-none d-md-inline">Экспорт</span>
+            </button>
             <button class="btn btn-secondary" onclick="refreshCalendar()">
                 <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Обновить</span>
             </button>
@@ -1261,6 +1264,42 @@ function uploadExcelFile() {
             </div>
         `;
     });
+}
+
+function exportToExcel() {
+    // Показываем индикатор загрузки
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i> <span class="d-none d-md-inline">Экспорт...</span>';
+    button.disabled = true;
+    
+    // Создаем ссылку для скачивания
+    const link = document.createElement('a');
+    link.href = '/api/schedule/export-excel';
+    link.download = '';
+    
+    // Добавляем обработчики для восстановления кнопки
+    link.onload = function() {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    };
+    
+    link.onerror = function() {
+        button.innerHTML = originalText;
+        button.disabled = false;
+        alert('Ошибка при экспорте файла. Попробуйте еще раз.');
+    };
+    
+    // Запускаем скачивание
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Восстанавливаем кнопку через 3 секунды на всякий случай
+    setTimeout(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }, 3000);
 }
 </script>
 {% endblock %}

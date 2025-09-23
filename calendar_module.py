@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, send_file
 from flask_login import login_required, current_user
 from models import db, Schedule, Group, Lesson, Attendance
 from ai_utils import AIAnalyzer
@@ -6,6 +6,10 @@ from datetime import datetime, timedelta
 import json
 import pandas as pd
 import os
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+import io
 
 calendar_bp = Blueprint('calendar', __name__)
 ai = AIAnalyzer()
@@ -674,3 +678,117 @@ def get_sync_status():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@calendar_bp.route('/api/schedule/export-excel')
+@login_required
+def export_schedule_excel():
+    """Экспорт расписания в Excel файл"""
+    try:
+        # Получаем все события для текущего преподавателя
+        events = Schedule.query.filter_by(teacher_id=current_user.id).order_by(Schedule.start_time).all()
+        
+        if not events:
+            return jsonify({'error': 'Нет занятий для экспорта'}), 400
+        
+        # Создаем Excel файл
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Расписание занятий"
+        
+        # Стили
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        center_alignment = Alignment(horizontal='center', vertical='center')
+        
+        # Заголовки
+        headers = [
+            'Дата', 'День недели', 'Время начала', 'Время окончания', 
+            'Группа', 'Дисциплина', 'Аудитория', 'Преподаватель'
+        ]
+        
+        # Записываем заголовки
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center_alignment
+            cell.border = border
+        
+        # Записываем данные
+        for row, event in enumerate(events, 2):
+            group = Group.query.get(event.group_id)
+            group_name = group.name if group else 'Неизвестная группа'
+            
+            # Форматируем дату и время
+            date_str = event.start_time.strftime('%d.%m.%Y')
+            weekday = event.start_time.strftime('%A')
+            # Переводим день недели на русский
+            weekdays_ru = {
+                'Monday': 'Понедельник',
+                'Tuesday': 'Вторник', 
+                'Wednesday': 'Среда',
+                'Thursday': 'Четверг',
+                'Friday': 'Пятница',
+                'Saturday': 'Суббота',
+                'Sunday': 'Воскресенье'
+            }
+            weekday_ru = weekdays_ru.get(weekday, weekday)
+            
+            start_time = event.start_time.strftime('%H:%M')
+            end_time = event.end_time.strftime('%H:%M')
+            
+            # Записываем данные в строку
+            row_data = [
+                date_str,
+                weekday_ru,
+                start_time,
+                end_time,
+                group_name,
+                event.title,
+                event.classroom or '',
+                current_user.username
+            ]
+            
+            for col, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row, column=col, value=value)
+                cell.border = border
+                cell.alignment = center_alignment
+        
+        # Автоподбор ширины колонок
+        for col in range(1, len(headers) + 1):
+            column_letter = get_column_letter(col)
+            max_length = 0
+            for row in range(1, len(events) + 2):
+                cell_value = ws.cell(row=row, column=col).value
+                if cell_value:
+                    max_length = max(max_length, len(str(cell_value)))
+            ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
+        
+        # Замораживаем первую строку
+        ws.freeze_panes = 'A2'
+        
+        # Сохраняем в память
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Генерируем имя файла
+        current_date = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"schedule_{current_user.username}_{current_date}.xlsx"
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        return jsonify({'error': f'Ошибка при экспорте: {str(e)}'}), 500

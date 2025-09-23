@@ -13,6 +13,11 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///database.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key'
+    # Flask-Login remember cookie lifetime and security
+    REMEMBER_COOKIE_DURATION = int(os.environ.get('REMEMBER_COOKIE_DURATION_DAYS', 30)) * 24 * 60 * 60
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SECURE = False if os.environ.get('FLASK_ENV') == 'development' else True
+    SESSION_COOKIE_SAMESITE = 'Lax'
     # Optional integrations. Provide via environment variables when available.
     YANDEX_TOKEN = os.environ.get('YANDEX_TOKEN') or ''
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY') or ''
