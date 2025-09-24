@@ -26,6 +26,24 @@
 <div id="journalHeader" class="mb-2"></div>
 <div id="attendanceTable"></div>
 
+<div class="row g-3 mt-4" id="groupAnalytics" style="display:none;">
+    <div class="col-12 col-md-6">
+        <div class="card" style="height: 320px;">
+            <div class="card-header"><h6 class="mb-0">Статистика посещаемости</h6></div>
+            <div class="card-body"><canvas id="groupAttendanceChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6">
+        <div class="card" style="height: 320px;">
+            <div class="card-header"><h6 class="mb-0">Статистика успеваемости</h6></div>
+            <div class="card-body"><canvas id="groupScoresChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-12 mt-2">
+        <small class="text-muted">Диаграммы отражают данные выбранной группы за последние 12 месяцев.</small>
+    </div>
+</div>
+
 <!-- Модальное окно списка занятий -->
 <div class="modal fade" id="lessonsListModal">
     <div class="modal-dialog modal-lg">
@@ -129,6 +147,7 @@ function loadJournal() {
         .then(data => {
             renderHeader(data);
             renderJournalTable(data);
+            loadGroupAnalytics(groupId);
         });
 }
 
@@ -232,6 +251,77 @@ function renderJournalTable(data) {
     html += '</tbody></table></div>';
 
     document.getElementById('attendanceTable').innerHTML = html;
+}
+
+let groupAttendanceChart = null;
+let groupScoresChart = null;
+
+function loadGroupAnalytics(groupId) {
+    document.getElementById('groupAnalytics').style.display = 'block';
+
+    // Посещаемость
+    fetch(`/api/analytics/attendance-monthly/group?group_id=${groupId}`)
+        .then(r => r.json())
+        .then(monthly => {
+            const ctx = document.getElementById('groupAttendanceChart');
+            if (groupAttendanceChart) groupAttendanceChart.destroy();
+            groupAttendanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthly.labels,
+                    datasets: [
+                        { label: 'Присутствовали', data: monthly.present, backgroundColor: '#28a745' },
+                        { label: 'Отсутствовали', data: monthly.absent, backgroundColor: '#dc3545' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') } },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: { stacked: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') } },
+                        y: { stacked: true, beginAtZero: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') } }
+                    }
+                }
+            });
+        });
+
+    // Успеваемость: столбчатая диаграмма с накоплением по категориям
+    fetch(`/api/analytics/scores-monthly/group?group_id=${groupId}`)
+        .then(r => r.json())
+        .then(series => {
+            const ctx2 = document.getElementById('groupScoresChart');
+            if (groupScoresChart) groupScoresChart.destroy();
+            groupScoresChart = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: series.labels,
+                    datasets: [
+                        { label: 'Отлично (90-100)', data: series.excellent, backgroundColor: '#198754' },
+                        { label: 'Хорошо (75-89)', data: series.good, backgroundColor: '#0d6efd' },
+                        { label: 'Удовл. (60-74)', data: series.average, backgroundColor: '#ffc107' },
+                        { label: 'Низко (<60)', data: series.low, backgroundColor: '#dc3545' },
+                        { label: 'Без оценки', data: series.no_score, backgroundColor: '#6c757d' }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') } },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: { stacked: true, beginAtZero: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') } },
+                        y: { stacked: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') } }
+                    }
+                }
+            });
+        });
 }
 
 function renderHeader(data) {

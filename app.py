@@ -13,6 +13,8 @@ import os
 import hmac
 import hashlib
 import subprocess
+from datetime import datetime, timedelta
+from sqlalchemy import func, case
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -75,7 +77,6 @@ def dashboard():
 @login_required
 def analytics_overview():
     from models import Group, Student, Assignment, Attendance, Lesson
-    from datetime import datetime, timedelta
 
     last_week = datetime.now() - timedelta(days=7)
 
@@ -96,6 +97,323 @@ def analytics_overview():
         'average_score': round(float(avg_score), 2),
         'period': 'last_7_days'
     })
+
+
+@app.route('/api/analytics/attendance-monthly')
+@login_required
+def analytics_attendance_monthly():
+    from models import Attendance, Lesson
+    # Последние 12 месяцев, включая текущий
+    now = datetime.now()
+    start_date = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
+
+    # SQLite strftime('%Y-%m', date)
+    month_label = func.strftime('%Y-%m', Lesson.date)
+
+    present_count = func.sum(case((Attendance.present == True, 1), else_=0))
+    total_count = func.count(Attendance.id)
+    absent_count = (total_count - present_count)
+
+    rows = (
+        db.session.query(
+            month_label.label('month'),
+            present_count.label('present'),
+            absent_count.label('absent')
+        )
+        .join(Lesson, Attendance.lesson_id == Lesson.id)
+        .filter(Lesson.teacher_id == current_user.id)
+        .filter(Lesson.date >= start_date)
+        .group_by('month')
+        .order_by('month')
+        .all()
+    )
+
+    # Сформировать последовательность месяцев за период, чтобы заполнить нули
+    labels = []
+    data_present = []
+    data_absent = []
+
+    # helper to iterate months
+    def add_month(dt):
+        if dt.month == 12:
+            return dt.replace(year=dt.year + 1, month=1)
+        return dt.replace(month=dt.month + 1)
+
+    # map from month to counts
+    data_map = {r.month: {'present': int(r.present or 0), 'absent': int(r.absent or 0)} for r in rows}
+
+    cursor = start_date.replace(day=1)
+    end_cursor = now.replace(day=1)
+    # include up to and including current month
+    while cursor <= end_cursor:
+        key = cursor.strftime('%Y-%m')
+        labels.append(key)
+        counts = data_map.get(key, {'present': 0, 'absent': 0})
+        data_present.append(counts['present'])
+        data_absent.append(counts['absent'])
+        cursor = add_month(cursor)
+
+    return jsonify({
+        'labels': labels,
+        'present': data_present,
+        'absent': data_absent
+    })
+
+
+@app.route('/api/analytics/attendance-monthly/group')
+@login_required
+def analytics_attendance_monthly_group():
+    from models import Attendance, Lesson
+    group_id = request.args.get('group_id', type=int)
+    if not group_id:
+        return jsonify({'error': 'group_id is required'}), 400
+
+    now = datetime.now()
+    start_date = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
+
+    month_label = func.strftime('%Y-%m', Lesson.date)
+    present_count = func.sum(case((Attendance.present == True, 1), else_=0))
+    total_count = func.count(Attendance.id)
+    absent_count = (total_count - present_count)
+
+    rows = (
+        db.session.query(
+            month_label.label('month'),
+            present_count.label('present'),
+            absent_count.label('absent')
+        )
+        .join(Lesson, Attendance.lesson_id == Lesson.id)
+        .filter(Lesson.teacher_id == current_user.id)
+        .filter(Lesson.group_id == group_id)
+        .filter(Lesson.date >= start_date)
+        .group_by('month')
+        .order_by('month')
+        .all()
+    )
+
+    labels = []
+    data_present = []
+    data_absent = []
+
+    def add_month(dt):
+        if dt.month == 12:
+            return dt.replace(year=dt.year + 1, month=1)
+        return dt.replace(month=dt.month + 1)
+
+    data_map = {r.month: {'present': int(r.present or 0), 'absent': int(r.absent or 0)} for r in rows}
+
+    cursor = start_date.replace(day=1)
+    end_cursor = now.replace(day=1)
+    while cursor <= end_cursor:
+        key = cursor.strftime('%Y-%m')
+        labels.append(key)
+        counts = data_map.get(key, {'present': 0, 'absent': 0})
+        data_present.append(counts['present'])
+        data_absent.append(counts['absent'])
+        cursor = add_month(cursor)
+
+    return jsonify({'labels': labels, 'present': data_present, 'absent': data_absent})
+
+
+@app.route('/api/analytics/scores-monthly/group')
+@login_required
+def analytics_scores_monthly_group():
+    from models import Assignment, Student
+    group_id = request.args.get('group_id', type=int)
+    if not group_id:
+        return jsonify({'error': 'group_id is required'}), 400
+
+    now = datetime.now()
+    start_date = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
+
+    # Связываем задания со студентами выбранной группы
+    month_label = func.strftime('%Y-%m', Assignment.submitted_at)
+    # Бинning по диапазонам (0-59 низкий, 60-74 средний, 75-89 хороший, 90-100 отличный, None — нет оценки)
+    excellent = func.sum(case((Assignment.score >= 90, 1), else_=0))
+    good = func.sum(case(((Assignment.score >= 75) & (Assignment.score < 90), 1), else_=0))
+    average = func.sum(case(((Assignment.score >= 60) & (Assignment.score < 75), 1), else_=0))
+    low = func.sum(case(((Assignment.score < 60) & (Assignment.score != None), 1), else_=0))
+    no_score = func.sum(case((Assignment.score == None, 1), else_=0))
+
+    rows = (
+        db.session.query(
+            month_label.label('month'),
+            excellent.label('excellent'),
+            good.label('good'),
+            average.label('average'),
+            low.label('low'),
+            no_score.label('no_score')
+        )
+        .join(Student, Assignment.student_id == Student.id)
+        .filter(Student.group_id == group_id)
+        .filter(Assignment.teacher_id == current_user.id)
+        .filter(Assignment.submitted_at >= start_date)
+        .group_by('month')
+        .order_by('month')
+        .all()
+    )
+
+    labels = []
+    series_excellent = []
+    series_good = []
+    series_average = []
+    series_low = []
+    series_no_score = []
+
+    def add_month(dt):
+        if dt.month == 12:
+            return dt.replace(year=dt.year + 1, month=1)
+        return dt.replace(month=dt.month + 1)
+
+    data_map = {
+        r.month: {
+            'excellent': int(r.excellent or 0),
+            'good': int(r.good or 0),
+            'average': int(r.average or 0),
+            'low': int(r.low or 0),
+            'no_score': int(r.no_score or 0)
+        } for r in rows
+    }
+
+    cursor = start_date.replace(day=1)
+    end_cursor = now.replace(day=1)
+    while cursor <= end_cursor:
+        key = cursor.strftime('%Y-%m')
+        labels.append(key)
+        entry = data_map.get(key, None)
+        series_excellent.append((entry or {}).get('excellent', 0))
+        series_good.append((entry or {}).get('good', 0))
+        series_average.append((entry or {}).get('average', 0))
+        series_low.append((entry or {}).get('low', 0))
+        series_no_score.append((entry or {}).get('no_score', 0))
+        cursor = add_month(cursor)
+
+    return jsonify({
+        'labels': labels,
+        'excellent': series_excellent,
+        'good': series_good,
+        'average': series_average,
+        'low': series_low,
+        'no_score': series_no_score
+    })
+
+
+@app.route('/api/analytics/scores-monthly')
+@login_required
+def analytics_scores_monthly_overall():
+    from models import Assignment
+    now = datetime.now()
+    start_date = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
+
+    month_label = func.strftime('%Y-%m', Assignment.submitted_at)
+    excellent = func.sum(case((Assignment.score >= 90, 1), else_=0))
+    good = func.sum(case(((Assignment.score >= 75) & (Assignment.score < 90), 1), else_=0))
+    average = func.sum(case(((Assignment.score >= 60) & (Assignment.score < 75), 1), else_=0))
+    low = func.sum(case(((Assignment.score < 60) & (Assignment.score != None), 1), else_=0))
+    no_score = func.sum(case((Assignment.score == None, 1), else_=0))
+
+    rows = (
+        db.session.query(
+            month_label.label('month'),
+            excellent.label('excellent'),
+            good.label('good'),
+            average.label('average'),
+            low.label('low'),
+            no_score.label('no_score')
+        )
+        .filter(Assignment.teacher_id == current_user.id)
+        .filter(Assignment.submitted_at >= start_date)
+        .group_by('month')
+        .order_by('month')
+        .all()
+    )
+
+    labels = []
+    series_excellent = []
+    series_good = []
+    series_average = []
+    series_low = []
+    series_no_score = []
+
+    def add_month(dt):
+        if dt.month == 12:
+            return dt.replace(year=dt.year + 1, month=1)
+        return dt.replace(month=dt.month + 1)
+
+    data_map = {
+        r.month: {
+            'excellent': int(r.excellent or 0),
+            'good': int(r.good or 0),
+            'average': int(r.average or 0),
+            'low': int(r.low or 0),
+            'no_score': int(r.no_score or 0)
+        } for r in rows
+    }
+
+    cursor = start_date.replace(day=1)
+    end_cursor = now.replace(day=1)
+    while cursor <= end_cursor:
+        key = cursor.strftime('%Y-%m')
+        labels.append(key)
+        entry = data_map.get(key, None)
+        series_excellent.append((entry or {}).get('excellent', 0))
+        series_good.append((entry or {}).get('good', 0))
+        series_average.append((entry or {}).get('average', 0))
+        series_low.append((entry or {}).get('low', 0))
+        series_no_score.append((entry or {}).get('no_score', 0))
+        cursor = add_month(cursor)
+
+    return jsonify({
+        'labels': labels,
+        'excellent': series_excellent,
+        'good': series_good,
+        'average': series_average,
+        'low': series_low,
+        'no_score': series_no_score
+    })
+
+
+@app.route('/api/analytics/scores-by-group')
+@login_required
+def analytics_scores_by_group():
+    from models import Assignment, Student, Group
+    # Считаем по группам количество оценок, приведённых к 5-балльной шкале:
+    # 5: score >= 90, 4: 75-89, 3: 60-74, 2: <60 (только у заданий с оценкой)
+    five = func.sum(case((Assignment.score >= 90, 1), else_=0))
+    four = func.sum(case(((Assignment.score >= 75) & (Assignment.score < 90), 1), else_=0))
+    three = func.sum(case(((Assignment.score >= 60) & (Assignment.score < 75), 1), else_=0))
+    two = func.sum(case(((Assignment.score < 60) & (Assignment.score != None), 1), else_=0))
+
+    rows = (
+        db.session.query(
+            Group.name.label('group_name'),
+            five.label('five'),
+            four.label('four'),
+            three.label('three'),
+            two.label('two')
+        )
+        .join(Student, Student.group_id == Group.id)
+        .join(Assignment, Assignment.student_id == Student.id)
+        .filter(Assignment.teacher_id == current_user.id)
+        .group_by(Group.name)
+        .order_by(Group.name)
+        .all()
+    )
+
+    labels = []
+    fives = []
+    fours = []
+    threes = []
+    twos = []
+
+    for r in rows:
+        labels.append(r.group_name)
+        fives.append(int(r.five or 0))
+        fours.append(int(r.four or 0))
+        threes.append(int(r.three or 0))
+        twos.append(int(r.two or 0))
+
+    return jsonify({'labels': labels, 'five': fives, 'four': fours, 'three': threes, 'two': twos})
 
 
 def ensure_startup_state():

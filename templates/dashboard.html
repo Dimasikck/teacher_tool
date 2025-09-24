@@ -52,7 +52,7 @@
             <div class="card-header">
                 <h5>Статистика посещаемости</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body" style="height: 320px;">
                 <canvas id="attendanceChart"></canvas>
             </div>
         </div>
@@ -60,9 +60,9 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5>Средние оценки по группам</h5>
+                <h5>Статистика успеваемости</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body" style="height: 320px;">
                 <canvas id="scoresChart"></canvas>
             </div>
         </div>
@@ -161,23 +161,87 @@ function navigateToLessons() {
 fetch('/api/analytics/overview')
     .then(r => r.json())
     .then(data => {
-        new Chart(document.getElementById('attendanceChart'), {
-            type: 'doughnut',
-            data: {
-                labels: ['Присутствовали', 'Отсутствовали'],
-                datasets: [{
-                    data: [data.attendance_rate, 100 - data.attendance_rate],
-                    backgroundColor: ['#28a745', '#dc3545']
-                }]
-            }
-        });
+        // Загрузим ежемесячную статистику посещаемости (stacked)
+        fetch('/api/analytics/attendance-monthly')
+            .then(r => r.json())
+            .then(monthly => {
+                const ctx = document.getElementById('attendanceChart');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: monthly.labels,
+                        datasets: [
+                            {
+                                label: 'Присутствовали',
+                                data: monthly.present,
+                                backgroundColor: '#28a745'
+                            },
+                            {
+                                label: 'Отсутствовали',
+                                data: monthly.absent,
+                                backgroundColor: '#dc3545'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }
+                            },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            x: {
+                                stacked: true,
+                                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') }
+                            },
+                            y: {
+                                stacked: true,
+                                beginAtZero: true,
+                                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') }
+                            }
+                        }
+                    }
+                });
+            });
 
-        document.getElementById('scoresChart').innerHTML = `
-            <div class="text-center">
-                <h3>${data.average_score}</h3>
-                <p>Средний балл за последние 7 дней</p>
-            </div>
-        `;
+        // Загрузим общую статистику успеваемости по группам (горизонтальные полосы с накоплением)
+        fetch('/api/analytics/scores-by-group')
+            .then(r => r.json())
+            .then(series => {
+                const ctx2 = document.getElementById('scoresChart');
+                new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: series.labels,
+                        datasets: [
+                            { label: 'Пятерки', data: series.five, backgroundColor: '#198754' },
+                            { label: 'Четверки', data: series.four, backgroundColor: '#0d6efd' },
+                            { label: 'Тройки', data: series.three, backgroundColor: '#ffc107' },
+                            { label: 'Двойки', data: series.two, backgroundColor: '#dc3545' }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y', // Горизонтальные полосы
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') } },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            x: { stacked: true, beginAtZero: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') } },
+                            y: { stacked: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') } }
+                        }
+                    }
+                });
+            });
+
     });
 </script>
 {% endblock %}
