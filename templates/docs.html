@@ -31,10 +31,10 @@
                 <div class="alert alert-warning">
                     <i class="bi bi-exclamation-triangle"></i>
                     <strong>Облако не настроено</strong> - Нажмите "Настроить облако" для подключения
-                </div>
+            </div>
             {% endif %}
-        </div>
-    </div>
+                </div>
+            </div>
 
     <!-- Категории -->
     <div class="row mb-4">
@@ -49,14 +49,14 @@
                                 <div class="d-flex align-items-center">
                                     <div class="me-3">
                                         <i class="bi bi-folder-fill" style="font-size: 2rem; color: #667eea;"></i>
-                                    </div>
+        </div>
                                     <div class="flex-grow-1">
                                         <h6 class="card-title mb-1">{{ category.name }}</h6>
                                         <p class="card-text text-muted small mb-2">{{ category.cloud_path }}</p>
                                         {% if category.description %}
                                         <p class="card-text small">{{ category.description }}</p>
                                         {% endif %}
-                                    </div>
+                </div>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
                                             <i class="bi bi-three-dots"></i>
@@ -69,13 +69,13 @@
                                                 <i class="bi bi-trash"></i> Удалить
                                             </a></li>
                                         </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
                 </div>
+            </div>
+        </div>
+    </div>
+            </div>
+                    {% endfor %}
+        </div>
             {% else %}
                 <div class="text-center py-5">
                     <i class="bi bi-folder-x" style="font-size: 4rem; color: #ccc;"></i>
@@ -84,7 +84,7 @@
                     <button class="btn btn-primary" onclick="showCategoryModal()">
                         <i class="bi bi-folder-plus"></i> Создать категорию
                     </button>
-                </div>
+        </div>
             {% endif %}
         </div>
     </div>
@@ -92,7 +92,7 @@
     <!-- Содержимое категории (скрыто по умолчанию) -->
     <div id="categoryContent" class="row" style="display: none;">
         <div class="col-12">
-            <div class="card">
+    <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0" id="categoryTitle">
                         <i class="bi bi-folder2-open"></i> <span id="categoryName"></span>
@@ -105,16 +105,16 @@
                             <i class="bi bi-x"></i> Закрыть
                         </button>
                     </div>
-                </div>
-                <div class="card-body">
-                    <div id="filesList" class="row">
-                        <!-- Файлы будут загружены динамически -->
-                    </div>
-                </div>
-            </div>
         </div>
-    </div>
-</div>
+        <div class="card-body">
+            <div id="filesList" class="row">
+                        <!-- Файлы будут загружены динамически -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
 <!-- Модальное окно настроек облака -->
 <div class="modal fade" id="cloudSettingsModal" tabindex="-1">
@@ -215,7 +215,7 @@
                         <textarea class="form-control" id="categoryDescription" name="description" rows="3"></textarea>
                     </div>
                 </form>
-            </div>
+                    </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                 <button type="button" class="btn btn-primary" onclick="saveCategory()">Создать</button>

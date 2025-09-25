@@ -2,6 +2,43 @@
 {% block title %}{{ group.name }} - Детали группы{% endblock %}
 
 {% block content %}
+<style>
+[data-theme="dark"] .card {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+[data-theme="dark"] .card .card-header {
+    border-bottom-color: var(--border-color) !important;
+}
+[data-theme="dark"] .card .card-body {
+    background-color: var(--bg-secondary) !important;
+}
+[data-theme="dark"] .card .card-footer {
+    border-top-color: var(--border-color) !important;
+}
+[data-theme="dark"] .table-responsive {
+    background-color: var(--bg-secondary) !important;
+}
+[data-theme="dark"] .card .table {
+    color: var(--text-primary) !important;
+}
+[data-theme="dark"] .card .table thead th {
+    background-color: var(--table-header-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+[data-theme="dark"] .card .table tbody tr {
+    background-color: var(--bg-secondary) !important;
+}
+[data-theme="dark"] .card .table-hover tbody tr:hover {
+    background-color: var(--table-hover-bg) !important;
+}
+[data-theme="dark"] .card .table td,
+[data-theme="dark"] .card .table th {
+    border-color: var(--border-color) !important;
+}
+</style>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1 class="mb-0">

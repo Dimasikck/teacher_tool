@@ -9,7 +9,11 @@ auth_bp = Blueprint('auth', __name__)
 
 
 class LoginForm(FlaskForm):
-    username = StringField('Логин', validators=[DataRequired(), Length(min=3, max=80)])
+    username = StringField(
+        'Логин',
+        validators=[DataRequired(), Length(min=3, max=80)],
+        filters=[lambda x: x.strip() if isinstance(x, str) else x]
+    )
     password = PasswordField('Пароль', validators=[DataRequired()])
     remember = BooleanField('Запомнить меня')
     submit = SubmitField('Войти')

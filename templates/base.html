@@ -656,6 +656,15 @@
             background: var(--table-hover-bg);
         }
 
+        /* Жесткая переустановка фона ячеек в тёмной теме, чтобы исключить белый фон Bootstrap */
+        html[data-theme="dark"] .table > :not(caption) > * > * {
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+        }
+        html[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > * {
+            background-color: rgba(45, 55, 72, 0.85) !important;
+        }
+
         /* Модальные окна */
         .modal-content {
             background: var(--bg-card);
