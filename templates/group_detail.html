@@ -365,6 +365,40 @@ function sortTableRows() {
     });
 }
 
+async function reloadStudentsList() {
+    try {
+        const response = await fetch(`/groups/{{ group.id }}/students`, { credentials: 'include' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!data || !Array.isArray(data.students)) return;
+
+        const tbody = document.querySelector('table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        data.students.forEach((student, index) => {
+            const row = document.createElement('tr');
+            row.setAttribute('data-student-id', student.id);
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${student.name}</td>
+                <td>${student.email || '-'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="editStudent(${student.id}, '${student.name}', '${student.email || ''}')">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteStudent(${student.id}, '${student.name}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    } catch (e) {
+        console.error('Failed to reload students:', e);
+    }
+}
+
 function showSuccessNotification(message) {
     // Создаем уведомление
     const notification = document.createElement('div');
@@ -533,42 +567,59 @@ function addStudentsBatch() {
         // Проверяем, что элементы существуют
         if (!resultDiv || !successDiv || !errorsDiv) {
             console.error('Required DOM elements not found');
-            return;
+            // Даже если этих блоков нет, продолжаем: закрываем модалку и пробуем обновить список
         }
         
-        resultDiv.style.display = 'block';
+        if (resultDiv) {
+            resultDiv.style.display = 'block';
+        }
         
         // Скрываем предыдущие сообщения
-        successDiv.style.display = 'none';
-        errorsDiv.style.display = 'none';
+        if (successDiv) successDiv.style.display = 'none';
+        if (errorsDiv) errorsDiv.style.display = 'none';
         
         // Показываем успешные добавления
-        if (data.added_count > 0) {
+        if (typeof data.added_count === 'number' && data.added_count > 0 && successDiv) {
+            const list = Array.isArray(data.students) ? data.students : [];
             successDiv.innerHTML = `<strong>Успешно добавлено ${data.added_count} студентов:</strong><br>` + 
-                data.students.map(s => `• ${s.name}${s.email ? ' (' + s.email + ')' : ''}`).join('<br>');
+                list.map(s => `• ${s.name}${s.email ? ' (' + s.email + ')' : ''}`).join('<br>');
             successDiv.style.display = 'block';
-        } else if (data.total_processed > 0) {
+        } else if (typeof data.total_processed === 'number' && data.total_processed > 0 && successDiv) {
             // Если обработали студентов, но никого не добавили
             successDiv.innerHTML = '<strong>Ни один студент не был добавлен</strong><br>Возможно, все студенты уже существуют в группе';
             successDiv.style.display = 'block';
         }
         
         // Показываем ошибки
-        if (data.errors && data.errors.length > 0) {
+        if (data.errors && data.errors.length > 0 && errorsDiv) {
             errorsDiv.innerHTML = '<strong>Ошибки:</strong><br>' + data.errors.join('<br>');
             errorsDiv.style.display = 'block';
         }
         
-        // Если есть успешные добавления, закрываем модальное окно и обновляем список
-        if (data.added_count > 0) {
-            // Закрываем модальное окно
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentsBatchModal'));
-            if (modal) {
-                modal.hide();
-            }
-            
-            // Обновляем список студентов на странице
-            updateStudentsList(data.students);
+        // Готовим массив студентов для локального обновления UI при разных форматах ответа
+        let studentsArray = [];
+        if (Array.isArray(data.students)) {
+            studentsArray = data.students;
+        } else if (Array.isArray(data.added)) {
+            studentsArray = data.added.map(s => typeof s === 'string' ? ({ name: s, email: '-' }) : s);
+        }
+
+        // Закрываем модальное окно в любом успешном сценарии
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentsBatchModal'));
+        if (modal) {
+            modal.hide();
+        }
+
+        // Очищаем поле ввода
+        const textarea = document.getElementById('studentsText');
+        if (textarea) textarea.value = '';
+
+        // Обновляем список на странице без перезагрузки
+        if (studentsArray.length > 0) {
+            updateStudentsList(studentsArray);
+        } else {
+            // Если сервер не вернул конкретные записи, перезагрузим список из API
+            reloadStudentsList();
         }
     })
     .catch(error => {

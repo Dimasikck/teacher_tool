@@ -163,15 +163,24 @@ def delete_group(group_id):
 
 
 # API маршруты для студентов
-@groups_bp.route('/<int:group_id>/students', methods=['POST'])
+@groups_bp.route('/<int:group_id>/students', methods=['GET', 'POST'])
 @login_required
 def add_student(group_id):
-    """Добавление студента в группу"""
+    """Получение списка студентов (GET) или добавление студента (POST)"""
     group = Group.query.filter_by(
         id=group_id, 
         teacher_id=current_user.id
     ).first_or_404()
-    
+    if request.method == 'GET':
+        students = Student.query.filter_by(group_id=group_id).order_by(Student.name.asc()).all()
+        return jsonify({
+            'success': True,
+            'students': [
+                {'id': s.id, 'name': s.name, 'email': s.email}
+                for s in students
+            ]
+        })
+
     data = request.get_json()
     name = data.get('name')
     email = data.get('email', '')

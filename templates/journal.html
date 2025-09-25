@@ -26,23 +26,6 @@
 <div id="journalHeader" class="mb-2"></div>
 <div id="attendanceTable"></div>
 
-<div class="row g-3 mt-4" id="groupAnalytics" style="display:none;">
-    <div class="col-12 col-md-6">
-        <div class="card" style="height: 320px;">
-            <div class="card-header"><h6 class="mb-0">Статистика посещаемости</h6></div>
-            <div class="card-body"><canvas id="groupAttendanceChart"></canvas></div>
-        </div>
-    </div>
-    <div class="col-12 col-md-6">
-        <div class="card" style="height: 320px;">
-            <div class="card-header"><h6 class="mb-0">Статистика успеваемости</h6></div>
-            <div class="card-body"><canvas id="groupScoresChart"></canvas></div>
-        </div>
-    </div>
-    <div class="col-12 mt-2">
-        <small class="text-muted">Диаграммы отражают данные выбранной группы за последние 12 месяцев.</small>
-    </div>
-</div>
 
 <!-- Модальное окно списка занятий -->
 <div class="modal fade" id="lessonsListModal">
@@ -124,8 +107,33 @@
 </div>
 
 <div class="mt-4">
-    <h3>Статистика посещаемости</h3>
+    <h3>Статистика посещаемости и успеваемости группы</h3>
     <div id="statsContainer"></div>
+    <div class="row g-3 mt-4" id="groupAnalytics" style="display:none;">
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Статистика посещаемости</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="groupAttendanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Статистика успеваемости</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="groupScoresChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 mt-2">
+            <small class="text-muted">Диаграммы отражают данные выбранной группы за последние 12 месяцев.</small>
+        </div>
+    </div>
 </div>
 
 <script>
