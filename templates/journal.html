@@ -109,8 +109,8 @@
 <div class="mt-4">
     <h3>Статистика посещаемости и успеваемости группы</h3>
     <div id="statsContainer"></div>
-    <div class="row g-3 mt-4" id="groupAnalytics" style="display:none;">
-        <div class="col-12 col-md-6">
+    <div class="row row-cols-1 row-cols-sm-2 g-3 mt-4" id="groupAnalytics" style="display:none;">
+        <div class="col">
             <div class="card h-100">
                 <div class="card-header">
                     <h5 class="mb-0">Статистика посещаемости</h5>
@@ -120,7 +120,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-12 col-md-6">
+        <div class="col">
             <div class="card h-100">
                 <div class="card-header">
                     <h5 class="mb-0">Статистика успеваемости</h5>
@@ -259,6 +259,9 @@ function renderJournalTable(data) {
     html += '</tbody></table></div>';
 
     document.getElementById('attendanceTable').innerHTML = html;
+
+    // Подключаем подсветку строк и столбцов после рендера
+    attachHighlightHandlers();
 }
 
 let groupAttendanceChart = null;
@@ -440,6 +443,83 @@ function saveCell(inputEl) {
     .catch(err => {
         console.error(err);
         alert('Не удалось сохранить значение');
+    });
+}
+
+// Подсветка строк и столбцов в таблице журнала
+let activeColIndex = null;
+let activeRowEl = null;
+
+function attachHighlightHandlers() {
+    const table = document.querySelector('#attendanceTable table');
+    if (!table) return;
+
+    // События наведения мыши
+    table.addEventListener('mousemove', (e) => {
+        // Подсветку рассчитываем только по ячейкам тела таблицы, шапку не трогаем
+        const cell = e.target.closest('td');
+        if (!cell || !table.contains(cell)) return;
+        const row = cell.parentElement;
+        const colIndex = cell.cellIndex;
+        applyHoverHighlight(table, row, colIndex);
+    });
+
+    table.addEventListener('mouseleave', () => {
+        clearHoverHighlight(table);
+    });
+
+    // Фокус/блюр для инпутов
+    table.addEventListener('focusin', (e) => {
+        const input = e.target.closest('input');
+        if (!input) return;
+        const cell = input.closest('td');
+        if (!cell) return;
+        const row = cell.parentElement;
+        const colIndex = cell.cellIndex;
+        setActiveHighlight(table, row, colIndex);
+    });
+
+    table.addEventListener('focusout', (e) => {
+        const input = e.target.closest('input');
+        if (!input) return;
+        // Убираем активную подсветку, но оставляем ховер, если есть
+        clearActiveHighlight(table);
+    });
+}
+
+function applyHoverHighlight(table, rowEl, colIndex) {
+    clearHoverHighlight(table);
+    if (rowEl) rowEl.classList.add('highlight-row');
+    highlightColumn(table, colIndex, 'highlight-col');
+}
+
+function clearHoverHighlight(table) {
+    table.querySelectorAll('tr.highlight-row').forEach(tr => tr.classList.remove('highlight-row'));
+    table.querySelectorAll('.highlight-col').forEach(td => td.classList.remove('highlight-col'));
+}
+
+function setActiveHighlight(table, rowEl, colIndex) {
+    clearActiveHighlight(table);
+    activeRowEl = rowEl;
+    activeColIndex = colIndex;
+    if (activeRowEl) activeRowEl.classList.add('active-row');
+    highlightColumn(table, activeColIndex, 'active-col');
+}
+
+function clearActiveHighlight(table) {
+    const scope = table || document;
+    scope.querySelectorAll('tr.active-row').forEach(tr => tr.classList.remove('active-row'));
+    scope.querySelectorAll('.active-col').forEach(td => td.classList.remove('active-col'));
+    activeRowEl = null;
+    activeColIndex = null;
+}
+
+function highlightColumn(table, colIndex, className) {
+    if (colIndex == null) return;
+    // Тело
+    table.querySelectorAll('tbody tr').forEach(tr => {
+        const td = tr.children[colIndex];
+        if (td) td.classList.add(className);
     });
 }
 
@@ -857,6 +937,71 @@ function saveControlPointScore(inputEl) {
 
 .table tbody tr:hover {
     background-color: var(--table-hover-bg) !important;
+}
+
+/* Подсветка строки/столбца при наведении и активном вводе */
+.highlight-row td,
+.highlight-row th {
+    background-color: rgba(102, 126, 234, 0.14) !important;
+}
+
+.highlight-col {
+    background-color: rgba(102, 126, 234, 0.14) !important;
+}
+
+.active-row td,
+.active-row th {
+    background-color: rgba(102, 126, 234, 0.24) !important;
+}
+
+.active-col {
+    background-color: rgba(102, 126, 234, 0.24) !important;
+}
+
+/* Усиление контраста в темной теме */
+[data-theme="dark"] .highlight-row td,
+[data-theme="dark"] .highlight-row th,
+[data-theme="dark"] .highlight-col {
+    background-color: rgba(102, 126, 234, 0.28) !important;
+}
+
+[data-theme="dark"] .active-row td,
+[data-theme="dark"] .active-row th,
+[data-theme="dark"] .active-col {
+    background-color: rgba(102, 126, 234, 0.45) !important;
+}
+
+/* Визуальное обрамление для лучшей заметности */
+.highlight-col { box-shadow: inset 0 0 0 1px rgba(102,126,234,0.5) !important; }
+.active-col { box-shadow: inset 0 0 0 2px rgba(102,126,234,0.7) !important; }
+.highlight-row td, .highlight-row th { box-shadow: inset 0 0 0 1px rgba(102,126,234,0.4) !important; }
+.active-row td, .active-row th { box-shadow: inset 0 0 0 2px rgba(102,126,234,0.6) !important; }
+
+/* Учитываем первую фиксированную колонку, чтобы не было перепадов по z-index */
+.table thead th.highlight-col,
+.table tbody td.highlight-col,
+.table thead th.active-col,
+.table tbody td.active-col {
+    position: relative;
+    z-index: 1;
+}
+
+.table thead th:first-child.highlight-col,
+.table tbody td:first-child.highlight-col,
+.table thead th:first-child.active-col,
+.table tbody td:first-child.active-col {
+    z-index: 4; /* выше остальных, но ниже закрепленного заголовка */
+    /* усиливаем фон для закрепленного первого столбца */
+    background-color: rgba(102, 126, 234, 0.32) !important;
+}
+
+/* Гарантируем, что первый столбец также получает подсветку строки */
+.highlight-row td:first-child,
+.active-row td:first-child,
+.highlight-row th:first-child,
+.active-row th:first-child {
+    background-color: rgba(102, 126, 234, 0.32) !important;
+    z-index: 4;
 }
 
 /* Стили для заголовков дат */

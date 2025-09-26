@@ -12,6 +12,24 @@
         border-radius: 15px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
+    /* Кнопки действий календаря: сохраняем прежний вид, улучшаем читаемость текста */
+    .calendar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .calendar-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        line-height: 1.2;
+        border-radius: 8px;
+        padding: 0.45rem 0.75rem;
+        white-space: normal; /* разрешаем перенос */
+        flex: 1 1 170px; /* каждая кнопка растягивается, но минимум ~170px */
+        justify-content: center;
+        text-align: center;
+    }
+    .calendar-actions .btn i { flex: 0 0 auto; }
+    .calendar-actions .btn span {
+        white-space: normal; /* разрешаем перенос строк внутри подписи */
+    }
     
     .fc-event {
         cursor: pointer;
@@ -474,7 +492,7 @@
 <h1 class="mb-4">Календарь занятий</h1>
 
 <div class="row mb-3">
-    <div class="col-md-8">
+    <div class="col-12 mb-2">
         <div class="legend">
             {% for group in groups %}
             <span class="legend-item">
@@ -484,25 +502,25 @@
             {% endfor %}
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="btn-group w-100" role="group">
+    <div class="col-12">
+        <div class="calendar-actions" role="group">
             <button class="btn btn-primary" onclick="showEventModal()">
-                <i class="bi bi-plus"></i> <span class="d-none d-md-inline">Добавить занятие</span>
+                <i class="bi bi-plus"></i> <span>Добавить занятие</span>
             </button>
             <button class="btn btn-success" onclick="suggestSlot()">
-                <i class="bi bi-robot"></i> <span class="d-none d-md-inline">ИИ</span>
+                <i class="bi bi-robot"></i> <span>ИИ</span>
             </button>
             <button class="btn btn-info" onclick="checkConflicts()">
-                <i class="bi bi-exclamation-triangle"></i> <span class="d-none d-md-inline">Конфликты</span>
+                <i class="bi bi-exclamation-triangle"></i> <span>Конфликты</span>
             </button>
             <button class="btn btn-warning" onclick="showExcelUploadModal()">
-                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-md-inline">Excel</span>
+                <i class="bi bi-file-earmark-excel"></i> <span>Excel</span>
             </button>
             <button class="btn btn-success" onclick="exportToExcel()">
-                <i class="bi bi-download"></i> <span class="d-none d-md-inline">Экспорт</span>
+                <i class="bi bi-download"></i> <span>Экспорт</span>
             </button>
             <button class="btn btn-secondary" onclick="refreshCalendar()">
-                <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Обновить</span>
+                <i class="bi bi-arrow-clockwise"></i> <span>Обновить</span>
             </button>
         </div>
     </div>
