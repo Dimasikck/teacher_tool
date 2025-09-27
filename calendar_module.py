@@ -421,6 +421,7 @@ def update_event(event_id):
         # Сохраняем старые значения для поиска занятия
         old_title = event.title
         old_start_time = event.start_time
+        old_group_id = event.group_id
         
         # Обновляем событие в расписании
         if 'title' in data:
@@ -433,11 +434,13 @@ def update_event(event_id):
             event.color = data['color']
         if 'classroom' in data:
             event.classroom = data['classroom']
+        if 'group_id' in data:
+            event.group_id = data['group_id']
 
         # Находим и обновляем соответствующее занятие в журнале
-        # Ищем по старому названию и дате, чтобы найти правильное занятие
+        # Ищем по старому названию, дате и группе, чтобы найти правильное занятие
         lesson = Lesson.query.filter_by(
-            group_id=event.group_id,
+            group_id=old_group_id,
             teacher_id=current_user.id,
             topic=old_title,
             date=old_start_time
@@ -446,6 +449,7 @@ def update_event(event_id):
         if lesson:
             lesson.date = event.start_time
             lesson.topic = event.title
+            lesson.group_id = event.group_id  # Обновляем группу занятия
             lesson.notes = f"Занятие обновлено из календаря. Время: {event.start_time.strftime('%H:%M')} - {event.end_time.strftime('%H:%M')}"
             lesson.classroom = event.classroom
         else:
