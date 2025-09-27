@@ -1,6 +1,34 @@
 {% extends "base.html" %}
 {% block title %}Журналы{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Кнопки действий журнала: стиль как на календаре */
+    .journal-actions { 
+        display: flex; 
+        flex-wrap: wrap; 
+        gap: 8px; 
+        margin-bottom: 20px;
+    }
+    .journal-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        line-height: 1.2;
+        border-radius: 8px;
+        padding: 0.45rem 0.75rem;
+        white-space: normal; /* разрешаем перенос */
+        flex: 1 1 170px; /* каждая кнопка растягивается, но минимум ~170px */
+        justify-content: center;
+        text-align: center;
+    }
+    .journal-actions .btn i { flex: 0 0 auto; }
+    .journal-actions .btn span {
+        white-space: normal; /* разрешаем перенос строк внутри подписи */
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <h1 class="mb-4">Журнал посещаемости и успеваемости</h1>
 
@@ -14,13 +42,26 @@
         </select>
     </div>
     <div class="col-md-4">
-        <input type="month" id="monthSelect" class="form-control mb-2" onchange="loadJournal()" />
-        <button class="btn btn-primary" onclick="loadJournal()">Загрузить</button>
-        <button class="btn btn-success" onclick="showAddControlPoint()">Добавить КТ</button>
-        <button class="btn btn-warning" onclick="syncFromCalendar()">Синхронизировать</button>
-        <button class="btn btn-outline-secondary" onclick="showLessonsList()">Список занятий</button>
-        <button class="btn btn-info" onclick="exportData()">Экспорт</button>
+        <input type="month" id="monthSelect" class="form-control" onchange="loadJournal()" />
     </div>
+</div>
+
+<div class="journal-actions" role="group">
+    <button class="btn btn-primary" onclick="loadJournal()">
+        <i class="bi bi-arrow-clockwise"></i> <span>Загрузить</span>
+    </button>
+    <button class="btn btn-success" onclick="showAddControlPoint()">
+        <i class="bi bi-plus-circle"></i> <span>Добавить КТ</span>
+    </button>
+    <button class="btn btn-warning" onclick="syncFromCalendar()">
+        <i class="bi bi-arrow-repeat"></i> <span>Синхронизировать</span>
+    </button>
+    <button class="btn btn-outline-secondary" onclick="showLessonsList()">
+        <i class="bi bi-list-ul"></i> <span>Список занятий</span>
+    </button>
+    <button class="btn btn-info" onclick="exportData()">
+        <i class="bi bi-download"></i> <span>Экспорт</span>
+    </button>
 </div>
 
 <div id="journalHeader" class="mb-2"></div>
