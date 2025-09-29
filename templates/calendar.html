@@ -507,14 +507,17 @@
             <button class="btn btn-primary" onclick="showEventModal()">
                 <i class="bi bi-plus"></i> <span>Добавить занятие</span>
             </button>
+            <button class="btn btn-primary" onclick="showRecurringLessonModal()">
+                <i class="bi bi-calendar-week"></i> <span>Повторяющиеся</span>
+            </button>
+            <button class="btn btn-warning" onclick="showExcelUploadModal()">
+                <i class="bi bi-file-earmark-excel"></i> <span>Excel</span>
+            </button>
             <button class="btn btn-success" onclick="suggestSlot()">
                 <i class="bi bi-robot"></i> <span>ИИ</span>
             </button>
             <button class="btn btn-info" onclick="checkConflicts()">
                 <i class="bi bi-exclamation-triangle"></i> <span>Конфликты</span>
-            </button>
-            <button class="btn btn-warning" onclick="showExcelUploadModal()">
-                <i class="bi bi-file-earmark-excel"></i> <span>Excel</span>
             </button>
             <button class="btn btn-success" onclick="exportToExcel()">
                 <i class="bi bi-download"></i> <span>Экспорт</span>
@@ -739,6 +742,120 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                 <button type="button" class="btn btn-warning" onclick="uploadExcelFile()" id="uploadBtn" disabled>
                     <i class="bi bi-upload"></i> Загрузить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="recurringLessonModal">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Создание повторяющихся занятий</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Название занятия</label>
+                            <input type="text" id="recurringTitle" class="form-control" placeholder="Например: Математика">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Группа</label>
+                            <select id="recurringGroup" class="form-select">
+                                {% for group in groups %}
+                                <option value="{{ group.id }}">{{ group.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Время начала</label>
+                                    <input type="time" id="recurringStartTime" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Время окончания</label>
+                                    <input type="time" id="recurringEndTime" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Аудитория</label>
+                            <input type="text" id="recurringClassroom" class="form-control" placeholder="Например: 101, А-201">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Цвет занятия</label>
+                            <div id="recurringColorPicker">
+                                <span class="group-color-picker" style="background-color: #3788d8" data-color="#3788d8"></span>
+                                <span class="group-color-picker" style="background-color: #28a745" data-color="#28a745"></span>
+                                <span class="group-color-picker" style="background-color: #dc3545" data-color="#dc3545"></span>
+                                <span class="group-color-picker" style="background-color: #ffc107" data-color="#ffc107"></span>
+                                <span class="group-color-picker" style="background-color: #6f42c1" data-color="#6f42c1"></span>
+                                <span class="group-color-picker" style="background-color: #e83e8c" data-color="#e83e8c"></span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Выберите дни недели</label>
+                            <div class="form-check">
+                                <input class="form-check-input recurring-day" type="checkbox" value="1" id="recurringMon">
+                                <label class="form-check-label" for="recurringMon">Понедельник</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input recurring-day" type="checkbox" value="2" id="recurringTue">
+                                <label class="form-check-label" for="recurringTue">Вторник</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input recurring-day" type="checkbox" value="3" id="recurringWed">
+                                <label class="form-check-label" for="recurringWed">Среда</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input recurring-day" type="checkbox" value="4" id="recurringThu">
+                                <label class="form-check-label" for="recurringThu">Четверг</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input recurring-day" type="checkbox" value="5" id="recurringFri">
+                                <label class="form-check-label" for="recurringFri">Пятница</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input recurring-day" type="checkbox" value="6" id="recurringSat">
+                                <label class="form-check-label" for="recurringSat">Суббота</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Период действия</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label small">С</label>
+                                    <input type="date" id="recurringStartDate" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">По</label>
+                                    <input type="date" id="recurringEndDate" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-info">
+                    <strong>Инструкция:</strong><br>
+                    1. Заполните данные занятия<br>
+                    2. Выберите дни недели для повторения<br>
+                    3. Укажите период действия<br>
+                    4. Нажмите "Создать занятия"
+                </div>
+                <div id="recurringResult" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="createRecurringLessons()">
+                    <i class="bi bi-calendar-plus"></i> Создать занятия
                 </button>
             </div>
         </div>
@@ -1550,6 +1667,149 @@ function exportToExcel() {
         button.innerHTML = originalText;
         button.disabled = false;
     }, 3000);
+}
+
+function showRecurringLessonModal() {
+    // Очищаем форму
+    document.getElementById('recurringTitle').value = '';
+    document.getElementById('recurringStartTime').value = '';
+    document.getElementById('recurringEndTime').value = '';
+    document.getElementById('recurringClassroom').value = '';
+    document.getElementById('recurringStartDate').value = '';
+    document.getElementById('recurringEndDate').value = '';
+    document.getElementById('recurringResult').innerHTML = '';
+    
+    // Снимаем все выбранные дни
+    document.querySelectorAll('.recurring-day').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // Устанавливаем даты по умолчанию
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    
+    document.getElementById('recurringStartDate').value = today.toISOString().split('T')[0];
+    document.getElementById('recurringEndDate').value = nextWeek.toISOString().split('T')[0];
+    
+    // Устанавливаем время по умолчанию
+    document.getElementById('recurringStartTime').value = '09:00';
+    document.getElementById('recurringEndTime').value = '10:30';
+    
+    // Инициализируем цветовую палитру
+    document.querySelectorAll('#recurringColorPicker .group-color-picker').forEach(picker => {
+        picker.addEventListener('click', function() {
+            document.querySelectorAll('#recurringColorPicker .group-color-picker').forEach(p => p.classList.remove('selected'));
+            this.classList.add('selected');
+        });
+    });
+    
+    // Выбираем первый цвет по умолчанию
+    document.querySelector('#recurringColorPicker .group-color-picker').classList.add('selected');
+    
+    new bootstrap.Modal(document.getElementById('recurringLessonModal')).show();
+}
+
+function createRecurringLessons() {
+    const title = document.getElementById('recurringTitle').value;
+    const groupId = document.getElementById('recurringGroup').value;
+    const startTime = document.getElementById('recurringStartTime').value;
+    const endTime = document.getElementById('recurringEndTime').value;
+    const classroom = document.getElementById('recurringClassroom').value;
+    const startDate = document.getElementById('recurringStartDate').value;
+    const endDate = document.getElementById('recurringEndDate').value;
+    
+    // Получаем выбранные дни недели
+    const selectedDays = Array.from(document.querySelectorAll('.recurring-day:checked')).map(cb => parseInt(cb.value));
+    
+    // Получаем выбранный цвет
+    const selectedColorElement = document.querySelector('#recurringColorPicker .group-color-picker.selected');
+    const color = selectedColorElement ? selectedColorElement.dataset.color : '#3788d8';
+    
+    // Валидация
+    if (!title || !groupId || !startTime || !endTime || !startDate || !endDate) {
+        alert('Заполните все обязательные поля');
+        return;
+    }
+    
+    if (selectedDays.length === 0) {
+        alert('Выберите хотя бы один день недели');
+        return;
+    }
+    
+    if (new Date(startDate) > new Date(endDate)) {
+        alert('Дата начала не может быть позже даты окончания');
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    const resultDiv = document.getElementById('recurringResult');
+    resultDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split"></i> Создание занятий...</div>';
+    
+    // Подготавливаем данные
+    const lessonData = {
+        title: title,
+        group_id: parseInt(groupId),
+        start_time: startTime,
+        end_time: endTime,
+        classroom: classroom,
+        color: color,
+        start_date: startDate,
+        end_date: endDate,
+        days_of_week: selectedDays
+    };
+    
+    // Отправляем запрос
+    fetch('/api/schedule/create-recurring', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(lessonData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.status === 'success') {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-check-circle"></i> Занятия успешно созданы!</h6>
+                    <p>Создано занятий: <strong>${data.lessons_created}</strong></p>
+                    <p>Период: с ${startDate} по ${endDate}</p>
+                    <p>Дни недели: ${selectedDays.map(d => ['', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][d]).join(', ')}</p>
+                </div>
+            `;
+            
+            // Обновляем календарь
+            calendar.refetchEvents();
+            
+            // Закрываем модальное окно через 3 секунды
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('recurringLessonModal')).hide();
+            }, 3000);
+            
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Ошибка создания занятий</h6>
+                    <p>${data.error || 'Неизвестная ошибка'}</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error creating recurring lessons:', error);
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <h6><i class="bi bi-exclamation-triangle"></i> Ошибка создания занятий</h6>
+                <p>Ошибка сети: ${error.message}</p>
+            </div>
+        `;
+    });
 }
 </script>
 {% endblock %}

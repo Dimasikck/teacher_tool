@@ -955,3 +955,111 @@ def export_schedule_excel():
         
     except Exception as e:
         return jsonify({'error': f'Ошибка при экспорте: {str(e)}'}), 500
+
+
+@calendar_bp.route('/api/schedule/create-recurring', methods=['POST'])
+@login_required
+def create_recurring_lessons():
+    """Создание повторяющихся занятий"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        # Валидация обязательных полей
+        required_fields = ['title', 'group_id', 'start_time', 'end_time', 'start_date', 'end_date', 'days_of_week']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'Field {field} is required'}), 400
+
+        # Парсим даты
+        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+        end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+        
+        # Парсим время
+        start_time_str = data['start_time']
+        end_time_str = data['end_time']
+        
+        # Получаем дни недели (1=Понедельник, 2=Вторник, ..., 6=Суббота)
+        days_of_week = data['days_of_week']
+        
+        if not isinstance(days_of_week, list) or len(days_of_week) == 0:
+            return jsonify({'error': 'At least one day of week must be selected'}), 400
+        
+        # Проверяем, что дата начала не позже даты окончания
+        if start_date > end_date:
+            return jsonify({'error': 'Start date cannot be later than end date'}), 400
+        
+        # Создаем занятия для каждого выбранного дня недели в указанном периоде
+        created_lessons = []
+        current_date = start_date
+        
+        while current_date <= end_date:
+            # Проверяем, является ли текущая дата одним из выбранных дней недели
+            # Python weekday(): Monday=0, Tuesday=1, ..., Sunday=6
+            # Наши дни: Monday=1, Tuesday=2, ..., Saturday=6
+            weekday = current_date.weekday() + 1  # Конвертируем в наш формат
+            
+            if weekday in days_of_week:
+                # Создаем дату и время для занятия
+                lesson_datetime_start = datetime.combine(current_date, datetime.strptime(start_time_str, '%H:%M').time())
+                lesson_datetime_end = datetime.combine(current_date, datetime.strptime(end_time_str, '%H:%M').time())
+                
+                # Проверяем, не существует ли уже такое занятие
+                existing_schedule = Schedule.query.filter_by(
+                    title=data['title'],
+                    start_time=lesson_datetime_start,
+                    end_time=lesson_datetime_end,
+                    group_id=data['group_id'],
+                    teacher_id=current_user.id
+                ).first()
+                
+                if not existing_schedule:
+                    # Создаем событие в расписании
+                    schedule = Schedule(
+                        title=data['title'],
+                        start_time=lesson_datetime_start,
+                        end_time=lesson_datetime_end,
+                        group_id=data['group_id'],
+                        classroom=data.get('classroom', ''),
+                        color=data.get('color', '#3788d8'),
+                        teacher_id=current_user.id
+                    )
+                    
+                    db.session.add(schedule)
+                    db.session.flush()  # Получаем ID события
+                    
+                    # Создаем соответствующее занятие в журнале
+                    lesson = Lesson(
+                        date=lesson_datetime_start,
+                        group_id=data['group_id'],
+                        topic=data['title'],
+                        notes=f"Повторяющееся занятие. Время: {start_time_str} - {end_time_str}",
+                        classroom=data.get('classroom', ''),
+                        teacher_id=current_user.id
+                    )
+                    db.session.add(lesson)
+                    
+                    created_lessons.append({
+                        'date': current_date.strftime('%Y-%m-%d'),
+                        'day_name': current_date.strftime('%A'),
+                        'time': f"{start_time_str} - {end_time_str}"
+                    })
+            
+            # Переходим к следующему дню
+            current_date += timedelta(days=1)
+        
+        # Сохраняем все изменения
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Successfully created {len(created_lessons)} recurring lessons',
+            'lessons_created': len(created_lessons),
+            'lessons': created_lessons[:10]  # Показываем первые 10 занятий
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
