@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, Group, Student
+from models import db, Group, Student, Attendance, Lesson
 from datetime import datetime
 
 groups_bp = Blueprint('groups', __name__, url_prefix='/groups')
@@ -115,7 +115,49 @@ def group_detail(group_id):
     
     # Сортируем студентов по алфавиту
     students = Student.query.filter_by(group_id=group_id).order_by(Student.name.asc()).all()
-    return render_template('group_detail.html', group=group, students=students)
+
+    # Собираем статистику по пропускам и среднему баллу из журнала
+    # Загружаем все Attendance для данной группы разом
+    attendance_rows = db.session.query(Attendance).join(Lesson, Attendance.lesson_id == Lesson.id).join(Student, Attendance.student_id == Student.id).filter(
+        Lesson.group_id == group_id,
+        Lesson.teacher_id == current_user.id,
+        Student.group_id == group_id
+    ).all()
+
+    stats = {}
+    for student in students:
+        stats[student.id] = {"absences": 0, "average": None}
+
+    for a in attendance_rows:
+        # Подсчет пропусков: отметка "Н" или present == False
+        is_absent = (a.attendance_mark or '').strip().upper() == 'Н' or (a.present is False)
+        if is_absent:
+            if a.student_id in stats:
+                stats[a.student_id]["absences"] += 1
+
+        # Подсчет среднего: учитываем только числовые оценки
+        mark_str = (a.attendance_mark or '').strip().replace(',', '.')
+        try:
+            mark_val = float(mark_str)
+        except Exception:
+            mark_val = None
+        if mark_val is not None:
+            entry = stats.get(a.student_id)
+            if entry is not None:
+                # временно накапливаем сумму и количество в скрытых ключах
+                entry["_sum"] = entry.get("_sum", 0.0) + mark_val
+                entry["_cnt"] = entry.get("_cnt", 0) + 1
+
+    # Финализируем среднее
+    for sid, entry in stats.items():
+        cnt = entry.get("_cnt", 0)
+        if cnt > 0:
+            entry["average"] = round(entry.get("_sum", 0.0) / cnt, 2)
+        # Удаляем временные ключи
+        entry.pop("_sum", None)
+        entry.pop("_cnt", None)
+
+    return render_template('group_detail.html', group=group, students=students, stats=stats)
 
 
 @groups_bp.route('/<int:group_id>/edit', methods=['GET', 'POST'])
@@ -173,10 +215,42 @@ def add_student(group_id):
     ).first_or_404()
     if request.method == 'GET':
         students = Student.query.filter_by(group_id=group_id).order_by(Student.name.asc()).all()
+
+        # Статистика для API: аналогично как на детальной странице
+        attendance_rows = db.session.query(Attendance).join(Lesson, Attendance.lesson_id == Lesson.id).join(Student, Attendance.student_id == Student.id).filter(
+            Lesson.group_id == group_id,
+            Lesson.teacher_id == current_user.id,
+            Student.group_id == group_id
+        ).all()
+
+        api_stats = {s.id: {"absences": 0, "average": None} for s in students}
+        for a in attendance_rows:
+            is_absent = (a.attendance_mark or '').strip().upper() == 'Н' or (a.present is False)
+            if is_absent and a.student_id in api_stats:
+                api_stats[a.student_id]["absences"] += 1
+
+            mark_str = (a.attendance_mark or '').strip().replace(',', '.')
+            try:
+                mark_val = float(mark_str)
+            except Exception:
+                mark_val = None
+            if mark_val is not None and a.student_id in api_stats:
+                api_stats[a.student_id]["_sum"] = api_stats[a.student_id].get("_sum", 0.0) + mark_val
+                api_stats[a.student_id]["_cnt"] = api_stats[a.student_id].get("_cnt", 0) + 1
+
+        for sid, st in api_stats.items():
+            cnt = st.get("_cnt", 0)
+            if cnt > 0:
+                st["average"] = round(st.get("_sum", 0.0) / cnt, 2)
+            st.pop("_sum", None)
+            st.pop("_cnt", None)
+
         return jsonify({
             'success': True,
             'students': [
-                {'id': s.id, 'name': s.name, 'email': s.email}
+                {'id': s.id, 'name': s.name, 'email': s.email,
+                 'absences': api_stats.get(s.id, {}).get('absences', 0),
+                 'average': api_stats.get(s.id, {}).get('average', None)}
                 for s in students
             ]
         })

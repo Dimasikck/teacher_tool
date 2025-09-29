@@ -650,7 +650,7 @@
 </div>
 
 <div class="modal fade" id="excelUploadModal">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Загрузка расписания из Excel</h5>
@@ -659,18 +659,74 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label class="form-label">Выберите Excel файл с расписанием</label>
-                    <input type="file" id="excelFileInput" class="form-control" accept=".xls,.xlsx">
+                    <input type="file" id="excelFileInput" class="form-control" accept=".xls,.xlsx" onchange="previewExcelFile()">
                     <div class="form-text">Поддерживаются файлы .xls и .xlsx</div>
                 </div>
-                <div class="alert alert-info">
-                    <strong>Формат файла:</strong><br>
-                    • Вид занятий (Пр., Лек., лаб.)<br>
-                    • Дисциплина<br>
-                    • Дата (дд.мм.гггг)<br>
-                    • Время (чч.мм-чч.мм)<br>
-                    • Аудитория<br>
-                    • Учебная группа
+                
+                <div id="excelPreview" class="mb-3" style="display: none;">
+                    <h6>Предварительный просмотр файла:</h6>
+                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered" id="previewTable">
+                            <thead class="table-light">
+                                <tr id="previewHeader"></tr>
+                            </thead>
+                            <tbody id="previewBody"></tbody>
+                        </table>
+                    </div>
                 </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Настройка столбцов:</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Название занятия (столбец)</label>
+                            <select id="titleColumn" class="form-select">
+                                <option value="">Выберите столбец</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Группа (столбец)</label>
+                            <select id="groupColumn" class="form-select">
+                                <option value="">Выберите столбец</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата (столбец)</label>
+                            <select id="dateColumn" class="form-select">
+                                <option value="">Выберите столбец</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Дополнительные настройки:</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Время (столбец)</label>
+                            <select id="timeColumn" class="form-select">
+                                <option value="">Выберите столбец</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Аудитория (столбец)</label>
+                            <select id="classroomColumn" class="form-select">
+                                <option value="">Выберите столбец</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Строка начала данных</label>
+                            <input type="number" id="startRow" class="form-control" value="6" min="1">
+                            <div class="form-text">Номер строки, с которой начинаются данные (по умолчанию 6)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <strong>Инструкция:</strong><br>
+                    1. Загрузите Excel файл<br>
+                    2. Укажите в каких столбцах (A, B, C...) находятся данные<br>
+                    3. Укажите с какой строки начинаются данные<br>
+                    4. Нажмите "Загрузить"
+                </div>
+                
                 <div id="uploadProgress" class="mt-3" style="display: none;">
                     <div class="progress">
                         <div class="progress-bar" role="progressbar" style="width: 0%"></div>
@@ -681,7 +737,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-warning" onclick="uploadExcelFile()">
+                <button type="button" class="btn btn-warning" onclick="uploadExcelFile()" id="uploadBtn" disabled>
                     <i class="bi bi-upload"></i> Загрузить
                 </button>
             </div>
@@ -1223,9 +1279,152 @@ function showExcelUploadModal() {
     document.getElementById('uploadResult').innerHTML = '';
     document.getElementById('uploadProgress').style.display = 'none';
     document.getElementById('excelFileInput').value = '';
+    document.getElementById('excelPreview').style.display = 'none';
+    document.getElementById('uploadBtn').disabled = true;
+    
+    // Очищаем селекты колонок
+    ['titleColumn', 'groupColumn', 'dateColumn', 'timeColumn', 'classroomColumn'].forEach(id => {
+        const select = document.getElementById(id);
+        select.innerHTML = '<option value="">Выберите столбец</option>';
+    });
     
     // Показываем модальное окно
     new bootstrap.Modal(document.getElementById('excelUploadModal')).show();
+}
+
+function previewExcelFile() {
+    const fileInput = document.getElementById('excelFileInput');
+    const excelPreview = document.getElementById('excelPreview');
+    const previewTable = document.getElementById('previewTable');
+    const uploadBtn = document.getElementById('uploadBtn');
+    
+    if (!fileInput || !excelPreview || !previewTable || !uploadBtn) {
+        console.error('Required elements not found for Excel preview');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        excelPreview.style.display = 'none';
+        uploadBtn.disabled = true;
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    excelPreview.style.display = 'block';
+    previewTable.innerHTML = '<tr><td colspan="10" class="text-center">Загрузка файла...</td></tr>';
+    
+    // Создаем FormData для предварительного просмотра
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Отправляем запрос для предварительного просмотра
+    fetch('/api/schedule/preview-excel', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.status === 'success') {
+            displayExcelPreview(data.preview);
+            populateColumnSelects(data.columns);
+            uploadBtn.disabled = false;
+        } else {
+            excelPreview.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Ошибка:</strong> ${data.error || 'Неизвестная ошибка'}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Excel preview error:', error);
+        excelPreview.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Ошибка загрузки:</strong> ${error.message}
+            </div>
+        `;
+    });
+}
+
+function displayExcelPreview(previewData) {
+    const headerRow = document.getElementById('previewHeader');
+    const bodyRows = document.getElementById('previewBody');
+    
+    // Проверяем, что элементы существуют
+    if (!headerRow || !bodyRows) {
+        console.error('Preview table elements not found');
+        return;
+    }
+    
+    // Очищаем таблицу
+    headerRow.innerHTML = '';
+    bodyRows.innerHTML = '';
+    
+    if (!previewData || previewData.length === 0) {
+        bodyRows.innerHTML = '<tr><td colspan="10" class="text-center">Нет данных для отображения</td></tr>';
+        return;
+    }
+    
+    // Создаем заголовки (буквы Excel)
+    const maxColumns = Math.max(...previewData.map(row => row.length));
+    for (let i = 0; i < maxColumns; i++) {
+        const th = document.createElement('th');
+        // Конвертируем индекс в букву Excel (0=A, 1=B, 2=C, ...)
+        const excelColumn = String.fromCharCode(65 + i);
+        th.textContent = `Столбец ${excelColumn}`;
+        th.style.backgroundColor = '#f8f9fa';
+        headerRow.appendChild(th);
+    }
+    
+    // Добавляем строки данных
+    previewData.forEach((row, rowIndex) => {
+        const tr = document.createElement('tr');
+        if (rowIndex === 0) {
+            tr.style.backgroundColor = '#e9ecef';
+            tr.style.fontWeight = 'bold';
+        }
+        
+        for (let i = 0; i < maxColumns; i++) {
+            const td = document.createElement('td');
+            td.textContent = row[i] || '';
+            td.style.border = '1px solid #dee2e6';
+            td.style.padding = '4px 8px';
+            tr.appendChild(td);
+        }
+        bodyRows.appendChild(tr);
+    });
+}
+
+function populateColumnSelects(columns) {
+    const columnSelects = ['titleColumn', 'groupColumn', 'dateColumn', 'timeColumn', 'classroomColumn'];
+    
+    columnSelects.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (!select) {
+            console.error(`Select element ${selectId} not found`);
+            return;
+        }
+        
+        select.innerHTML = '<option value="">Выберите столбец</option>';
+        
+        if (columns && columns.length > 0) {
+            columns.forEach((col, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                // Конвертируем индекс в букву Excel (0=A, 1=B, 2=C, ...)
+                const excelColumn = String.fromCharCode(65 + index);
+                option.textContent = `Столбец ${excelColumn} (${col || 'пустая'})`;
+                select.appendChild(option);
+            });
+        }
+    });
 }
 
 function uploadExcelFile() {
@@ -1237,6 +1436,23 @@ function uploadExcelFile() {
         return;
     }
     
+    // Получаем настройки колонок
+    const columnMapping = {
+        title: document.getElementById('titleColumn').value,
+        group: document.getElementById('groupColumn').value,
+        date: document.getElementById('dateColumn').value,
+        time: document.getElementById('timeColumn').value,
+        classroom: document.getElementById('classroomColumn').value
+    };
+    
+    const startRow = document.getElementById('startRow').value;
+    
+    // Проверяем обязательные поля
+    if (!columnMapping.title || !columnMapping.group || !columnMapping.date || !columnMapping.time) {
+        alert('Заполните все обязательные поля: Название занятия, Группа, Дата, Время');
+        return;
+    }
+    
     // Показываем прогресс
     document.getElementById('uploadProgress').style.display = 'block';
     document.getElementById('uploadResult').innerHTML = '';
@@ -1244,6 +1460,8 @@ function uploadExcelFile() {
     // Создаем FormData
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('column_mapping', JSON.stringify(columnMapping));
+    formData.append('start_row', startRow);
     
     // Отправляем запрос
     fetch('/api/schedule/upload-excel', {

@@ -15,6 +15,89 @@ calendar_bp = Blueprint('calendar', __name__)
 ai = AIAnalyzer()
 
 
+def parse_schedule_excel_with_mapping(file_path, column_mapping, start_row, file_extension='.xlsx'):
+    """
+    Парсит Excel файл с расписанием используя настройки колонок
+    """
+    try:
+        # Читаем Excel файл
+        if file_extension == '.xlsx':
+            df = pd.read_excel(file_path, sheet_name=0, header=None, engine='openpyxl')
+        else:
+            df = pd.read_excel(file_path, sheet_name=0, header=None, engine='xlrd')
+        
+        lessons = []
+        
+        # Проверяем обязательные колонки
+        required_columns = ['title', 'group', 'date', 'time']
+        for col in required_columns:
+            if col not in column_mapping or column_mapping[col] == '':
+                raise ValueError(f'Не указана колонка для поля: {col}')
+        
+        # Ищем строки с данными начиная с указанной строки
+        for index, row in df.iterrows():
+            if index < start_row:  # Пропускаем строки до начала данных
+                continue
+                
+            # Извлекаем данные по указанным колонкам
+            try:
+                title = str(row.iloc[int(column_mapping['title'])]).strip() if pd.notna(row.iloc[int(column_mapping['title'])]) else ""
+                group = str(row.iloc[int(column_mapping['group'])]).strip() if pd.notna(row.iloc[int(column_mapping['group'])]) else ""
+                date_str = str(row.iloc[int(column_mapping['date'])]).strip() if pd.notna(row.iloc[int(column_mapping['date'])]) else ""
+                time_str = str(row.iloc[int(column_mapping['time'])]).strip() if pd.notna(row.iloc[int(column_mapping['time'])]) else ""
+                
+                # Аудитория (опционально)
+                classroom = ""
+                if 'classroom' in column_mapping and column_mapping['classroom'] != '':
+                    classroom = str(row.iloc[int(column_mapping['classroom'])]).strip() if pd.notna(row.iloc[int(column_mapping['classroom'])]) else ""
+                
+                # Пропускаем пустые строки
+                if not title or not group or not date_str or not time_str:
+                    continue
+                    
+                # Парсим дату
+                try:
+                    date_obj = pd.to_datetime(date_str, format='%d.%m.%Y').date()
+                except:
+                    try:
+                        date_obj = pd.to_datetime(date_str).date()
+                    except:
+                        continue
+                        
+                # Парсим время
+                try:
+                    if '-' in time_str:
+                        start_time_str, end_time_str = time_str.split('-')
+                        start_time = datetime.strptime(f"{date_obj} {start_time_str.strip()}", "%Y-%m-%d %H.%M")
+                        end_time = datetime.strptime(f"{date_obj} {end_time_str.strip()}", "%Y-%m-%d %H.%M")
+                    else:
+                        continue
+                except:
+                    continue
+                    
+                # Создаем название занятия
+                lesson_title = f"{title}"
+                
+                lessons.append({
+                    'title': lesson_title,
+                    'group': group,
+                    'date': date_obj,
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'classroom': classroom
+                })
+                
+            except (IndexError, ValueError) as e:
+                # Пропускаем строки с ошибками
+                continue
+                
+        return lessons
+        
+    except Exception as e:
+        print(f"Error parsing Excel file: {e}")
+        return []
+
+
 def parse_schedule_excel(file_path):
     """
     Парсит Excel файл с расписанием и извлекает данные о занятиях
@@ -266,10 +349,10 @@ def create_event():
         return jsonify({'error': str(e)}), 500
 
 
-@calendar_bp.route('/api/schedule/upload-excel', methods=['POST'])
+@calendar_bp.route('/api/schedule/preview-excel', methods=['POST'])
 @login_required
-def upload_schedule_excel():
-    """Загрузка расписания из Excel файла"""
+def preview_schedule_excel():
+    """Предварительный просмотр Excel файла для настройки колонок"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'Файл не найден'}), 400
@@ -284,12 +367,88 @@ def upload_schedule_excel():
         # Сохраняем файл временно
         upload_folder = 'uploads'
         os.makedirs(upload_folder, exist_ok=True)
-        file_path = os.path.join(upload_folder, f"temp_schedule_{current_user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xls")
+        
+        # Определяем расширение файла
+        file_extension = '.xlsx' if file.filename.lower().endswith('.xlsx') else '.xls'
+        file_path = os.path.join(upload_folder, f"preview_{current_user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_extension}")
         file.save(file_path)
         
         try:
-            # Парсим Excel файл
-            lessons = parse_schedule_excel(file_path)
+            # Читаем Excel файл для предварительного просмотра
+            if file_extension == '.xlsx':
+                df = pd.read_excel(file_path, sheet_name=0, header=None, engine='openpyxl')
+            else:
+                df = pd.read_excel(file_path, sheet_name=0, header=None, engine='xlrd')
+            
+            # Получаем первые 10 строк для предварительного просмотра
+            preview_data = []
+            for index, row in df.iterrows():
+                if index >= 10:  # Ограничиваем 10 строками
+                    break
+                preview_data.append([str(cell) if pd.notna(cell) else '' for cell in row])
+            
+            # Получаем информацию о колонках (первые 3 строки данных, пропуская заголовки)
+            columns_info = []
+            max_cols = min(len(df.columns), 20)  # Максимум 20 колонок
+            for col_index in range(max_cols):
+                col_data = []
+                # Начинаем с первой строки данных (индекс 0), берем максимум 3 строки
+                for row_index in range(min(3, len(df))):
+                    cell_value = df.iloc[row_index, col_index] if col_index < len(df.columns) else None
+                    col_data.append(str(cell_value) if pd.notna(cell_value) else '')
+                columns_info.append(' | '.join(col_data[:3]))
+            
+            # Удаляем временный файл
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            return jsonify({
+                'status': 'success',
+                'preview': preview_data,
+                'columns': columns_info
+            })
+            
+        except Exception as e:
+            print(f"DEBUG: Error reading Excel file: {e}")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            return jsonify({'error': f'Ошибка чтения файла: {str(e)}'}), 400
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@calendar_bp.route('/api/schedule/upload-excel', methods=['POST'])
+@login_required
+def upload_schedule_excel():
+    """Загрузка расписания из Excel файла с настройкой колонок"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'Файл не найден'}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'Файл не выбран'}), 400
+            
+        if not file.filename.lower().endswith(('.xls', '.xlsx')):
+            return jsonify({'error': 'Поддерживаются только Excel файлы (.xls, .xlsx)'}), 400
+        
+        # Получаем настройки колонок
+        column_mapping = json.loads(request.form.get('column_mapping', '{}'))
+        start_row = int(request.form.get('start_row', 6)) - 1  # Конвертируем в 0-based индекс
+            
+        # Сохраняем файл временно
+        upload_folder = 'uploads'
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        # Определяем расширение файла
+        file_extension = '.xlsx' if file.filename.lower().endswith('.xlsx') else '.xls'
+        file_path = os.path.join(upload_folder, f"temp_schedule_{current_user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_extension}")
+        file.save(file_path)
+        
+        try:
+            # Парсим Excel файл с настройками колонок
+            lessons = parse_schedule_excel_with_mapping(file_path, column_mapping, start_row, file_extension)
             
             if not lessons:
                 return jsonify({'error': 'Не удалось извлечь данные из файла'}), 400

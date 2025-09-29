@@ -122,6 +122,8 @@
                                 <th>#</th>
                                 <th>Имя</th>
                                 <th>Email</th>
+                                <th>Пропуски (Н)</th>
+                                <th>Средний балл</th>
                                 <th>Действия</th>
                             </tr>
                         </thead>
@@ -131,6 +133,8 @@
                                 <td>{{ loop.index }}</td>
                                 <td>{{ student.name }}</td>
                                 <td>{{ student.email or '-' }}</td>
+                                <td class="student-absences">{{ (stats.get(student.id).absences) if stats and stats.get(student.id) else 0 }}</td>
+                                <td class="student-average">{{ (stats.get(student.id).average) if stats and stats.get(student.id) and stats.get(student.id).average is not none else '-' }}</td>
                                 <td>
                                     <button class="btn btn-sm btn-outline-primary" 
                                             onclick="editStudent({{ student.id }}, '{{ student.name }}', '{{ student.email or '' }}')">
@@ -312,6 +316,8 @@ function updateStudentsList(newStudents) {
             <td>0</td> <!-- Временно, будет обновлено после сортировки -->
             <td>${student.name}</td>
             <td>${student.email || '-'}</td>
+            <td class="student-absences">${student.absences ?? 0}</td>
+            <td class="student-average">${student.average ?? '-'}</td>
             <td>
                 <button class="btn btn-sm btn-outline-primary" 
                         onclick="editStudent(${student.id || 0}, '${student.name}', '${student.email || ''}')">
@@ -383,6 +389,8 @@ async function reloadStudentsList() {
                 <td>${index + 1}</td>
                 <td>${student.name}</td>
                 <td>${student.email || '-'}</td>
+                <td class=\"student-absences\">${student.absences ?? 0}</td>
+                <td class=\"student-average\">${student.average ?? '-'}</td>
                 <td>
                     <button class="btn btn-sm btn-outline-primary" onclick="editStudent(${student.id}, '${student.name}', '${student.email || ''}')">
                         <i class="bi bi-pencil"></i>

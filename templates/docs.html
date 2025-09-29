@@ -20,9 +20,10 @@
     <div class="row mb-4">
         <div class="col-12">
             {% if cloud_settings and cloud_settings.is_active %}
-                <div class="alert alert-success">
+                <div class="alert alert-success" id="cloudStatusAlert">
                     <i class="bi bi-check-circle"></i>
                     <strong>Облако подключено:</strong> {{ cloud_settings.cloud_type|title }} Cloud
+                    <span id="tokenStatus" class="ms-2"></span>
                     <button class="btn btn-sm btn-outline-success ms-2" onclick="showCloudSettingsModal()">
                         <i class="bi bi-pencil"></i> Редактировать
                     </button>
@@ -31,10 +32,40 @@
                 <div class="alert alert-warning">
                     <i class="bi bi-exclamation-triangle"></i>
                     <strong>Облако не настроено</strong> - Нажмите "Настроить облако" для подключения
-            </div>
+                </div>
             {% endif %}
                 </div>
             </div>
+
+    <!-- Обозреватель облака (после подключения) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-cloud"></i> Облако
+                        <span id="currentPath" class="text-muted ms-2">/</span>
+                    </div>
+                    <div class="input-group" style="max-width: 480px;">
+                        <input type="text" class="form-control form-control-sm" id="pathInput" placeholder="/путь/к/папке" value="/">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="navigateToPath()"><i class="bi bi-arrow-right"></i></button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadCloudRoot()" title="Корень"><i class="bi bi-house"></i></button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="cloudFolders"></div>
+                    <hr>
+                    <div class="row" id="cloudFiles"></div>
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="runDiagnostics()">
+                            <i class="bi bi-activity"></i> Диагностика текущего пути
+                        </button>
+                        <pre id="diagOut" class="mt-2 small" style="max-height: 240px; overflow:auto; display:none"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Категории -->
     <div class="row mb-4">
@@ -49,14 +80,14 @@
                                 <div class="d-flex align-items-center">
                                     <div class="me-3">
                                         <i class="bi bi-folder-fill" style="font-size: 2rem; color: #667eea;"></i>
-        </div>
+                                    </div>
                                     <div class="flex-grow-1">
                                         <h6 class="card-title mb-1">{{ category.name }}</h6>
                                         <p class="card-text text-muted small mb-2">{{ category.cloud_path }}</p>
                                         {% if category.description %}
                                         <p class="card-text small">{{ category.description }}</p>
                                         {% endif %}
-                </div>
+                                    </div>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
                                             <i class="bi bi-three-dots"></i>
@@ -72,10 +103,10 @@
                 </div>
             </div>
         </div>
-    </div>
-            </div>
+                </div>
+                    </div>
                     {% endfor %}
-        </div>
+                </div>
             {% else %}
                 <div class="text-center py-5">
                     <i class="bi bi-folder-x" style="font-size: 4rem; color: #ccc;"></i>
@@ -84,15 +115,15 @@
                     <button class="btn btn-primary" onclick="showCategoryModal()">
                         <i class="bi bi-folder-plus"></i> Создать категорию
                     </button>
-        </div>
+                </div>
             {% endif %}
+            </div>
         </div>
-    </div>
 
     <!-- Содержимое категории (скрыто по умолчанию) -->
     <div id="categoryContent" class="row" style="display: none;">
         <div class="col-12">
-    <div class="card">
+            <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0" id="categoryTitle">
                         <i class="bi bi-folder2-open"></i> <span id="categoryName"></span>
@@ -104,17 +135,16 @@
                         <button class="btn btn-sm btn-outline-secondary" onclick="closeCategory()">
                             <i class="bi bi-x"></i> Закрыть
                         </button>
-                    </div>
-        </div>
-        <div class="card-body">
-            <div id="filesList" class="row">
+                </div>
+            </div>
+                <div class="card-body">
+                    <div id="filesList" class="row">
                         <!-- Файлы будут загружены динамически -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <!-- Модальное окно настроек облака -->
 <div class="modal fade" id="cloudSettingsModal" tabindex="-1">
@@ -124,52 +154,61 @@
                 <h5 class="modal-title"><i class="bi bi-gear"></i> Настройки облака</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+<div class="modal-body">
+    <div class="alert alert-info">
+        <div class="fw-bold mb-1">Краткая инструкция для Mail.ru Cloud:</div>
+        <div class="small">
+            1) В поле "API URL" укажите `https://cloud.mail.ru/api/v2`.
+            2) Получите `Client ID`/`Client Secret` в настройках вашего приложения Mail.ru.
+            3) Получите `Access Token` и при необходимости `Refresh Token`.
+            4) Отметьте "Активировать подключение" и сохраните.
+            5) Нажмите "Тестировать подключение" для проверки.
+        </div>
+    </div>
                 <form id="cloudSettingsForm">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="cloudType" class="form-label">Тип облака</label>
                                 <select class="form-select" id="cloudType" name="cloud_type" required>
-                                    <option value="mail">Mail.ru Cloud</option>
-                                    <option value="yandex">Яндекс.Диск</option>
-                                    <option value="google">Google Drive</option>
+                                    <option value="webdav">WebDAV</option>
+                                    <option value="mail">Mail.ru Cloud (OAuth)</option>
                                 </select>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="apiUrl" class="form-label">API URL</label>
-                                <input type="url" class="form-control" id="apiUrl" name="api_url" 
-                                       value="https://cloud.mail.ru/api/v2" required>
+                                <label for="apiUrl" class="form-label">WebDAV Hostname / API URL</label>
+                                <input type="url" class="form-control" id="apiUrl" name="api_url" value="https://webdav.cloud.mail.ru" required>
+                                <div class="form-text">Для Mail.ru Cloud: <code>https://webdav.cloud.mail.ru</code><br>Для Nextcloud: <code>https://your-domain.com/remote.php/dav/files/USERNAME</code></div>
                             </div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="clientId" class="form-label">Client ID</label>
+                                <label for="clientId" class="form-label">Логин (WebDAV login) / Client ID</label>
                                 <input type="text" class="form-control" id="clientId" name="client_id" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="clientSecret" class="form-label">Client Secret</label>
+                                <label for="clientSecret" class="form-label">Пароль (WebDAV password) / Client Secret</label>
                                 <input type="password" class="form-control" id="clientSecret" name="client_secret" required>
                             </div>
                         </div>
                     </div>
-                    <div class="row">
+                    <div class="row" id="oauthFields">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="accessToken" class="form-label">Access Token</label>
+                                <label for="accessToken" class="form-label">Access Token (OAuth)</label>
                                 <input type="text" class="form-control" id="accessToken" name="access_token">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="refreshToken" class="form-label">Refresh Token</label>
-                                <input type="text" class="form-control" id="refreshToken" name="refresh_token">
+                                <label for="refreshToken" class="form-label">Refresh Token (OAuth)</label>
+                                <input type="text" class="form-control" id="refreshToken" name="refresh_token" placeholder="Для WebDAV не требуется">
                             </div>
                         </div>
                     </div>
@@ -181,15 +220,27 @@
                             </label>
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-outline-info" onclick="testCloudConnection()">
+                            <i class="bi bi-wifi"></i> Тестировать подключение
+                        </button>
+                        <div id="connectionTestResult" class="mt-2"></div>
+                        <div class="mt-2" id="oauthButtonRow">
+                            <button type="button" class="btn btn-outline-primary" onclick="startOAuth()">
+                                <i class="bi bi-box-arrow-in-right"></i> Войти через OAuth (Mail.ru)
+                            </button>
+                            <div class="form-text">Если видите 403 при авторизации Mail.ru, убедитесь, что redirect URI совпадает с зарегистрированным, и клиент создан для o2.mail.ru.</div>
+                        </div>
+                    </div>
                 </form>
-            </div>
+                                    </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                 <button type="button" class="btn btn-primary" onclick="saveCloudSettings()">Сохранить</button>
-            </div>
-        </div>
-    </div>
-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
 <!-- Модальное окно создания категории -->
 <div class="modal fade" id="categoryModal" tabindex="-1">
@@ -207,8 +258,18 @@
                     </div>
                     <div class="mb-3">
                         <label for="cloudPath" class="form-label">Путь к папке в облаке</label>
-                        <input type="text" class="form-control" id="cloudPath" name="cloud_path" 
-                               placeholder="/Документы/Учебные материалы" required>
+                        <div class="input-group">
+                            <select class="form-select" id="cloudPath" name="cloud_path" required>
+                                <option value="">Загрузка папок...</option>
+                            </select>
+                            <button class="btn btn-outline-secondary" type="button" onclick="loadCloudFolders()" title="Обновить список папок">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                            <button class="btn btn-outline-primary" type="button" onclick="showCreateFolderModal()" title="Создать новую папку">
+                                <i class="bi bi-folder-plus"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Выберите папку из вашего облачного хранилища или создайте новую</div>
                     </div>
                     <div class="mb-3">
                         <label for="categoryDescription" class="form-label">Описание</label>
@@ -219,6 +280,38 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                 <button type="button" class="btn btn-primary" onclick="saveCategory()">Создать</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно создания папки в облаке -->
+<div class="modal fade" id="createFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder-plus"></i> Создать папку в облаке</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createFolderForm">
+                    <div class="mb-3">
+                        <label for="folderName" class="form-label">Название папки</label>
+                        <input type="text" class="form-control" id="folderName" name="folder_name" required>
+                        <div class="form-text">Введите название новой папки</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="parentPath" class="form-label">Родительская папка</label>
+                        <select class="form-select" id="parentPath" name="parent_path" required>
+                            <option value="/">Корневая папка</option>
+                        </select>
+                        <div class="form-text">Выберите папку, в которой создать новую</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="createCloudFolder()">Создать папку</button>
             </div>
         </div>
     </div>
@@ -325,10 +418,71 @@ function loadCloudSettings() {
             document.getElementById('accessToken').value = data.access_token || '';
             document.getElementById('refreshToken').value = data.refresh_token || '';
             document.getElementById('isActive').checked = data.is_active;
+            
+            toggleOAuthVisibility();
+            // Обновляем статус токена
+            updateTokenStatus(data.token_status);
         })
         .catch(error => {
             console.error('Ошибка загрузки настроек:', error);
         });
+}
+
+function updateTokenStatus(status) {
+    const tokenStatusElement = document.getElementById('tokenStatus');
+    if (!tokenStatusElement) return;
+    
+    switch(status) {
+        case 'valid':
+            tokenStatusElement.innerHTML = '<span class="badge bg-success">Токен действителен</span>';
+            break;
+        case 'invalid':
+            tokenStatusElement.innerHTML = '<span class="badge bg-danger">Токен недействителен</span>';
+            break;
+        case 'error':
+            tokenStatusElement.innerHTML = '<span class="badge bg-warning">Ошибка проверки токена</span>';
+            break;
+        default:
+            tokenStatusElement.innerHTML = '';
+    }
+}
+
+function testCloudConnection() {
+    const resultDiv = document.getElementById('connectionTestResult');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2" role="status"></div>Тестирование подключения...';
+    
+    // Собираем данные из формы
+    const form = document.getElementById('cloudSettingsForm');
+    const formData = new FormData(form);
+    
+    const testData = {
+        cloud_type: formData.get('cloud_type'),
+        api_url: formData.get('api_url'),
+        client_id: formData.get('client_id'),
+        client_secret: formData.get('client_secret'),
+        access_token: formData.get('access_token'),
+        refresh_token: formData.get('refresh_token')
+    };
+    
+    fetch('/docs/api/cloud/test-connection', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(testData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.innerHTML = '<div class="alert alert-success mb-0"><i class="bi bi-check-circle"></i> ' + data.message + '</div>';
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-x-circle"></i> ' + data.error + '</div>';
+        }
+    })
+    .catch(error => {
+        resultDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-x-circle"></i> Ошибка тестирования подключения</div>';
+        console.error('Error:', error);
+    });
 }
 
 function saveCloudSettings() {
@@ -369,11 +523,195 @@ function saveCloudSettings() {
     });
 }
 
+document.getElementById('cloudType').addEventListener('change', toggleOAuthVisibility);
+
+function toggleOAuthVisibility() {
+    const type = document.getElementById('cloudType').value;
+    const oauthFields = document.getElementById('oauthFields');
+    const oauthBtnRow = document.getElementById('oauthButtonRow');
+    if (type === 'webdav') {
+        // Для WebDAV скрываем кнопку OAuth, оставляем поле refreshToken как Root Path
+        if (oauthBtnRow) oauthBtnRow.style.display = 'none';
+        if (oauthFields) oauthFields.style.display = '';
+        const refresh = document.getElementById('refreshToken');
+        if (refresh) refresh.placeholder = 'Root Path (например, / или /shared/root)';
+    } else {
+        if (oauthBtnRow) oauthBtnRow.style.display = '';
+        if (oauthFields) oauthFields.style.display = '';
+        const refresh = document.getElementById('refreshToken');
+        if (refresh) refresh.placeholder = 'Refresh Token (OAuth)';
+    }
+}
+
 // === УПРАВЛЕНИЕ КАТЕГОРИЯМИ ===
 
+function loadCloudFolders() {
+    const cloudPathSelect = document.getElementById('cloudPath');
+    
+    // Показываем индикатор загрузки
+    cloudPathSelect.innerHTML = '<option value="">Загрузка папок...</option>';
+    cloudPathSelect.disabled = true;
+    
+    fetch('/docs/api/cloud/folders')
+        .then(response => response.json())
+        .then(data => {
+            cloudPathSelect.innerHTML = '';
+            
+            if (data.error) {
+                cloudPathSelect.innerHTML = '<option value="">Ошибка загрузки папок</option>';
+                showNotification(data.error, 'error');
+                return;
+            }
+            
+            if (data.folders && data.folders.length > 0) {
+                data.folders.forEach(folder => {
+                    const option = document.createElement('option');
+                    option.value = folder.path;
+                    option.textContent = folder.name;
+                    if (folder.path === '/') {
+                        option.textContent = '📁 ' + folder.name;
+                    } else {
+                        option.textContent = '📂 ' + folder.name;
+                    }
+                    cloudPathSelect.appendChild(option);
+                });
+                
+                // Выбираем корневую папку по умолчанию
+                cloudPathSelect.value = '/';
+            } else {
+                cloudPathSelect.innerHTML = '<option value="">Папки не найдены</option>';
+            }
+            
+            cloudPathSelect.disabled = false;
+        })
+        .catch(error => {
+            cloudPathSelect.innerHTML = '<option value="">Ошибка подключения</option>';
+            cloudPathSelect.disabled = false;
+            showNotification('Ошибка загрузки папок из облака', 'error');
+            console.error('Error:', error);
+        });
+}
+
 function showCategoryModal() {
+    // Сбрасываем форму
+    document.getElementById('categoryForm').reset();
+    
+    // Восстанавливаем стандартные настройки модального окна
+    document.querySelector('#categoryModal .modal-title').innerHTML = '<i class="bi bi-folder-plus"></i> Создать категорию';
+    document.querySelector('#categoryModal .btn-primary').textContent = 'Создать';
+    document.querySelector('#categoryModal .btn-primary').onclick = saveCategory;
+    
+    // Загружаем папки из облака
+    loadCloudFolders();
+    
     const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
     modal.show();
+}
+
+function showCreateFolderModal() {
+    // Сбрасываем форму
+    document.getElementById('createFolderForm').reset();
+    
+    // Загружаем папки для выбора родительской папки
+    loadParentFolders();
+    
+    const modal = new bootstrap.Modal(document.getElementById('createFolderModal'));
+    modal.show();
+}
+
+function loadParentFolders() {
+    const parentPathSelect = document.getElementById('parentPath');
+    
+    // Показываем индикатор загрузки
+    parentPathSelect.innerHTML = '<option value="">Загрузка папок...</option>';
+    parentPathSelect.disabled = true;
+    
+    fetch('/docs/api/cloud/folders')
+        .then(response => response.json())
+        .then(data => {
+            parentPathSelect.innerHTML = '';
+            
+            if (data.error) {
+                parentPathSelect.innerHTML = '<option value="/">Корневая папка</option>';
+                showNotification(data.error, 'error');
+                return;
+            }
+            
+            if (data.folders && data.folders.length > 0) {
+                data.folders.forEach(folder => {
+                    const option = document.createElement('option');
+                    option.value = folder.path;
+                    option.textContent = folder.name;
+                    if (folder.path === '/') {
+                        option.textContent = '📁 ' + folder.name;
+                    } else {
+                        option.textContent = '📂 ' + folder.name;
+                    }
+                    parentPathSelect.appendChild(option);
+                });
+                
+                // Выбираем корневую папку по умолчанию
+                parentPathSelect.value = '/';
+            } else {
+                parentPathSelect.innerHTML = '<option value="/">Корневая папка</option>';
+            }
+            
+            parentPathSelect.disabled = false;
+        })
+        .catch(error => {
+            parentPathSelect.innerHTML = '<option value="/">Корневая папка</option>';
+            parentPathSelect.disabled = false;
+            showNotification('Ошибка загрузки папок', 'error');
+            console.error('Error:', error);
+        });
+}
+
+function createCloudFolder() {
+    const form = document.getElementById('createFolderForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        folder_name: formData.get('folder_name'),
+        parent_path: formData.get('parent_path')
+    };
+    
+    if (!data.folder_name) {
+        showNotification('Введите название папки', 'warning');
+        return;
+    }
+    
+    fetch('/docs/api/cloud/create-folder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createFolderModal'));
+            modal.hide();
+            
+            // Обновляем список папок в основном модальном окне
+            loadCloudFolders();
+            
+            // Если есть путь к созданной папке, выбираем её
+            if (data.path) {
+                setTimeout(() => {
+                    const cloudPathSelect = document.getElementById('cloudPath');
+                    cloudPathSelect.value = data.path;
+                }, 1000);
+            }
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Ошибка создания папки', 'error');
+        console.error('Error:', error);
+    });
 }
 
 function saveCategory() {
@@ -426,15 +764,36 @@ function openCategory(categoryId) {
 }
 
 function loadCategoryFiles(categoryId) {
+    const filesList = document.getElementById('filesList');
+    
+    // Показываем индикатор загрузки
+    filesList.innerHTML = `
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3 text-muted">Загрузка файлов...</p>
+        </div>
+    `;
+    
     fetch(`/docs/api/cloud/files/${categoryId}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
                 showNotification(data.error, 'error');
+                filesList.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
+                        <h4 class="mt-3 text-muted">Ошибка загрузки</h4>
+                        <p class="text-muted">${data.error}</p>
+                        <button class="btn btn-primary" onclick="loadCategoryFiles(${categoryId})">
+                            <i class="bi bi-arrow-clockwise"></i> Попробовать снова
+                        </button>
+                    </div>
+                `;
                 return;
             }
             
-            const filesList = document.getElementById('filesList');
             filesList.innerHTML = '';
             
             if (data.files && data.files.length > 0) {
@@ -458,6 +817,16 @@ function loadCategoryFiles(categoryId) {
         .catch(error => {
             showNotification('Ошибка загрузки файлов', 'error');
             console.error('Error:', error);
+            filesList.innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
+                    <h4 class="mt-3 text-muted">Ошибка подключения</h4>
+                    <p class="text-muted">Не удалось загрузить файлы</p>
+                    <button class="btn btn-primary" onclick="loadCategoryFiles(${categoryId})">
+                        <i class="bi bi-arrow-clockwise"></i> Попробовать снова
+                    </button>
+                </div>
+            `;
         });
 }
 
@@ -465,18 +834,24 @@ function createFileCard(file) {
     const col = document.createElement('div');
     col.className = 'col-md-6 col-lg-4 mb-3 file-item';
     
+    // Определяем иконку файла
+    const fileIcon = file.icon || 'bi-file-earmark';
+    const fileSize = file.size_formatted || 'Неизвестно';
+    const fileModified = file.modified || 'Неизвестно';
+    const fileName = file.name.length > 30 ? file.name.substring(0, 30) + '...' : file.name;
+    
     col.innerHTML = `
         <div class="card h-100 file-card">
             <div class="card-body">
                 <div class="d-flex align-items-start">
                     <div class="me-3">
-                        <i class="bi bi-file-earmark" style="font-size: 2rem; color: #667eea;"></i>
+                        <i class="bi ${fileIcon}" style="font-size: 2rem; color: #667eea;"></i>
                     </div>
                     <div class="flex-grow-1">
-                        <h6 class="card-title mb-1" title="${file.name}">${file.name.length > 30 ? file.name.substring(0, 30) + '...' : file.name}</h6>
+                        <h6 class="card-title mb-1" title="${file.name}">${fileName}</h6>
                         <p class="card-text text-muted small mb-2">
-                            <i class="bi bi-hdd"></i> ${file.size_formatted || 'Неизвестно'}<br>
-                            <i class="bi bi-clock"></i> ${file.modified || 'Неизвестно'}
+                            <i class="bi bi-hdd"></i> ${fileSize}<br>
+                            <i class="bi bi-clock"></i> ${fileModified}
                         </p>
                         <div class="btn-group btn-group-sm" role="group">
                             <button class="btn btn-outline-primary" onclick="viewFile('${file.name}')" title="Просмотр">
@@ -565,13 +940,20 @@ function uploadFile() {
 // === ОПЕРАЦИИ С ФАЙЛАМИ ===
 
 function viewFile(filename) {
-    // Здесь будет логика просмотра файла
-    showNotification('Просмотр файла в разработке', 'info');
+    // Открываем файл в новом окне для просмотра
+    const viewUrl = `/docs/view/${encodeURIComponent(filename)}`;
+    window.open(viewUrl, '_blank');
 }
 
 function downloadFile(filename) {
-    // Здесь будет логика скачивания файла
-    showNotification('Скачивание файла в разработке', 'info');
+    // Скачиваем файл
+    const downloadUrl = `/docs/download/${encodeURIComponent(filename)}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 function deleteFile(filename) {
@@ -579,8 +961,121 @@ function deleteFile(filename) {
         return;
     }
     
-    // Здесь будет логика удаления файла
-    showNotification('Удаление файла в разработке', 'info');
+    fetch(`/docs/delete/${encodeURIComponent(filename)}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Перезагружаем список файлов
+            if (currentCategoryId) {
+                loadCategoryFiles(currentCategoryId);
+            }
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Ошибка удаления файла', 'error');
+        console.error('Error:', error);
+    });
+}
+
+// === УПРАВЛЕНИЕ КАТЕГОРИЯМИ (РЕДАКТИРОВАНИЕ И УДАЛЕНИЕ) ===
+
+function editCategory(categoryId) {
+    // Сначала загружаем папки из облака
+    loadCloudFolders();
+    
+    // Получаем данные категории
+    fetch(`/docs/api/cloud/categories/${categoryId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showNotification(data.error, 'error');
+                return;
+            }
+            
+            // Заполняем форму редактирования
+            document.getElementById('categoryName').value = data.name;
+            document.getElementById('categoryDescription').value = data.description || '';
+            
+            // Устанавливаем путь к папке после загрузки папок
+            setTimeout(() => {
+                document.getElementById('cloudPath').value = data.cloud_path;
+            }, 500);
+            
+            // Показываем модальное окно
+            const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+            modal.show();
+            
+            // Изменяем заголовок и кнопку
+            document.querySelector('#categoryModal .modal-title').innerHTML = '<i class="bi bi-pencil"></i> Редактировать категорию';
+            document.querySelector('#categoryModal .btn-primary').textContent = 'Сохранить';
+            document.querySelector('#categoryModal .btn-primary').onclick = () => updateCategory(categoryId);
+        })
+        .catch(error => {
+            showNotification('Ошибка загрузки данных категории', 'error');
+            console.error('Error:', error);
+        });
+}
+
+function updateCategory(categoryId) {
+    const form = document.getElementById('categoryForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        name: formData.get('name'),
+        cloud_path: formData.get('cloud_path'),
+        description: formData.get('description')
+    };
+    
+    fetch(`/docs/api/cloud/categories/${categoryId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
+            modal.hide();
+            location.reload();
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Ошибка обновления категории', 'error');
+        console.error('Error:', error);
+    });
+}
+
+function deleteCategory(categoryId) {
+    if (!confirm('Вы уверены, что хотите удалить эту категорию? Все файлы в ней останутся в облаке, но категория будет скрыта из интерфейса.')) {
+        return;
+    }
+    
+    fetch(`/docs/api/cloud/categories/${categoryId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            location.reload();
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Ошибка удаления категории', 'error');
+        console.error('Error:', error);
+    });
 }
 
 // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
@@ -601,6 +1096,111 @@ function showNotification(message, type) {
             notification.parentNode.removeChild(notification);
         }
     }, 5000);
+}
+</script>
+
+<script>
+// Простая навигация по облаку
+let cloudCurrentPath = '/';
+
+function loadCloudRoot() {
+    loadCloudLocation('/');
+}
+
+function navigateToPath() {
+    const p = document.getElementById('pathInput').value || '/';
+    loadCloudLocation(p);
+}
+
+function loadCloudLocation(path) {
+    cloudCurrentPath = path || '/';
+    document.getElementById('currentPath').textContent = cloudCurrentPath;
+    document.getElementById('pathInput').value = cloudCurrentPath;
+    // load folders
+    fetch(`/docs/api/cloud/folders?path=${encodeURIComponent(cloudCurrentPath)}`)
+      .then(r => r.json())
+      .then(data => {
+        const cont = document.getElementById('cloudFolders');
+        cont.innerHTML = '';
+        if (data.error) {
+            cont.innerHTML = `<div class="col-12 text-danger small">${data.error}</div>`;
+            return;
+        }
+        const list = data.folders || [];
+        if (list.length === 0) {
+            cont.innerHTML = '<div class="col-12 text-muted small">Папок нет</div>';
+            return;
+        }
+        list.forEach(f => {
+            const col = document.createElement('div');
+            col.className = 'col-md-3 mb-2';
+            col.innerHTML = `
+                <div class="card p-2 clickable" onclick="loadCloudLocation('${f.path}')">
+                    <div><i class="bi bi-folder2${f.name==='..' ? '' : '-open'}"></i> ${f.name}</div>
+                </div>`;
+            cont.appendChild(col);
+        });
+      })
+      .catch(() => {
+        document.getElementById('cloudFolders').innerHTML = '<div class="col-12 text-danger small">Ошибка загрузки папок</div>';
+      });
+
+    // load files
+    fetch(`/docs/api/cloud/files-by-path?path=${encodeURIComponent(cloudCurrentPath)}`)
+      .then(r => r.json())
+      .then(data => {
+        const cont = document.getElementById('cloudFiles');
+        cont.innerHTML = '';
+        if (data.error) {
+            cont.innerHTML = `<div class="col-12 text-danger small">${data.error}</div>`;
+            return;
+        }
+        const list = data.files || [];
+        if (list.length === 0) {
+            cont.innerHTML = '<div class="col-12 text-muted small">Файлов нет</div>';
+            return;
+        }
+        list.forEach(file => {
+            const col = document.createElement('div');
+            col.className = 'col-md-3 mb-2';
+            const icon = file.icon || 'bi-file-earmark';
+            col.innerHTML = `
+                <div class="card p-2">
+                    <div class="d-flex align-items-center">
+                        <i class="bi ${icon} me-2"></i>
+                        <div class="small text-truncate" title="${file.name}">${file.name}</div>
+                    </div>
+                </div>`;
+            cont.appendChild(col);
+        });
+      })
+      .catch(() => {
+        document.getElementById('cloudFiles').innerHTML = '<div class="col-12 text-danger small">Ошибка загрузки файлов</div>';
+      });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadCloudRoot();
+});
+
+function startOAuth() {
+    // Переходим на старт OAuth, где нас перенаправят на страницу согласия облака
+    window.location.href = '/docs/api/cloud/oauth/start';
+}
+
+function runDiagnostics() {
+    const p = cloudCurrentPath || '/';
+    const out = document.getElementById('diagOut');
+    out.style.display = 'block';
+    out.textContent = 'Выполняется...';
+    fetch(`/docs/api/cloud/diagnostics?path=${encodeURIComponent(p)}`)
+        .then(r => r.json())
+        .then(data => {
+            out.textContent = JSON.stringify(data, null, 2);
+        })
+        .catch(e => {
+            out.textContent = 'Ошибка диагностики: ' + e;
+        });
 }
 </script>
 {% endblock %}
