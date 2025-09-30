@@ -230,11 +230,25 @@ def save_mark():
     return jsonify({'status': 'success', 'present': attendance.present, 'mark': attendance.attendance_mark or ''})
 
 
-@journal_bp.route('/api/lesson/<int:lesson_id>')
+@journal_bp.route('/api/lesson/<int:lesson_id>', methods=['GET', 'PUT'])
 @login_required
 def lesson_detail(lesson_id):
-    """Детали занятия по id"""
+    """Получить или обновить детали занятия по id"""
     lesson = Lesson.query.filter_by(id=lesson_id, teacher_id=current_user.id).first_or_404()
+
+    if request.method == 'PUT':
+        data = request.get_json(force=True) or {}
+        topic = data.get('topic')
+        notes = data.get('notes')
+
+        if topic is not None:
+            lesson.topic = topic
+        if notes is not None:
+            lesson.notes = notes
+
+        db.session.commit()
+        return jsonify({'status': 'success'})
+
     return jsonify({
         'id': lesson.id,
         'date': lesson.date.isoformat(),

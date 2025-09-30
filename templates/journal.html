@@ -86,6 +86,33 @@
     </div>
     </div>
 
+<!-- Модальное окно редактирования занятия -->
+<div class="modal fade" id="editLessonModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать занятие</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editLessonId">
+                <div class="mb-3">
+                    <label class="form-label">Тема занятия</label>
+                    <input type="text" id="editLessonTopic" class="form-control" placeholder="Введите тему занятия">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Заметки</label>
+                    <textarea id="editLessonNotes" class="form-control" rows="4" placeholder="Добавьте заметки"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveLessonEdits()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
 <!-- Модальное окно для добавления контрольной точки -->
 <div class="modal fade" id="controlPointModal">
     <div class="modal-dialog">
@@ -608,16 +635,24 @@ function openLessonModal(lessonId, dateStr) {
 function updateLesson(lessonId) {
     const topic = document.getElementById('lessonTopic').value;
     const notes = document.getElementById('lessonNotes').value;
-    fetch('/api/lessons', {
-        method: 'POST',
+    fetch(`/api/lesson/${lessonId}`, {
+        method: 'PUT',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            // Для простоты переиспользуем создание: если нужна явная правка — в бэкенде можно добавить PUT
-            // Здесь оставим только фронтовое сохранение через отдельный эндпоинт при расширении
-        })
+        body: JSON.stringify({ topic, notes })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('lessonModal')).hide();
+            loadJournal();
+        } else {
+            alert('Ошибка сохранения: ' + (res.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Ошибка сети при сохранении занятия');
     });
-    // Пока просто закрываем окно и не меняем дату
-    bootstrap.Modal.getInstance(document.getElementById('lessonModal')).hide();
 }
 
 function showLessonsList() {
@@ -649,6 +684,9 @@ function showLessonsList() {
                     <div class="list-group-item">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">${dateStr}</h6>
+                            <button class="btn btn-sm btn-outline-primary" onclick="openEditLessonModal(${l.id})">
+                                <i class="bi bi-pencil"></i> Редактировать
+                            </button>
                         </div>
                         <p class="mb-1"><strong>Тема:</strong> ${escapeHtml(topic)}</p>
                         ${notes ? `<small class="text-muted"><strong>Заметки:</strong> ${escapeHtml(notes)}</small>` : ''}
@@ -659,6 +697,49 @@ function showLessonsList() {
             document.getElementById('lessonsListContainer').innerHTML = html;
             new bootstrap.Modal(document.getElementById('lessonsListModal')).show();
         });
+}
+
+function openEditLessonModal(lessonId) {
+    fetch(`/api/lesson/${lessonId}`)
+        .then(r => r.json())
+        .then(lesson => {
+            document.getElementById('editLessonId').value = lesson.id;
+            document.getElementById('editLessonTopic').value = lesson.topic || '';
+            document.getElementById('editLessonNotes').value = lesson.notes || '';
+            new bootstrap.Modal(document.getElementById('editLessonModal')).show();
+        });
+}
+
+function saveLessonEdits() {
+    const lessonId = document.getElementById('editLessonId').value;
+    const topic = document.getElementById('editLessonTopic').value;
+    const notes = document.getElementById('editLessonNotes').value;
+
+    fetch(`/api/lesson/${lessonId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ topic, notes })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('editLessonModal')).hide();
+            // Обновляем список занятий и таблицу
+            const groupId = document.getElementById('groupSelect').value;
+            if (document.getElementById('lessonsListModal').classList.contains('show')) {
+                showLessonsList();
+            }
+            if (groupId) {
+                loadJournal();
+            }
+        } else {
+            alert('Ошибка сохранения: ' + (res.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Ошибка сети при сохранении занятия');
+    });
 }
 
 function escapeHtml(str) {
