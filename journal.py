@@ -10,7 +10,7 @@ journal_bp = Blueprint('journal', __name__)
 @journal_bp.route('/journal')
 @login_required
 def journal():
-    groups = Group.query.filter_by(teacher_id=current_user.id).all()
+    groups = Group.query.filter_by(teacher_id=current_user.id).order_by(Group.name.asc()).all()
     return render_template('journal.html', groups=groups)
 
 

@@ -24,6 +24,7 @@ login_manager = LoginManager(app)
 
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Пожалуйста, войдите в систему'
+login_manager.login_message_category = 'info'
 
 
 @login_manager.user_loader
@@ -414,6 +415,106 @@ def analytics_scores_by_group():
         twos.append(int(r.two or 0))
 
     return jsonify({'labels': labels, 'five': fives, 'four': fours, 'three': threes, 'two': twos})
+
+
+@app.route('/api/analytics/control-points/group')
+@login_required
+def analytics_control_points_group():
+    """Возвращает данные контрольных точек для диаграммы успеваемости группы"""
+    from models import ControlPoint, ControlPointScore, Student
+    
+    group_id = request.args.get('group_id', type=int)
+    if not group_id:
+        return jsonify({'error': 'group_id is required'}), 400
+
+    # Получаем контрольные точки для группы
+    control_points = ControlPoint.query.filter_by(
+        group_id=group_id, 
+        teacher_id=current_user.id
+    ).order_by(ControlPoint.date.asc()).all()
+
+    if not control_points:
+        return jsonify({'labels': [], 'datasets': []})
+
+    # Получаем все оценки для этих контрольных точек
+    control_point_ids = [cp.id for cp in control_points]
+    scores = db.session.query(ControlPointScore).join(
+        Student, ControlPointScore.student_id == Student.id
+    ).filter(
+        Student.group_id == group_id,
+        ControlPointScore.control_point_id.in_(control_point_ids)
+    ).all()
+
+    # Группируем оценки по контрольным точкам
+    scores_by_cp = {}
+    for score in scores:
+        cp_id = score.control_point_id
+        if cp_id not in scores_by_cp:
+            scores_by_cp[cp_id] = []
+        scores_by_cp[cp_id].append(score.points)
+
+    # Формируем данные для линейчатой диаграммы с накоплением
+    labels = []  # Названия контрольных точек (ось Y)
+    excellent_data = []  # 90-100%
+    good_data = []       # 75-89%
+    average_data = []    # 60-74%
+    low_data = []        # <60%
+    no_score_data = []   # Без оценки
+    
+    for cp in control_points:
+        # Название контрольной точки (дата + название)
+        date_str = cp.date.strftime('%d.%m.%Y')
+        label = f"{date_str} - {cp.title}"
+        labels.append(label)
+        
+        # Получаем оценки для этой контрольной точки
+        cp_scores = scores_by_cp.get(cp.id, [])
+        
+        # Подсчитываем количество студентов в каждой категории
+        excellent = 0
+        good = 0
+        average = 0
+        low = 0
+        
+        for score in cp_scores:
+            # Нормализуем балл к шкале 0-100
+            normalized_score = (score / cp.max_points) * 100 if cp.max_points > 0 else 0
+            
+            if normalized_score >= 90:
+                excellent += 1
+            elif normalized_score >= 75:
+                good += 1
+            elif normalized_score >= 60:
+                average += 1
+            else:
+                low += 1
+        
+        # Получаем общее количество студентов в группе
+        total_students = db.session.query(Student).filter_by(group_id=group_id).count()
+        no_score = max(0, total_students - len(cp_scores))
+        
+        excellent_data.append(excellent)
+        good_data.append(good)
+        average_data.append(average)
+        low_data.append(low)
+        no_score_data.append(no_score)
+
+    return jsonify({
+        'labels': labels,
+        'excellent': excellent_data,
+        'good': good_data,
+        'average': average_data,
+        'low': low_data,
+        'no_score': no_score_data,
+        'control_points': [{
+            'id': cp.id,
+            'title': cp.title,
+            'date': cp.date.isoformat(),
+            'max_points': cp.max_points,
+            'scores': scores_by_cp.get(cp.id, []),
+            'total_scores': len(scores_by_cp.get(cp.id, []))
+        } for cp in control_points]
+    })
 
 
 def ensure_startup_state():

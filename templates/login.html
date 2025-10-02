@@ -228,6 +228,55 @@
         display: block;
     }
 
+    /* Flash сообщения на странице авторизации */
+    .auth-alert {
+        margin-bottom: 25px;
+        border: none;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        font-size: 0.95rem;
+        font-weight: 500;
+        animation: alertSlideIn 0.3s ease-out;
+    }
+
+    .auth-alert.alert-danger {
+        background: rgba(220, 53, 69, 0.15);
+        color: #ff6b6b;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+
+    .auth-alert.alert-warning {
+        background: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+
+    .auth-alert.alert-info {
+        background: rgba(13, 110, 253, 0.15);
+        color: #6ea8fe;
+        border: 1px solid rgba(13, 110, 253, 0.3);
+    }
+
+    .auth-alert .btn-close-white {
+        filter: brightness(0) invert(1);
+        opacity: 0.7;
+    }
+
+    .auth-alert .btn-close-white:hover {
+        opacity: 1;
+    }
+
+    @keyframes alertSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     /* Адаптивность */
     @media (max-width: 768px) {
         .auth-title h1 {
@@ -270,6 +319,19 @@
     <div class="auth-form-container">
         <div class="auth-card">
             <h3>Вход в систему</h3>
+            
+            <!-- Flash сообщения -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show auth-alert" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
             <form method="POST">
                 {{ form.hidden_tag() }}
                 <div class="form-group">

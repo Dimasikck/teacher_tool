@@ -207,6 +207,68 @@
 <script>
 let currentLesson = null;
 
+function calculateStudentSummary(studentId, controlPoints, controlPointMarks) {
+    if (!controlPoints || controlPoints.length === 0) {
+        return {
+            average: '-',
+            grade: 'Нет КТ',
+            color: '#6c757d'
+        };
+    }
+    
+    let totalPoints = 0;
+    let totalMaxPoints = 0;
+    let hasScores = false;
+    
+    // Проходим по всем контрольным точкам
+    controlPoints.forEach(cp => {
+        const key = `${studentId}:${cp.id}`;
+        const cell = controlPointMarks[key];
+        
+        if (cell && cell.points !== null && cell.points !== undefined) {
+            // Нормализуем баллы к 100-балльной шкале
+            const normalizedScore = (cell.points / cp.max_points) * 100;
+            totalPoints += normalizedScore;
+            totalMaxPoints += 100;
+            hasScores = true;
+        }
+    });
+    
+    if (!hasScores) {
+        return {
+            average: '-',
+            grade: 'Нет оценок',
+            color: '#6c757d'
+        };
+    }
+    
+    // Вычисляем среднее арифметическое
+    const average = totalPoints / (totalMaxPoints / 100);
+    const roundedAverage = Math.round(average * 10) / 10; // Округляем до 1 знака после запятой
+    
+    // Определяем оценку и цвет
+    let grade, color;
+    if (average >= 85) {
+        grade = 'Отлично';
+        color = '#198754'; // Зеленый
+    } else if (average >= 70) {
+        grade = 'Хорошо';
+        color = '#0d6efd'; // Синий
+    } else if (average >= 55) {
+        grade = 'Удовлетворительно';
+        color = '#ffc107'; // Желтый
+    } else {
+        grade = 'Неудовлетворительно';
+        color = '#dc3545'; // Красный
+    }
+    
+    return {
+        average: roundedAverage,
+        grade: grade,
+        color: color
+    };
+}
+
 function loadJournal() {
     const groupId = document.getElementById('groupSelect').value;
     const month = document.getElementById('monthSelect').value;
@@ -239,87 +301,123 @@ function renderJournalTable(data) {
         return;
     }
 
+    // Объединяем занятия и контрольные точки и сортируем по дате
+    const allColumns = [];
+    
+    // Добавляем занятия
+    lessons.forEach(lesson => {
+        allColumns.push({
+            type: 'lesson',
+            date: new Date(lesson.date),
+            data: lesson
+        });
+    });
+    
+    // Добавляем контрольные точки
+    controlPoints.forEach(cp => {
+        allColumns.push({
+            type: 'control_point',
+            date: new Date(cp.date),
+            data: cp
+        });
+    });
+    
+    // Сортируем по дате
+    allColumns.sort((a, b) => a.date - b.date);
+
     let html = '<div class="table-responsive">';
     html += '<table class="table table-bordered table-sm align-middle">';
     html += '<thead><tr><th style="min-width:220px">Студент</th>';
 
-    // Добавляем заголовки для занятий
-    lessons.forEach(lesson => {
-        const dateStr = new Date(lesson.date).toLocaleDateString('ru-RU');
-        html += `<th class="text-center">
-                    <button class="btn btn-link p-0" onclick="openLessonModal(${lesson.id}, '${dateStr}')" title="Открыть детали занятия">
-                        ${dateStr}
-                    </button>
-                 </th>`;
+    // Добавляем заголовки в хронологическом порядке
+    allColumns.forEach(column => {
+        const dateStr = column.date.toLocaleDateString('ru-RU');
+        
+        if (column.type === 'lesson') {
+            const lesson = column.data;
+            html += `<th class="text-center">
+                        <button class="btn btn-link p-0" onclick="openLessonModal(${lesson.id}, '${dateStr}')" title="Открыть детали занятия">
+                            ${dateStr}
+                        </button>
+                     </th>`;
+        } else if (column.type === 'control_point') {
+            const cp = column.data;
+            html += `<th class="text-center bg-warning bg-opacity-25">
+                        <button class="btn btn-link p-0" onclick="openControlPointModal(${cp.id}, '${dateStr}', '${cp.title}', ${cp.max_points})" title="Редактировать контрольную точку">
+                            ${dateStr}<br><small>${cp.title}</small>
+                        </button>
+                     </th>`;
+        }
     });
-
-    // Добавляем заголовки для контрольных точек
-    controlPoints.forEach(cp => {
-        const dateStr = new Date(cp.date).toLocaleDateString('ru-RU');
-        html += `<th class="text-center bg-warning bg-opacity-25">
-                    <button class="btn btn-link p-0" onclick="openControlPointModal(${cp.id}, '${dateStr}', '${cp.title}', ${cp.max_points})" title="Редактировать контрольную точку">
-                        ${dateStr}<br><small>${cp.title}</small>
-                    </button>
-                 </th>`;
-    });
+    
+    // Добавляем столбец "Итог"
+    html += '<th class="text-center bg-info bg-opacity-25" style="min-width:120px;">Итог</th>';
     html += '</tr></thead><tbody>';
 
      students.forEach(st => {
          html += `<tr><td>${st.name}</td>`;
          
-         // Ячейки для занятий
-         lessons.forEach(lesson => {
-             const key = `${st.id}:${lesson.id}`;
-             const cell = marks[key] || {present: null, mark: ''};
-             // Если present === null, то ячейка пустая (новое занятие)
-             // Если present === false, то студент отсутствовал (Н)
-             // Если present === true, то студент присутствовал (оценка или пусто)
-             let value = '';
-             if (cell.present === false) {
-                 value = 'Н';
-             } else if (cell.present === true) {
-                 value = cell.mark || '';
+         // Ячейки в хронологическом порядке
+         allColumns.forEach(column => {
+             if (column.type === 'lesson') {
+                 const lesson = column.data;
+                 const key = `${st.id}:${lesson.id}`;
+                 const cell = marks[key] || {present: null, mark: ''};
+                 // Если present === null, то ячейка пустая (новое занятие)
+                 // Если present === false, то студент отсутствовал (Н)
+                 // Если present === true, то студент присутствовал (оценка или пусто)
+                 let value = '';
+                 if (cell.present === false) {
+                     value = 'Н';
+                 } else if (cell.present === true) {
+                     value = cell.mark || '';
+                 }
+                 // Если present === null, value остается пустым
+                 
+                 const cellClass = getCellClass(value);
+                 html += `<td class="p-0">
+                             <input 
+                                 class="form-control form-control-sm border-0 text-center journal-input ${cellClass}"
+                                 style="min-width:70px; font-weight: ${value ? 'bold' : 'normal'};"
+                                 data-student="${st.id}"
+                                 data-lesson="${lesson.id}"
+                                 value="${value}"
+                                 maxlength="5"
+                                 onclick="showCellTooltip(this)"
+                                 onchange="saveCell(this)"
+                                 onblur="hideCellTooltip(this)"
+                             />
+                          </td>`;
+             } else if (column.type === 'control_point') {
+                 const cp = column.data;
+                 const key = `${st.id}:${cp.id}`;
+                 const cell = controlPointMarks[key] || {points: null};
+                 const value = cell.points !== null ? cell.points : '';
+                 
+                 html += `<td class="p-0 bg-warning bg-opacity-10">
+                             <input 
+                                 class="form-control form-control-sm border-0 text-center control-point-input"
+                                 style="min-width:70px; font-weight: ${value ? 'bold' : 'normal'};"
+                                 data-student="${st.id}"
+                                 data-control-point="${cp.id}"
+                                 data-max-points="${cp.max_points}"
+                                 value="${value}"
+                                 type="number"
+                                 min="0"
+                                 max="${cp.max_points}"
+                                 placeholder="0-${cp.max_points}"
+                                 onchange="saveControlPointScore(this)"
+                             />
+                          </td>`;
              }
-             // Если present === null, value остается пустым
-             
-             const cellClass = getCellClass(value);
-             html += `<td class="p-0">
-                         <input 
-                             class="form-control form-control-sm border-0 text-center journal-input ${cellClass}"
-                             style="min-width:70px; font-weight: ${value ? 'bold' : 'normal'};"
-                             data-student="${st.id}"
-                             data-lesson="${lesson.id}"
-                             value="${value}"
-                             maxlength="5"
-                             onclick="showCellTooltip(this)"
-                             onchange="saveCell(this)"
-                             onblur="hideCellTooltip(this)"
-                         />
-                      </td>`;
          });
-
-         // Ячейки для контрольных точек
-         controlPoints.forEach(cp => {
-             const key = `${st.id}:${cp.id}`;
-             const cell = controlPointMarks[key] || {points: null};
-             const value = cell.points !== null ? cell.points : '';
-             
-             html += `<td class="p-0 bg-warning bg-opacity-10">
-                         <input 
-                             class="form-control form-control-sm border-0 text-center control-point-input"
-                             style="min-width:70px; font-weight: ${value ? 'bold' : 'normal'};"
-                             data-student="${st.id}"
-                             data-control-point="${cp.id}"
-                             data-max-points="${cp.max_points}"
-                             value="${value}"
-                             type="number"
-                             min="0"
-                             max="${cp.max_points}"
-                             placeholder="0-${cp.max_points}"
-                             onchange="saveControlPointScore(this)"
-                         />
-                      </td>`;
-         });
+         
+         // Добавляем ячейку "Итог"
+         const summaryResult = calculateStudentSummary(st.id, controlPoints, controlPointMarks);
+         html += `<td class="text-center bg-info bg-opacity-10 summary-cell">
+                     <div class="summary-average">${summaryResult.average}</div>
+                     <div class="summary-grade" style="color: ${summaryResult.color};">${summaryResult.grade}</div>
+                  </td>`;
          
          html += '</tr>';
      });
@@ -368,38 +466,121 @@ function loadGroupAnalytics(groupId) {
             });
         });
 
-    // Успеваемость: столбчатая диаграмма с накоплением по категориям
-    fetch(`/api/analytics/scores-monthly/group?group_id=${groupId}`)
+    // Успеваемость: линейчатая диаграмма с накоплением по контрольным точкам
+    fetch(`/api/analytics/control-points/group?group_id=${groupId}`)
         .then(r => r.json())
-        .then(series => {
+        .then(data => {
             const ctx2 = document.getElementById('groupScoresChart');
             if (groupScoresChart) groupScoresChart.destroy();
-            groupScoresChart = new Chart(ctx2, {
-                type: 'bar',
-                data: {
-                    labels: series.labels,
-                    datasets: [
-                        { label: 'Отлично (90-100)', data: series.excellent, backgroundColor: '#198754' },
-                        { label: 'Хорошо (75-89)', data: series.good, backgroundColor: '#0d6efd' },
-                        { label: 'Удовл. (60-74)', data: series.average, backgroundColor: '#ffc107' },
-                        { label: 'Низко (<60)', data: series.low, backgroundColor: '#dc3545' },
-                        { label: 'Без оценки', data: series.no_score, backgroundColor: '#6c757d' }
-                    ]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') } },
-                        tooltip: { mode: 'index', intersect: false }
+            
+            if (data.labels && data.labels.length > 0) {
+                groupScoresChart = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [
+                            { 
+                                label: 'Отлично (90-100%)', 
+                                data: data.excellent, 
+                                backgroundColor: '#198754',
+                                borderColor: '#198754',
+                                borderWidth: 1
+                            },
+                            { 
+                                label: 'Хорошо (75-89%)', 
+                                data: data.good, 
+                                backgroundColor: '#0d6efd',
+                                borderColor: '#0d6efd',
+                                borderWidth: 1
+                            },
+                            { 
+                                label: 'Удовл. (60-74%)', 
+                                data: data.average, 
+                                backgroundColor: '#ffc107',
+                                borderColor: '#ffc107',
+                                borderWidth: 1
+                            },
+                            { 
+                                label: 'Низко (<60%)', 
+                                data: data.low, 
+                                backgroundColor: '#dc3545',
+                                borderColor: '#dc3545',
+                                borderWidth: 1
+                            },
+                            { 
+                                label: 'Без оценки', 
+                                data: data.no_score, 
+                                backgroundColor: '#6c757d',
+                                borderColor: '#6c757d',
+                                borderWidth: 1
+                            }
+                        ]
                     },
-                    scales: {
-                        x: { stacked: true, beginAtZero: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') } },
-                        y: { stacked: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') } }
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { 
+                                position: 'top',
+                                labels: { 
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                    usePointStyle: true,
+                                    padding: 15
+                                }
+                            },
+                            tooltip: { 
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        const value = context.parsed.x;
+                                        return `${label}: ${value} студ.`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { 
+                                stacked: true,
+                                beginAtZero: true,
+                                ticks: { 
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                    stepSize: 1
+                                }, 
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') },
+                                title: {
+                                    display: true,
+                                    text: 'Количество студентов',
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                                }
+                            },
+                            y: { 
+                                stacked: true,
+                                ticks: { 
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                    maxTicksLimit: 10
+                                }, 
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') },
+                                title: {
+                                    display: true,
+                                    text: 'Контрольные точки',
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                                }
+                            }
+                        }
                     }
-                }
-            });
+                });
+            } else {
+                // Если нет данных, показываем сообщение
+                ctx2.getContext('2d').clearRect(0, 0, ctx2.width, ctx2.height);
+                const ctx = ctx2.getContext('2d');
+                ctx.font = '16px Arial';
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary');
+                ctx.textAlign = 'center';
+                ctx.fillText('Нет контрольных точек для отображения', ctx2.width / 2, ctx2.height / 2);
+            }
         });
 }
 
@@ -1282,6 +1463,42 @@ function saveControlPointScore(inputEl) {
 
 [data-theme="dark"] .bg-warning.bg-opacity-10 {
     background-color: rgba(255, 193, 7, 0.05) !important;
+}
+
+/* Стили для столбца "Итог" */
+.bg-info.bg-opacity-25 {
+    background-color: rgba(13, 110, 253, 0.25) !important;
+}
+
+.bg-info.bg-opacity-10 {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+/* Адаптация для темной темы */
+[data-theme="dark"] .bg-info.bg-opacity-25 {
+    background-color: rgba(13, 110, 253, 0.15) !important;
+}
+
+[data-theme="dark"] .bg-info.bg-opacity-10 {
+    background-color: rgba(13, 110, 253, 0.05) !important;
+}
+
+/* Стили для итогового столбца */
+.summary-cell {
+    min-width: 120px !important;
+    font-weight: bold !important;
+}
+
+.summary-average {
+    font-size: 1rem !important;
+    margin-bottom: 2px;
+}
+
+.summary-grade {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 </style>
 {% endblock %}
