@@ -47,6 +47,7 @@ class Lesson(db.Model):
     notes = db.Column(db.Text)
     classroom = db.Column(db.String(50))  # Аудитория
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
+    subject = db.Column(db.String(200))  # Название дисциплины
 
 
 class Attendance(db.Model):
@@ -66,6 +67,7 @@ class ControlPoint(db.Model):
     title = db.Column(db.String(200), default='КТ')
     max_points = db.Column(db.Integer, default=100)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    subject = db.Column(db.String(200))  # Название дисциплины
 
 
 class ControlPointScore(db.Model):

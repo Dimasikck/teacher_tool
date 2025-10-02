@@ -569,8 +569,19 @@ def ensure_startup_state():
                 
                 if 'classroom' not in column_names:
                     db.session.execute(text("ALTER TABLE 'lesson' ADD COLUMN classroom VARCHAR(50)"))
+                if 'subject' not in column_names:
+                    db.session.execute(text("ALTER TABLE 'lesson' ADD COLUMN subject VARCHAR(200)"))
             except Exception:
                 pass  # Таблица может не существовать
+            
+            # Миграция таблицы control_point
+            try:
+                result = db.session.execute(text("PRAGMA table_info('control_point')")).all()
+                column_names = {row[1] for row in result}
+                if 'subject' not in column_names:
+                    db.session.execute(text("ALTER TABLE 'control_point' ADD COLUMN subject VARCHAR(200)"))
+            except Exception:
+                pass
             
             db.session.commit()
         except Exception:
