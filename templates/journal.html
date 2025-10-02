@@ -37,7 +37,7 @@
         <select id="groupSelect" class="form-select" onchange="loadJournal()">
             <option value="">Выберите группу</option>
             {% for group in groups %}
-            <option value="{{ group.id }}">{{ group.name }}</option>
+            <option value="{{ group.id }}" data-name="{{ group.name }}" data-course="{{ group.course or '' }}" data-form="{{ group.education_form or '' }}">{{ group.name }}</option>
             {% endfor %}
         </select>
     </div>
@@ -270,11 +270,29 @@ function calculateStudentSummary(studentId, controlPoints, controlPointMarks) {
 }
 
 function loadJournal() {
-    const groupId = document.getElementById('groupSelect').value;
+    const groupSelect = document.getElementById('groupSelect');
+    const groupId = groupSelect.value;
     const month = document.getElementById('monthSelect').value;
     if (!groupId) {
         alert('Выберите группу');
         return;
+    }
+
+    // Немедленно отображаем базовый заголовок
+    const selectedOption = groupSelect.options[groupSelect.selectedIndex];
+    if (selectedOption && selectedOption.value) {
+        const groupName = selectedOption.getAttribute('data-name') || selectedOption.text;
+        const course = selectedOption.getAttribute('data-course') || '';
+        const form = selectedOption.getAttribute('data-form') || '';
+        const courseInfo = course ? `, дисциплина: <strong>${course}</strong>` : '';
+        const formInfo = form ? `, форма: ${form}` : '';
+        const dateInfo = month ? `, месяц: ${month}` : '';
+        
+        document.getElementById('journalHeader').innerHTML = `
+            <div class="alert alert-secondary py-2">
+                Группа: <strong>${groupName}</strong>${courseInfo}${formInfo}${dateInfo} <span class="text-muted">(загрузка...)</span>
+            </div>
+        `;
     }
 
     const qs = new URLSearchParams({ group_id: groupId });
@@ -286,6 +304,20 @@ function loadJournal() {
             renderHeader(data);
             renderJournalTable(data);
             loadGroupAnalytics(groupId);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки журнала:', error);
+            // Сохраняем заголовок даже при ошибке
+            const groupSelect = document.getElementById('groupSelect');
+            const selectedOption = groupSelect.options[groupSelect.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                document.getElementById('journalHeader').innerHTML = `
+                    <div class="alert alert-warning py-2">
+                        Группа: <strong>${selectedOption.text}</strong> - Ошибка загрузки данных
+                    </div>
+                `;
+            }
+            document.getElementById('attendanceTable').innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных журнала. Попробуйте обновить страницу.</div>';
         });
 }
 
@@ -298,6 +330,7 @@ function renderJournalTable(data) {
 
     if (lessons.length === 0 && controlPoints.length === 0) {
         document.getElementById('attendanceTable').innerHTML = '<div class="alert alert-info">Нет занятий и контрольных точек в группе. Создайте первое занятие или контрольную точку.</div>';
+        // Заголовок должен отображаться даже если нет данных
         return;
     }
 
@@ -585,20 +618,33 @@ function loadGroupAnalytics(groupId) {
 }
 
 function renderHeader(data) {
+    // Защита от отсутствующих данных
+    if (!data) {
+        console.warn('renderHeader: данные отсутствуют');
+        return;
+    }
+    
     const group = data.group || {};
     const subject = group.subject || group.course || '';
     const course = subject ? `, дисциплина: <strong>${subject}</strong>` : '';
     const form = group.education_form ? `, форма: ${group.education_form}` : '';
-    const dateInfo = document.getElementById('monthSelect').value ? `, месяц: ${document.getElementById('monthSelect').value}` : '';
+    const monthSelect = document.getElementById('monthSelect');
+    const dateInfo = (monthSelect && monthSelect.value) ? `, месяц: ${monthSelect.value}` : '';
     const stats = data.stats || {};
     const counts = (stats.month_lessons != null && stats.total_lessons != null)
         ? `, занятия: <strong>${stats.month_lessons}</strong> за месяц / <strong>${stats.total_lessons}</strong> всего`
         : '';
-    document.getElementById('journalHeader').innerHTML = `
-        <div class="alert alert-secondary py-2">
-            Группа: <strong>${group.name || ''}</strong>${course}${form}${dateInfo}${counts}
-        </div>
-    `;
+    
+    const headerElement = document.getElementById('journalHeader');
+    if (headerElement) {
+        headerElement.innerHTML = `
+            <div class="alert alert-secondary py-2">
+                Группа: <strong>${group.name || 'Не выбрана'}</strong>${course}${form}${dateInfo}${counts}
+            </div>
+        `;
+    } else {
+        console.error('Элемент journalHeader не найден');
+    }
 }
 
 function getCellClass(value) {

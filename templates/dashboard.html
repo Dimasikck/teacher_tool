@@ -46,6 +46,25 @@
     </div>
 </div>
 
+<!-- График занятий по времени -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">График занятий по времени</h5>
+                <div class="btn-group" role="group" aria-label="Период">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="periodDay" onclick="changePeriod('day')">Дни</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="periodWeek" onclick="changePeriod('week')">Недели</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="periodMonth" onclick="changePeriod('month')">Месяцы</button>
+                </div>
+            </div>
+            <div class="card-body" style="height: 380px;">
+                <canvas id="lessonsTimelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-md-6">
         <div class="card">
@@ -157,10 +176,145 @@ function navigateToLessons() {
     window.location.href = '/calendar';
 }
 
+// Переменные для графиков
+let lessonsTimelineChart = null;
+let currentPeriod = 'month';
+
+// Функция переключения периода
+function changePeriod(period) {
+    currentPeriod = period;
+    
+    // Обновляем активную кнопку
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-primary');
+    });
+    document.getElementById(`period${period.charAt(0).toUpperCase() + period.slice(1)}`).classList.remove('btn-outline-primary');
+    document.getElementById(`period${period.charAt(0).toUpperCase() + period.slice(1)}`).classList.add('btn-primary');
+    
+    // Загружаем новые данные
+    loadLessonsTimeline();
+}
+
+// Функция загрузки данных для графика занятий
+function loadLessonsTimeline() {
+    fetch(`/api/analytics/lessons-timeline?period=${currentPeriod}`)
+        .then(r => r.json())
+        .then(data => {
+            const ctx = document.getElementById('lessonsTimelineChart');
+            
+            // Уничтожаем предыдущий график
+            if (lessonsTimelineChart) {
+                lessonsTimelineChart.destroy();
+            }
+            
+            // Создаем новый график
+            lessonsTimelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Количество занятий',
+                        data: data.data,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointHoverBackgroundColor: '#667eea',
+                        pointHoverBorderColor: '#ffffff',
+                        pointHoverBorderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#667eea',
+                            borderWidth: 1,
+                            callbacks: {
+                                title: function(context) {
+                                    const label = context[0].label;
+                                    if (currentPeriod === 'day') {
+                                        return `Дата: ${label}`;
+                                    } else if (currentPeriod === 'week') {
+                                        return `Неделя: ${label}`;
+                                    } else {
+                                        return `Месяц: ${label}`;
+                                    }
+                                },
+                                label: function(context) {
+                                    const count = context.parsed.y;
+                                    const periodName = currentPeriod === 'day' ? 'день' : 
+                                                     currentPeriod === 'week' ? 'неделю' : 'месяц';
+                                    return `Занятий за ${periodName}: ${count}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { 
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                maxTicksLimit: currentPeriod === 'day' ? 8 : currentPeriod === 'week' ? 6 : 10,
+                                maxRotation: currentPeriod === 'week' ? 45 : 0,
+                                minRotation: 0,
+                                font: {
+                                    size: currentPeriod === 'week' ? 10 : 12
+                                }
+                            },
+                            grid: { 
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--border-light'),
+                                drawBorder: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                stepSize: 1
+                            },
+                            grid: { 
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--border-light'),
+                                drawBorder: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Количество занятий',
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки данных графика занятий:', error);
+        });
+}
+
 // Загрузка аналитики
 fetch('/api/analytics/overview')
     .then(r => r.json())
     .then(data => {
+        // Загружаем график занятий по времени
+        loadLessonsTimeline();
         // Загрузим ежемесячную статистику посещаемости (stacked)
         fetch('/api/analytics/attendance-monthly')
             .then(r => r.json())

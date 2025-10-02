@@ -577,6 +577,107 @@ def ensure_startup_state():
             pass
 
 
+@app.route('/api/analytics/lessons-timeline')
+@login_required
+def analytics_lessons_timeline():
+    """Возвращает данные о занятиях для временного графика"""
+    from models import Lesson
+    
+    period = request.args.get('period', 'month')  # day, week, month
+    days_back = request.args.get('days', type=int)
+    
+    # Определяем период для анализа
+    if period == 'day':
+        days_back = days_back or 30  # последние 30 дней
+    elif period == 'week':
+        days_back = days_back or 84  # последние 12 недель
+    else:  # month
+        days_back = days_back or 365  # последние 12 месяцев
+    
+    start_date = datetime.now() - timedelta(days=days_back)
+    
+    # Получаем занятия за период
+    lessons = Lesson.query.filter(
+        Lesson.teacher_id == current_user.id,
+        Lesson.date >= start_date
+    ).order_by(Lesson.date.asc()).all()
+    
+    # Группируем по периодам
+    period_counts = {}
+    
+    for lesson in lessons:
+        if period == 'day':
+            key = lesson.date.strftime('%Y-%m-%d')
+        elif period == 'week':
+            # Получаем номер недели
+            year, week, _ = lesson.date.isocalendar()
+            key = f"{year}-W{week:02d}"
+        else:  # month
+            key = lesson.date.strftime('%Y-%m')
+        
+        if key not in period_counts:
+            period_counts[key] = 0
+        period_counts[key] += 1
+    
+    # Создаем полный список периодов (включая пустые)
+    all_periods = []
+    current_date = start_date
+    end_date = datetime.now()
+    
+    while current_date <= end_date:
+        if period == 'day':
+            key = current_date.strftime('%Y-%m-%d')
+            label = current_date.strftime('%d.%m.%Y')
+            current_date += timedelta(days=1)
+        elif period == 'week':
+            year, week, _ = current_date.isocalendar()
+            key = f"{year}-W{week:02d}"
+            # Понедельник этой недели
+            monday = current_date - timedelta(days=current_date.weekday())
+            # Воскресенье этой недели
+            sunday = monday + timedelta(days=6)
+            label = f"{monday.strftime('%d.%m.%Y')} - {sunday.strftime('%d.%m.%Y')}"
+            current_date += timedelta(weeks=1)
+        else:  # month
+            key = current_date.strftime('%Y-%m')
+            # Получаем название месяца на русском
+            month_names = {
+                1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
+                5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
+                9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
+            }
+            month_name = month_names[current_date.month]
+            label = f"{month_name} {current_date.year}"
+            if current_date.month == 12:
+                current_date = current_date.replace(year=current_date.year + 1, month=1)
+            else:
+                current_date = current_date.replace(month=current_date.month + 1)
+        
+        all_periods.append({
+            'key': key,
+            'label': label,
+            'count': period_counts.get(key, 0)
+        })
+    
+    # Ограничиваем количество точек для читаемости
+    if period == 'day' and len(all_periods) > 30:
+        all_periods = all_periods[-30:]
+    elif period == 'week' and len(all_periods) > 12:
+        all_periods = all_periods[-12:]
+    elif period == 'month' and len(all_periods) > 12:
+        all_periods = all_periods[-12:]
+    
+    labels = [p['label'] for p in all_periods]
+    data = [p['count'] for p in all_periods]
+    
+    return jsonify({
+        'labels': labels,
+        'data': data,
+        'period': period,
+        'total_lessons': sum(data)
+    })
+
+
 @app.route('/github/webhook', methods=['POST'])
 def github_webhook():
     secret = app.config.get('GITHUB_WEBHOOK_SECRET')
