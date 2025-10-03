@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% block title %}Панель администратора{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 20px var(--shadow-light);
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+    }
+    
+    .user-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px var(--shadow-medium);
+    }
+    
+    .admin-badge {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+    
+    .user-badge {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .action-buttons .btn {
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">
+    <i class="bi bi-shield-check"></i> Панель администратора
+</h1>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <button class="btn btn-primary" onclick="showCreateUserModal()">
+            <i class="bi bi-person-plus"></i> Добавить пользователя
+        </button>
+    </div>
+    <div class="col-md-6 text-end">
+        <small class="text-muted">
+            <i class="bi bi-info-circle"></i> Управление учетными записями системы
+        </small>
+    </div>
+</div>
+
+<div id="usersContainer">
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Загрузка...</span>
+        </div>
+        <p class="mt-3">Загрузка пользователей...</p>
+    </div>
+</div>
+
+<!-- Модальное окно создания пользователя -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Создать нового пользователя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Логин</label>
+                    <input type="text" id="newUsername" class="form-control" placeholder="Введите логин" required>
+                    <div class="form-text">Логин должен быть уникальным</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="newEmail" class="form-control" placeholder="Введите email" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Пароль</label>
+                    <input type="password" id="newPassword" class="form-control" placeholder="Введите пароль" required>
+                    <div class="form-text">Пароль будет зашифрован и сохранен безопасно</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="createUser()">Создать</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно изменения пароля -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Изменить пароль</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="changePasswordUserId">
+                <div class="mb-3">
+                    <label class="form-label">Пользователь</label>
+                    <input type="text" id="changePasswordUsername" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Новый пароль</label>
+                    <input type="password" id="newPasswordField" class="form-control" placeholder="Введите новый пароль" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="changePassword()">Изменить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let users = [];
+
+function loadUsers() {
+    fetch('/api/admin/users')
+        .then(response => response.json())
+        .then(data => {
+            users = data;
+            renderUsers(data);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки пользователей:', error);
+            document.getElementById('usersContainer').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Ошибка загрузки пользователей. Попробуйте обновить страницу.
+                </div>
+            `;
+        });
+}
+
+function renderUsers(users) {
+    const container = document.getElementById('usersContainer');
+    
+    if (!users || users.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-people" style="font-size: 3rem;"></i>
+                <p class="mt-3">Пользователи не найдены</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="row">';
+    
+    users.forEach(user => {
+        const isAdmin = user.is_admin;
+        const badgeClass = isAdmin ? 'admin-badge' : 'user-badge';
+        const badgeText = isAdmin ? 'Администратор' : 'Пользователь';
+        
+        html += `
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card user-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title mb-0">${user.username}</h5>
+                            <span class="${badgeClass}">${badgeText}</span>
+                        </div>
+                        <p class="card-text">
+                            <strong>Email:</strong> ${user.email}<br>
+                            <strong>Создан:</strong> ${user.created_at ? new Date(user.created_at).toLocaleDateString('ru-RU') : 'Не указано'}
+                        </p>
+                        <div class="action-buttons">
+        `;
+        
+        if (!isAdmin) {
+            html += `
+                <button class="btn btn-warning btn-sm" onclick="showChangePasswordModal(${user.id}, '${user.username}')">
+                    <i class="bi bi-key"></i> Сменить пароль
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${user.username}')">
+                    <i class="bi bi-trash"></i> Удалить
+                </button>
+            `;
+        } else {
+            html += `
+                <span class="text-muted">
+                    <i class="bi bi-shield-check"></i> Администратор
+                </span>
+            `;
+        }
+        
+        html += `
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function showCreateUserModal() {
+    // Очищаем форму
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newEmail').value = '';
+    document.getElementById('newPassword').value = '';
+    
+    new bootstrap.Modal(document.getElementById('createUserModal')).show();
+}
+
+function createUser() {
+    const username = document.getElementById('newUsername').value.trim();
+    const email = document.getElementById('newEmail').value.trim();
+    const password = document.getElementById('newPassword').value.trim();
+    
+    if (!username || !email || !password) {
+        alert('Все поля обязательны');
+        return;
+    }
+    
+    const data = {
+        username: username,
+        email: email,
+        password: password
+    };
+    
+    fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('createUserModal')).hide();
+            loadUsers(); // Перезагружаем список пользователей
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка создания пользователя:', error);
+        alert('Ошибка создания пользователя');
+    });
+}
+
+function showChangePasswordModal(userId, username) {
+    document.getElementById('changePasswordUserId').value = userId;
+    document.getElementById('changePasswordUsername').value = username;
+    document.getElementById('newPasswordField').value = '';
+    
+    new bootstrap.Modal(document.getElementById('changePasswordModal')).show();
+}
+
+function changePassword() {
+    const userId = document.getElementById('changePasswordUserId').value;
+    const newPassword = document.getElementById('newPasswordField').value.trim();
+    
+    if (!newPassword) {
+        alert('Введите новый пароль');
+        return;
+    }
+    
+    const data = {
+        password: newPassword
+    };
+    
+    fetch(`/api/admin/users/${userId}/password`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+            alert('Пароль успешно изменен');
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка изменения пароля:', error);
+        alert('Ошибка изменения пароля');
+    });
+}
+
+function deleteUser(userId, username) {
+    if (!confirm(`Вы уверены, что хотите удалить пользователя "${username}"?\n\nЭто действие нельзя отменить!`)) {
+        return;
+    }
+    
+    fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            loadUsers(); // Перезагружаем список пользователей
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка удаления пользователя:', error);
+        alert('Ошибка удаления пользователя');
+    });
+}
+
+// Загружаем пользователей при загрузке страницы
+document.addEventListener('DOMContentLoaded', loadUsers);
+</script>
+{% endblock %}
