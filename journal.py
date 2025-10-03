@@ -152,10 +152,14 @@ def group_journal():
     control_points = control_points_query.order_by(ControlPoint.date.asc()).all()
     if subject:
         norm_subj = normalize_subject_name(subject)
+<<<<<<< HEAD
         control_points = [
             cp for cp in control_points
             if (normalize_subject_name(cp.subject or '') == norm_subj) or not (cp.subject and cp.subject.strip())
         ]
+=======
+        control_points = [cp for cp in control_points if normalize_subject_name(cp.subject or '') == norm_subj]
+>>>>>>> fb36d676c09ce68466962837aa881ee40451bc13
 
     # Подсчеты занятий
     month_count = len(lessons)
