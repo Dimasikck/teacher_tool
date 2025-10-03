@@ -26,6 +26,14 @@
     .journal-actions .btn span {
         white-space: normal; /* разрешаем перенос строк внутри подписи */
     }
+    /* Темная тема: делаем селект дисциплины темно-серым, когда он disabled */
+    [data-theme="dark"] #subjectSelect:disabled {
+        background-color: #2d3748 !important; /* темно-серый */
+        color: var(--text-muted) !important;
+        border-color: var(--border-color) !important;
+        opacity: 1 !important; /* отменяем обесцвечивание bootstrap */
+        cursor: not-allowed;
+    }
 </style>
 {% endblock %}
 
@@ -34,11 +42,16 @@
 
 <div class="row mb-3">
     <div class="col-md-4">
-        <select id="groupSelect" class="form-select" onchange="loadJournal()">
+        <select id="groupSelect" class="form-select" onchange="onGroupChange()">
             <option value="">Выберите группу</option>
             {% for group in groups %}
             <option value="{{ group.id }}" data-name="{{ group.name }}" data-course="{{ group.course or '' }}" data-form="{{ group.education_form or '' }}">{{ group.name }}</option>
             {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <select id="subjectSelect" class="form-select" onchange="loadJournal()" disabled>
+            <option value="">Выберите дисциплину</option>
         </select>
     </div>
     <div class="col-md-4">
@@ -269,12 +282,42 @@ function calculateStudentSummary(studentId, controlPoints, controlPointMarks) {
     };
 }
 
+function onGroupChange() {
+    const groupId = document.getElementById('groupSelect').value;
+    const subjectSelect = document.getElementById('subjectSelect');
+    subjectSelect.innerHTML = '<option value="">Загрузка дисциплин...</option>';
+    subjectSelect.disabled = true;
+    if (!groupId) {
+        subjectSelect.innerHTML = '<option value="">Выберите дисциплину</option>';
+        document.getElementById('attendanceTable').innerHTML = '';
+        document.getElementById('journalHeader').innerHTML = '';
+        return;
+    }
+    fetch(`/api/group/subjects?group_id=${groupId}`)
+        .then(r => r.json())
+        .then(subjects => {
+            let options = '<option value="">Выберите дисциплину</option>';
+            subjects.forEach(s => { options += `<option value="${s}">${s}</option>`; });
+            subjectSelect.innerHTML = options;
+            subjectSelect.disabled = false;
+        })
+        .catch(() => {
+            subjectSelect.innerHTML = '<option value="">Выберите дисциплину</option>';
+            subjectSelect.disabled = false;
+        });
+}
+
 function loadJournal() {
     const groupSelect = document.getElementById('groupSelect');
     const groupId = groupSelect.value;
+    const subject = document.getElementById('subjectSelect').value;
     const month = document.getElementById('monthSelect').value;
     if (!groupId) {
         alert('Выберите группу');
+        return;
+    }
+    if (!subject) {
+        alert('Выберите дисциплину');
         return;
     }
 
@@ -296,6 +339,7 @@ function loadJournal() {
     }
 
     const qs = new URLSearchParams({ group_id: groupId });
+    if (subject) qs.set('subject', subject);
     if (month) qs.set('month', month);
 
     fetch(`/api/journal/group?${qs.toString()}`)
