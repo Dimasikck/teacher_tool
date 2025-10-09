@@ -26,6 +26,14 @@
     .journal-actions .btn span {
         white-space: normal; /* разрешаем перенос строк внутри подписи */
     }
+    /* Темная тема: делаем селект дисциплины темно-серым, когда он disabled */
+    [data-theme="dark"] #subjectSelect:disabled {
+        background-color: #2d3748 !important; /* темно-серый */
+        color: var(--text-muted) !important;
+        border-color: var(--border-color) !important;
+        opacity: 1 !important; /* отменяем обесцвечивание bootstrap */
+        cursor: not-allowed;
+    }
 </style>
 {% endblock %}
 
@@ -34,11 +42,16 @@
 
 <div class="row mb-3">
     <div class="col-md-4">
-        <select id="groupSelect" class="form-select" onchange="loadJournal()">
+        <select id="groupSelect" class="form-select" onchange="onGroupChange()">
             <option value="">Выберите группу</option>
             {% for group in groups %}
             <option value="{{ group.id }}" data-name="{{ group.name }}" data-course="{{ group.course or '' }}" data-form="{{ group.education_form or '' }}">{{ group.name }}</option>
             {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <select id="subjectSelect" class="form-select" onchange="loadJournal()" disabled>
+            <option value="">Выберите дисциплину</option>
         </select>
     </div>
     <div class="col-md-4">
@@ -206,6 +219,8 @@
 
 <script>
 let currentLesson = null;
+let gControlPoints = [];
+let gControlPointMarks = {};
 
 function calculateStudentSummary(studentId, controlPoints, controlPointMarks) {
     if (!controlPoints || controlPoints.length === 0) {
@@ -269,12 +284,42 @@ function calculateStudentSummary(studentId, controlPoints, controlPointMarks) {
     };
 }
 
+function onGroupChange() {
+    const groupId = document.getElementById('groupSelect').value;
+    const subjectSelect = document.getElementById('subjectSelect');
+    subjectSelect.innerHTML = '<option value="">Загрузка дисциплин...</option>';
+    subjectSelect.disabled = true;
+    if (!groupId) {
+        subjectSelect.innerHTML = '<option value="">Выберите дисциплину</option>';
+        document.getElementById('attendanceTable').innerHTML = '';
+        document.getElementById('journalHeader').innerHTML = '';
+        return;
+    }
+    fetch(`/api/group/subjects?group_id=${groupId}`)
+        .then(r => r.json())
+        .then(subjects => {
+            let options = '<option value="">Выберите дисциплину</option>';
+            subjects.forEach(s => { options += `<option value="${s}">${s}</option>`; });
+            subjectSelect.innerHTML = options;
+            subjectSelect.disabled = false;
+        })
+        .catch(() => {
+            subjectSelect.innerHTML = '<option value="">Выберите дисциплину</option>';
+            subjectSelect.disabled = false;
+        });
+}
+
 function loadJournal() {
     const groupSelect = document.getElementById('groupSelect');
     const groupId = groupSelect.value;
+    const subject = document.getElementById('subjectSelect').value;
     const month = document.getElementById('monthSelect').value;
     if (!groupId) {
         alert('Выберите группу');
+        return;
+    }
+    if (!subject) {
+        alert('Выберите дисциплину');
         return;
     }
 
@@ -296,6 +341,7 @@ function loadJournal() {
     }
 
     const qs = new URLSearchParams({ group_id: groupId });
+    if (subject) qs.set('subject', subject);
     if (month) qs.set('month', month);
 
     fetch(`/api/journal/group?${qs.toString()}`)
@@ -358,6 +404,10 @@ function renderJournalTable(data) {
     // Сортируем по дате
     allColumns.sort((a, b) => a.date - b.date);
 
+    // Кэшируем КТ и оценки КТ для живого пересчета "Итог"
+    gControlPoints = controlPoints.slice();
+    gControlPointMarks = { ...controlPointMarks };
+
     let html = '<div class="table-responsive">';
     html += '<table class="table table-bordered table-sm align-middle">';
     html += '<thead><tr><th style="min-width:220px">Студент</th>';
@@ -388,7 +438,7 @@ function renderJournalTable(data) {
     html += '</tr></thead><tbody>';
 
      students.forEach(st => {
-         html += `<tr><td>${st.name}</td>`;
+         html += `<tr data-student="${st.id}"><td>${st.name}</td>`;
          
          // Ячейки в хронологическом порядке
          allColumns.forEach(column => {
@@ -446,8 +496,8 @@ function renderJournalTable(data) {
          });
          
          // Добавляем ячейку "Итог"
-         const summaryResult = calculateStudentSummary(st.id, controlPoints, controlPointMarks);
-         html += `<td class="text-center bg-info bg-opacity-10 summary-cell">
+        const summaryResult = calculateStudentSummary(st.id, controlPoints, controlPointMarks);
+        html += `<td class="text-center bg-info bg-opacity-10 summary-cell">
                      <div class="summary-average">${summaryResult.average}</div>
                      <div class="summary-grade" style="color: ${summaryResult.color};">${summaryResult.grade}</div>
                   </td>`;
@@ -461,6 +511,25 @@ function renderJournalTable(data) {
 
     // Подключаем подсветку строк и столбцов после рендера
     attachHighlightHandlers();
+}
+
+// Обновление ячейки "Итог" по студенту без перезагрузки
+function updateStudentSummary(studentId) {
+    const table = document.querySelector('#attendanceTable table');
+    if (!table) return;
+    const row = table.querySelector(`tbody tr[data-student="${studentId}"]`);
+    if (!row) return;
+    const summaryCell = row.querySelector('.summary-cell');
+    if (!summaryCell) return;
+
+    const result = calculateStudentSummary(parseInt(studentId), gControlPoints, gControlPointMarks);
+    const avgEl = summaryCell.querySelector('.summary-average');
+    const gradeEl = summaryCell.querySelector('.summary-grade');
+    if (avgEl) avgEl.textContent = result.average;
+    if (gradeEl) {
+        gradeEl.textContent = result.grade;
+        gradeEl.style.color = result.color;
+    }
 }
 
 let groupAttendanceChart = null;
@@ -513,28 +582,28 @@ function loadGroupAnalytics(groupId) {
                         labels: data.labels,
                         datasets: [
                             { 
-                                label: 'Отлично (90-100%)', 
+                                label: 'Отлично (85-100%)', 
                                 data: data.excellent, 
                                 backgroundColor: '#198754',
                                 borderColor: '#198754',
                                 borderWidth: 1
                             },
                             { 
-                                label: 'Хорошо (75-89%)', 
+                                label: 'Хорошо (70-84%)', 
                                 data: data.good, 
                                 backgroundColor: '#0d6efd',
                                 borderColor: '#0d6efd',
                                 borderWidth: 1
                             },
                             { 
-                                label: 'Удовл. (60-74%)', 
+                                label: 'Удовл. (55-69%)', 
                                 data: data.average, 
                                 backgroundColor: '#ffc107',
                                 borderColor: '#ffc107',
                                 borderWidth: 1
                             },
                             { 
-                                label: 'Низко (<60%)', 
+                                label: 'Низко (<55%)', 
                                 data: data.low, 
                                 backgroundColor: '#dc3545',
                                 borderColor: '#dc3545',
@@ -1203,6 +1272,15 @@ function saveControlPointScore(inputEl) {
         if (data.status === 'success') {
             // Обновляем стили
             inputEl.style.fontWeight = points !== null ? 'bold' : 'normal';
+
+            // Локально обновляем карту оценок КТ и пересчитываем Итог
+            const key = `${studentId}:${controlPointId}`;
+            if (points === null) {
+                delete gControlPointMarks[key];
+            } else {
+                gControlPointMarks[key] = { points: points };
+            }
+            updateStudentSummary(studentId);
         } else {
             alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
         }
