@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 from models import db, Assignment, Student, Group
 from cloud_utils import CloudStorage
 from ai_utils import AIAnalyzer
-from datetime import datetime
+from datetime import datetime, date
 import os
 
 assignments_bp = Blueprint('assignments', __name__)
@@ -15,20 +15,150 @@ ai = AIAnalyzer()
 @assignments_bp.route('/assignments')
 @login_required
 def assignments():
-    groups = Group.query.filter_by(teacher_id=current_user.id).all()
-    assignments = Assignment.query.filter_by(teacher_id=current_user.id).all()
-    # Список папок из облака по группам (Mail.ru WebDAV / локальный fallback)
-    cloud_folders = {}
-    # Если WebDAV доступен — покажем корневые папки тоже
-    try:
-        root_items = cloud.list_root_folders()
-    except Exception:
-        root_items = []
-    cloud_folders['/'] = root_items
-    for g in groups:
-        cloud_folders[g.name] = cloud.list_group_folders(g.name)
+    groups = Group.query.filter_by(teacher_id=current_user.id).order_by(Group.name.asc()).all()
+    return render_template('assignments.html', groups=groups)
 
-    return render_template('assignments.html', groups=groups, assignments=assignments, cloud_folders=cloud_folders)
+
+@assignments_bp.route('/api/assignments/group/<int:group_id>')
+@login_required
+def get_group_assignments(group_id):
+    """Получить список заданий для группы в виде матрицы: студенты x задания"""
+    group = Group.query.filter_by(id=group_id, teacher_id=current_user.id).first_or_404()
+    students = Student.query.filter_by(group_id=group_id).order_by(Student.name.asc()).all()
+    subject = request.args.get('subject', type=str)
+    
+    # Получаем все задания для студентов этой группы
+    assignments = Assignment.query.join(Student).filter(
+        Student.group_id == group_id,
+        Assignment.teacher_id == current_user.id
+    )
+    if subject:
+        assignments = assignments.filter((Assignment.subject == subject) | (Assignment.subject == None))
+    assignments = assignments.order_by(Assignment.title.asc(), Assignment.due_date.asc()).all()
+    
+    # Группируем задания по названию и дате (уникальные задания)
+    assignment_groups = {}
+    for assignment in assignments:
+        key = f"{assignment.title}_{assignment.due_date.isoformat() if assignment.due_date else 'no_date'}"
+        if key not in assignment_groups:
+            assignment_groups[key] = {
+                'title': assignment.title,
+                'due_date': assignment.due_date.isoformat() if assignment.due_date else None,
+                'subject': assignment.subject,
+                'assignment_id': assignment.id
+            }
+    
+    # Создаем матрицу оценок: student_id -> assignment_key -> score
+    scores_matrix = {}
+    for assignment in assignments:
+        student_id = assignment.student_id
+        key = f"{assignment.title}_{assignment.due_date.isoformat() if assignment.due_date else 'no_date'}"
+        
+        if student_id not in scores_matrix:
+            scores_matrix[student_id] = {}
+        
+        scores_matrix[student_id][key] = {
+            'score': assignment.score,
+            'checked_at': assignment.checked_at.isoformat() if assignment.checked_at else None,
+            'assignment_id': assignment.id
+        }
+    
+    return jsonify({
+        'group': {
+            'id': group.id,
+            'name': group.name,
+            'course': group.course
+        },
+        'students': [{'id': s.id, 'name': s.name} for s in students],
+        'assignments': list(assignment_groups.values()),
+        'scores_matrix': scores_matrix
+    })
+
+
+@assignments_bp.route('/api/assignments/create', methods=['POST'])
+@login_required
+def create_assignment():
+    """Создать новое задание для всех студентов группы"""
+    data = request.json
+    group_id = data.get('group_id')
+    title = data.get('title', '').strip()
+    due_date_str = data.get('due_date')
+    subject = (data.get('subject') or '').strip()
+    
+    if not group_id or not title:
+        return jsonify({'error': 'group_id and title are required'}), 400
+    
+    group = Group.query.filter_by(id=group_id, teacher_id=current_user.id).first_or_404()
+    students = Student.query.filter_by(group_id=group_id).all()
+    
+    if not students:
+        return jsonify({'error': 'No students in group'}), 400
+    
+    due_date = None
+    if due_date_str:
+        try:
+            due_date = datetime.fromisoformat(due_date_str).date()
+        except ValueError:
+            return jsonify({'error': 'Invalid date format'}), 400
+    
+    # Создаем задание для каждого студента
+    created_assignments = []
+    for student in students:
+        assignment = Assignment(
+            title=title,
+            student_id=student.id,
+            teacher_id=current_user.id,
+            due_date=due_date,
+            subject=subject or None,
+            submitted_at=datetime.utcnow()
+        )
+        db.session.add(assignment)
+        created_assignments.append(assignment)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'created_count': len(created_assignments),
+        'assignment': {
+            'title': title,
+            'due_date': due_date.isoformat() if due_date else None
+        }
+    })
+
+
+@assignments_bp.route('/api/assignments/score', methods=['POST'])
+@login_required
+def update_assignment_score():
+    """Обновить оценку за задание"""
+    data = request.json
+    assignment_id = data.get('assignment_id')
+    score = data.get('score')
+    
+    if assignment_id is None or score is None:
+        return jsonify({'error': 'assignment_id and score are required'}), 400
+    
+    try:
+        score = float(score)
+        if score < 0 or score > 100:
+            return jsonify({'error': 'Score must be between 0 and 100'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid score format'}), 400
+    
+    assignment = Assignment.query.filter_by(
+        id=assignment_id,
+        teacher_id=current_user.id
+    ).first_or_404()
+    
+    assignment.score = score
+    assignment.checked_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'score': assignment.score,
+        'checked_at': assignment.checked_at.isoformat()
+    })
 
 
 @assignments_bp.route('/assignments/<int:assignment_id>')

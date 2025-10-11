@@ -66,23 +66,60 @@
 </div>
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="card">
-            <div class="card-header">
-                <h5>Статистика посещаемости</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Статистика посещаемости</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="expandChart('attendance')">
+                    <i class="bi bi-arrows-fullscreen"></i>
+                </button>
             </div>
             <div class="card-body" style="height: 320px;">
                 <canvas id="attendanceChart"></canvas>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="card">
-            <div class="card-header">
-                <h5>Статистика успеваемости</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Статистика успеваемости</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="expandChart('scores')">
+                    <i class="bi bi-arrows-fullscreen"></i>
+                </button>
             </div>
             <div class="card-body" style="height: 320px;">
                 <canvas id="scoresChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Выполнение заданий</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="expandChart('assignments')">
+                    <i class="bi bi-arrows-fullscreen"></i>
+                </button>
+            </div>
+            <div class="card-body" style="height: 320px;">
+                <canvas id="assignmentsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для развернутых диаграмм -->
+<div class="modal fade" id="chartModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="chartModalTitle">Диаграмма</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="height: 70vh;">
+                <canvas id="expandedChart"></canvas>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
     </div>
@@ -178,6 +215,10 @@ function navigateToLessons() {
 
 // Переменные для графиков
 let lessonsTimelineChart = null;
+let attendanceChart = null;
+let scoresChart = null;
+let assignmentsChart = null;
+let expandedChart = null;
 let currentPeriod = 'month';
 
 // Функция переключения периода
@@ -320,7 +361,8 @@ fetch('/api/analytics/overview')
             .then(r => r.json())
             .then(monthly => {
                 const ctx = document.getElementById('attendanceChart');
-                new Chart(ctx, {
+                if (attendanceChart) attendanceChart.destroy();
+                attendanceChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: monthly.labels,
@@ -364,20 +406,21 @@ fetch('/api/analytics/overview')
                 });
             });
 
-        // Загрузим общую статистику успеваемости по группам (горизонтальные полосы с накоплением)
+        // Загрузим общую статистику успеваемости по группам из журнала (горизонтальные полосы с накоплением)
         fetch('/api/analytics/scores-by-group')
             .then(r => r.json())
             .then(series => {
                 const ctx2 = document.getElementById('scoresChart');
-                new Chart(ctx2, {
+                if (scoresChart) scoresChart.destroy();
+                scoresChart = new Chart(ctx2, {
                     type: 'bar',
                     data: {
                         labels: series.labels,
                         datasets: [
-                            { label: 'Пятерки', data: series.five, backgroundColor: '#198754' },
-                            { label: 'Четверки', data: series.four, backgroundColor: '#0d6efd' },
-                            { label: 'Тройки', data: series.three, backgroundColor: '#ffc107' },
-                            { label: 'Двойки', data: series.two, backgroundColor: '#dc3545' }
+                            { label: 'Отлично (85-100%)', data: series.excellent, backgroundColor: '#198754' },
+                            { label: 'Хорошо (70-84%)', data: series.good, backgroundColor: '#0d6efd' },
+                            { label: 'Удовлетворительно (55-69%)', data: series.average, backgroundColor: '#ffc107' },
+                            { label: 'Неудовлетворительно (<55%)', data: series.low, backgroundColor: '#dc3545' }
                         ]
                     },
                     options: {
@@ -386,16 +429,181 @@ fetch('/api/analytics/overview')
                         maintainAspectRatio: false,
                         plugins: {
                             legend: { position: 'top', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') } },
-                            tooltip: { mode: 'index', intersect: false }
+                            tooltip: { 
+                                mode: 'index', 
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        const value = context.parsed.x;
+                                        return `${label}: ${value} оценок`;
+                                    }
+                                }
+                            }
                         },
                         scales: {
-                            x: { stacked: true, beginAtZero: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') } },
-                            y: { stacked: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') } }
+                            x: { 
+                                stacked: true, 
+                                beginAtZero: true, 
+                                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, 
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') },
+                                title: {
+                                    display: true,
+                                    text: 'Количество оценок',
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                                }
+                            },
+                            y: { 
+                                stacked: true, 
+                                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }, 
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') },
+                                title: {
+                                    display: true,
+                                    text: 'Группы',
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+
+        // Загрузим статистику выполнения заданий по группам
+        fetch('/api/analytics/assignments-by-group')
+            .then(r => r.json())
+            .then(data => {
+                const ctx3 = document.getElementById('assignmentsChart');
+                if (assignmentsChart) assignmentsChart.destroy();
+                assignmentsChart = new Chart(ctx3, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [
+                            {
+                                label: 'Выполненные',
+                                data: data.completed,
+                                backgroundColor: '#28a745'
+                            },
+                            {
+                                label: 'Невыполненные',
+                                data: data.uncompleted,
+                                backgroundColor: '#dc3545'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }
+                            },
+                            tooltip: { 
+                                mode: 'index', 
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        const value = context.parsed.y;
+                                        return `${label}: ${value} заданий`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                stacked: true,
+                                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') },
+                                title: {
+                                    display: true,
+                                    text: 'Группы',
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                                }
+                            },
+                            y: {
+                                stacked: true,
+                                beginAtZero: true,
+                                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-light') },
+                                title: {
+                                    display: true,
+                                    text: 'Количество заданий',
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                                }
+                            }
                         }
                     }
                 });
             });
 
     });
+
+// Функция для разворачивания диаграмм
+function expandChart(chartType) {
+    const modal = new bootstrap.Modal(document.getElementById('chartModal'));
+    const title = document.getElementById('chartModalTitle');
+    const canvas = document.getElementById('expandedChart');
+    
+    // Уничтожаем предыдущую диаграмму
+    if (expandedChart) {
+        expandedChart.destroy();
+    }
+    
+    let sourceChart = null;
+    let chartTitle = '';
+    
+    switch(chartType) {
+        case 'attendance':
+            sourceChart = attendanceChart;
+            chartTitle = 'Статистика посещаемости';
+            break;
+        case 'scores':
+            sourceChart = scoresChart;
+            chartTitle = 'Статистика успеваемости';
+            break;
+        case 'assignments':
+            sourceChart = assignmentsChart;
+            chartTitle = 'Выполнение заданий';
+            break;
+    }
+    
+    if (!sourceChart) {
+        alert('Диаграмма еще не загружена');
+        return;
+    }
+    
+    title.textContent = chartTitle;
+    
+    // Создаем новую конфигурацию на основе исходной диаграммы
+    const config = {
+        type: sourceChart.config.type,
+        data: {
+            labels: [...sourceChart.data.labels],
+            datasets: sourceChart.data.datasets.map(dataset => ({
+                ...dataset,
+                data: [...dataset.data]
+            }))
+        },
+        options: {
+            ...sourceChart.config.options,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                ...sourceChart.config.options.plugins,
+                legend: {
+                    ...sourceChart.config.options.plugins.legend,
+                    display: true
+                }
+            }
+        }
+    };
+    
+    // Создаем новую диаграмму в модальном окне
+    expandedChart = new Chart(canvas, config);
+    
+    modal.show();
+}
 </script>
 {% endblock %}

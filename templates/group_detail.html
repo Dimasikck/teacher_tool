@@ -102,9 +102,22 @@
                     <i class="bi bi-person-lines-fill"></i> Список студентов
                 </h5>
                 <div class="btn-group">
-                    <button class="btn btn-outline-secondary btn-sm" onclick="sortTableRows()" title="Сортировать по алфавиту">
-                        <i class="bi bi-sort-alpha-down"></i> Сортировать
-                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-sort-down"></i> Сортировать
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="sortTableRows('name')">
+                                <i class="bi bi-sort-alpha-down"></i> По имени
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="sortTableRows('absences')">
+                                <i class="bi bi-sort-numeric-down"></i> По пропускам
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="sortTableRows('average')">
+                                <i class="bi bi-sort-numeric-down"></i> По среднему баллу
+                            </a></li>
+                        </ul>
+                    </div>
                     <button class="btn btn-primary btn-sm" onclick="showAddStudentModal()">
                         <i class="bi bi-plus-circle"></i> Добавить студента
                     </button>
@@ -291,11 +304,21 @@ function showAddStudentsBatchModal() {
 }
 
 function updateStudentsList(newStudents) {
+    console.log('updateStudentsList called with:', newStudents);
+    
     const tbody = document.querySelector('table tbody');
     const noStudentsDiv = document.querySelector('.text-center.py-4');
     const studentsCount = document.querySelector('.text-primary');
     
-    if (!tbody) return;
+    if (!tbody) {
+        console.error('Table body not found');
+        return;
+    }
+    
+    if (!newStudents || newStudents.length === 0) {
+        console.log('No students to add');
+        return;
+    }
     
     // Если есть блок "студенты не найдены", скрываем его
     if (noStudentsDiv) {
@@ -310,21 +333,22 @@ function updateStudentsList(newStudents) {
     
     // Добавляем новых студентов в таблицу
     newStudents.forEach((student, index) => {
+        console.log('Adding student:', student);
         const newRow = document.createElement('tr');
         newRow.setAttribute('data-student-id', student.id || 0);
         newRow.innerHTML = `
             <td>0</td> <!-- Временно, будет обновлено после сортировки -->
-            <td>${student.name}</td>
+            <td>${student.name || 'Неизвестно'}</td>
             <td>${student.email || '-'}</td>
             <td class="student-absences">${student.absences ?? 0}</td>
             <td class="student-average">${student.average ?? '-'}</td>
             <td>
                 <button class="btn btn-sm btn-outline-primary" 
-                        onclick="editStudent(${student.id || 0}, '${student.name}', '${student.email || ''}')">
+                        onclick="editStudent(${student.id || 0}, '${(student.name || '').replace(/'/g, "\\'")}', '${(student.email || '').replace(/'/g, "\\'")}')">
                     <i class="bi bi-pencil"></i>
                 </button>
                 <button class="btn btn-sm btn-outline-danger" 
-                        onclick="deleteStudent(${student.id || 0}, '${student.name}')">
+                        onclick="deleteStudent(${student.id || 0}, '${(student.name || '').replace(/'/g, "\\'")}')">
                     <i class="bi bi-trash"></i>
                 </button>
             </td>
@@ -332,8 +356,11 @@ function updateStudentsList(newStudents) {
         tbody.appendChild(newRow);
     });
     
+    // Принудительно обновляем DOM
+    tbody.offsetHeight;
+    
     // Сортируем все строки по алфавиту (включая новые)
-    sortTableRows();
+    sortTableRows('name');
     
     // Обновляем счетчик студентов
     if (studentsCount) {
@@ -343,20 +370,38 @@ function updateStudentsList(newStudents) {
     
     // Показываем уведомление об успешном добавлении
     showSuccessNotification(`Добавлено ${newStudents.length} студентов`);
+    
+    console.log('Students list updated successfully');
 }
 
-function sortTableRows() {
+function sortTableRows(sortBy = 'name') {
     const tbody = document.querySelector('table tbody');
     if (!tbody) return;
     
     // Получаем все строки
     const rows = Array.from(tbody.querySelectorAll('tr'));
     
-    // Сортируем строки по имени студента (вторая колонка)
+    // Сортируем строки в зависимости от критерия
     rows.sort((a, b) => {
-        const nameA = a.querySelector('td:nth-child(2)').textContent.trim();
-        const nameB = b.querySelector('td:nth-child(2)').textContent.trim();
-        return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base' });
+        switch(sortBy) {
+            case 'name':
+                const nameA = a.querySelector('td:nth-child(2)').textContent.trim();
+                const nameB = b.querySelector('td:nth-child(2)').textContent.trim();
+                return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base' });
+            
+            case 'absences':
+                const absencesA = parseInt(a.querySelector('td:nth-child(4)').textContent.trim()) || 0;
+                const absencesB = parseInt(b.querySelector('td:nth-child(4)').textContent.trim()) || 0;
+                return absencesB - absencesA; // По убыванию (больше пропусков сверху)
+            
+            case 'average':
+                const averageA = parseFloat(a.querySelector('td:nth-child(5)').textContent.trim()) || 0;
+                const averageB = parseFloat(b.querySelector('td:nth-child(5)').textContent.trim()) || 0;
+                return averageB - averageA; // По убыванию (больше баллов сверху)
+            
+            default:
+                return 0;
+        }
     });
     
     // Очищаем tbody и добавляем отсортированные строки
@@ -612,7 +657,30 @@ function addStudentsBatch() {
             studentsArray = data.added.map(s => typeof s === 'string' ? ({ name: s, email: '-' }) : s);
         }
 
-        // Закрываем модальное окно в любом успешном сценарии
+        console.log('Students array for UI update:', studentsArray);
+
+        // Обновляем список на странице ПЕРЕД закрытием модального окна
+        if (data.added_count > 0) {
+            if (studentsArray.length > 0) {
+                console.log('Updating students list with', studentsArray.length, 'students');
+                updateStudentsList(studentsArray);
+                
+                // Проверяем через небольшую задержку, что студенты действительно добавились
+                setTimeout(() => {
+                    const currentRows = document.querySelectorAll('table tbody tr');
+                    console.log('Current rows after update:', currentRows.length);
+                    if (currentRows.length === 0) {
+                        console.log('No rows found, reloading from server');
+                        reloadStudentsList();
+                    }
+                }, 100);
+            } else {
+                console.log('Reloading students list from server');
+                reloadStudentsList();
+            }
+        }
+
+        // Закрываем модальное окно после обновления
         const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentsBatchModal'));
         if (modal) {
             modal.hide();
@@ -621,14 +689,6 @@ function addStudentsBatch() {
         // Очищаем поле ввода
         const textarea = document.getElementById('studentsText');
         if (textarea) textarea.value = '';
-
-        // Обновляем список на странице без перезагрузки
-        if (studentsArray.length > 0) {
-            updateStudentsList(studentsArray);
-        } else {
-            // Если сервер не вернул конкретные записи, перезагрузим список из API
-            reloadStudentsList();
-        }
     })
     .catch(error => {
         console.error('Error:', error);

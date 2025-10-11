@@ -47,6 +47,7 @@ class Lesson(db.Model):
     notes = db.Column(db.Text)
     classroom = db.Column(db.String(50))  # Аудитория
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
+    subject = db.Column(db.String(200))  # Название дисциплины
 
 
 class Attendance(db.Model):
@@ -66,6 +67,7 @@ class ControlPoint(db.Model):
     title = db.Column(db.String(200), default='КТ')
     max_points = db.Column(db.Integer, default=100)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    subject = db.Column(db.String(200))  # Название дисциплины
 
 
 class ControlPointScore(db.Model):
@@ -88,6 +90,8 @@ class Assignment(db.Model):
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     checked_at = db.Column(db.DateTime)
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
+    due_date = db.Column(db.Date)  # Срок выполнения задания
+    subject = db.Column(db.String(200))  # Название дисциплины
 
 
 class Schedule(db.Model):
@@ -114,6 +118,7 @@ class Task(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     status = db.Column(db.String(20), default='new')  # new, in_progress, completed
+    priority = db.Column(db.String(10), default='low')  # low, medium, high
     due_date = db.Column(db.DateTime)
     position = db.Column(db.Integer, default=0)
     list_id = db.Column(db.Integer, db.ForeignKey('task_list.id'))
