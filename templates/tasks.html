@@ -1,148 +1,812 @@
 {% extends 'base.html' %}
-{% block title %}Задачи{% endblock %}
+{% block title %}Kanban Доска{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Kanban Board Styles */
+    .kanban-board {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+        min-height: calc(100vh - 200px);
+        overflow-x: auto;
+        background: var(--bg-primary);
+    }
+
+    .kanban-column {
+        min-width: 320px;
+        max-width: 400px;
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 12px var(--shadow-light);
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 250px);
+    }
+
+    .kanban-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-secondary);
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .kanban-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: var(--text-primary);
+        margin: 0;
+        flex: 1;
+    }
+
+    .kanban-title-input {
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 1.1rem;
+        width: 100%;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: background-color 0.2s ease;
+    }
+
+    .kanban-title-input:focus {
+        outline: none;
+        background: var(--input-bg);
+        border: 1px solid var(--accent-color);
+    }
+
+    .kanban-count {
+        background: var(--accent-color);
+        color: white;
+        border-radius: 12px;
+        padding: 4px 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        min-width: 24px;
+        text-align: center;
+    }
+
+    .kanban-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .kanban-tasks {
+        padding: 16px;
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .kanban-task {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px;
+        cursor: grab;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px var(--shadow-light);
+        position: relative;
+    }
+
+    .kanban-task:hover {
+        box-shadow: 0 4px 16px var(--shadow-medium);
+        transform: translateY(-2px);
+    }
+
+    .kanban-task:active {
+        cursor: grabbing;
+        transform: scale(0.98);
+    }
+
+    .kanban-task.dragging {
+        opacity: 0.5;
+        transform: rotate(5deg);
+    }
+
+    .task-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .task-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+        flex: 1;
+        line-height: 1.4;
+    }
+
+    .task-title-input {
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        font-weight: 600;
+        width: 100%;
+        padding: 4px 0;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
+    }
+
+    .task-title-input:focus {
+        outline: none;
+        background: var(--input-bg);
+        padding: 4px 8px;
+    }
+
+    .task-actions {
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .kanban-task:hover .task-actions {
+        opacity: 1;
+    }
+
+    .task-btn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+
+    .task-btn-edit {
+        background: var(--accent-color);
+        color: white;
+    }
+
+    .task-btn-edit:hover {
+        background: var(--accent-hover);
+        transform: scale(1.1);
+    }
+
+    .task-btn-delete {
+        background: #dc3545;
+        color: white;
+    }
+
+    .task-btn-delete:hover {
+        background: #c82333;
+        transform: scale(1.1);
+    }
+
+    .task-description {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.4;
+        margin-bottom: 12px;
+        min-height: 20px;
+    }
+
+    .task-description-input {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        width: 100%;
+        padding: 4px 0;
+        border-radius: 4px;
+        resize: none;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        min-height: 20px;
+        transition: background-color 0.2s ease;
+    }
+
+    .task-description-input:focus {
+        outline: none;
+        background: var(--input-bg);
+        padding: 4px 8px;
+    }
+
+    .task-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-light);
+    }
+
+    .task-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-new {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .status-in-progress {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .status-completed {
+        background: #e8f5e8;
+        color: #388e3c;
+    }
+
+    .task-due-date {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .task-due-date.overdue {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .task-due-date.due-soon {
+        color: #ffc107;
+        font-weight: 600;
+    }
+
+    .add-task-btn {
+        width: 100%;
+        padding: 12px;
+        background: transparent;
+        border: 2px dashed var(--border-color);
+        border-radius: 8px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .add-task-btn:hover {
+        border-color: var(--accent-color);
+        color: var(--accent-color);
+        background: var(--accent-bg);
+    }
+
+    .add-column-btn {
+        min-width: 280px;
+        height: 60px;
+        background: var(--bg-secondary);
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .add-column-btn:hover {
+        border-color: var(--accent-color);
+        color: var(--accent-color);
+        background: var(--accent-bg);
+    }
+
+    .drop-zone {
+        outline: 2px dashed var(--accent-color);
+        outline-offset: 4px;
+        background: var(--accent-bg);
+    }
+
+    .task-priority {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    .priority-high {
+        background: #dc3545;
+    }
+
+    .priority-medium {
+        background: #ffc107;
+    }
+
+    .priority-low {
+        background: #28a745;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .kanban-board {
+            flex-direction: column;
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .kanban-column {
+            min-width: 100%;
+            max-width: 100%;
+        }
+
+        .add-column-btn {
+            min-width: 100%;
+        }
+    }
+
+    /* Dark theme adjustments */
+    [data-theme="dark"] .status-new {
+        background: rgba(25, 118, 210, 0.2);
+        color: #64b5f6;
+    }
+
+    [data-theme="dark"] .status-in-progress {
+        background: rgba(245, 124, 0, 0.2);
+        color: #ffb74d;
+    }
+
+    [data-theme="dark"] .status-completed {
+        background: rgba(56, 142, 60, 0.2);
+        color: #81c784;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3>Задачи</h3>
-        <button class="btn btn-primary" onclick="createList()">Новый список</button>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1">Kanban Доска</h1>
+            <p class="text-muted mb-0">Управляйте задачами с помощью Kanban-методологии</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" onclick="toggleView()">
+                <i class="bi bi-grid-3x3-gap"></i> Переключить вид
+            </button>
+            <button class="btn btn-primary" onclick="addColumn()">
+                <i class="bi bi-plus-circle"></i> Добавить колонку
+            </button>
+        </div>
     </div>
-    <div id="board" class="d-flex gap-3 flex-nowrap overflow-auto"></div>
+
+    <div id="kanbanBoard" class="kanban-board">
+        <!-- Columns will be rendered here -->
+    </div>
 </div>
 
-<style>
-    /* Канбан: цвета и контрасты по темам */
-    .kanban-list {
-        min-width: 320px; max-width: 360px;
-        background: var(--bg-secondary);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-        border-radius: 10px; padding: 12px;
-        box-shadow: 0 2px 12px var(--shadow-light);
-    }
-    .kanban-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .kanban-title { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); }
-    .kanban-tasks { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-    .kanban-card {
-        background: var(--bg-secondary);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-        border-radius: 10px; padding: 10px;
-        cursor: grab; box-shadow: 0 1px 6px var(--shadow-light);
-        transition: box-shadow .2s ease, transform .1s ease;
-    }
-    .kanban-card:hover { box-shadow: 0 4px 16px var(--shadow-medium); }
-    .kanban-card:active { cursor: grabbing; transform: scale(0.99); }
-    .drop-target { outline: 2px dashed #667eea; outline-offset: 4px; }
-    .muted { color: var(--text-secondary); font-size: 0.85rem; }
-    .btn-xxs { padding: 2px 6px; font-size: 0.75rem; }
-
-    /* Инпуты и текстареи под тему */
-    .input-inline {
-        background: var(--input-bg);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-        border-radius: 6px; padding: 4px 6px;
-    }
-    .input-inline::placeholder { color: var(--text-secondary); opacity: .8; }
-    .input-inline:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25); }
-
-    #board .form-control, #board .form-control:focus, #board textarea.form-control, #board .form-select {
-        background: var(--input-bg);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-    }
-    #board .form-control::placeholder, #board textarea.form-control::placeholder { color: var(--text-secondary); }
-    
-    /* Статус и дата в карточках */
-    .kanban-card .form-select-sm, .kanban-card .form-control-sm {
-        font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
-    }
-
-    /* Кнопки в теме */
-    #board .btn-light { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); }
-    #board .btn-light:hover { background: var(--hover-bg); }
-
-    /* Фон доски адаптируется к теме */
-    #board { padding-bottom: 12px; }
-</style>
+<!-- Task Modal -->
+<div class="modal fade" id="taskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать задачу</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="taskForm">
+                    <div class="mb-3">
+                        <label class="form-label">Название задачи</label>
+                        <input type="text" id="taskTitle" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Описание</label>
+                        <textarea id="taskDescription" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Статус</label>
+                            <select id="taskStatus" class="form-select">
+                                <option value="new">🆕 Новая</option>
+                                <option value="in_progress">⚡ В работе</option>
+                                <option value="completed">✅ Завершена</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Приоритет</label>
+                            <select id="taskPriority" class="form-select">
+                                <option value="low">🟢 Низкий</option>
+                                <option value="medium">🟡 Средний</option>
+                                <option value="high">🔴 Высокий</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Срок выполнения</label>
+                        <input type="date" id="taskDueDate" class="form-control">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="deleteTaskBtn" style="display: none;">Удалить</button>
+                <button type="button" class="btn btn-primary" onclick="saveTask()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
-const listsData = {{ lists|tojson|safe }};
+let currentTaskId = null;
+let currentColumnId = null;
+let isListView = false;
 
-function el(tag, attrs={}, children=[]) {
-    const node = document.createElement(tag);
-    Object.entries(attrs).forEach(([k,v]) => {
-        if (k === 'class') node.className = v; else if (k === 'dataset') Object.assign(node.dataset, v); else node[k] = v;
-    });
-    children.forEach(c => node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
-    return node;
+// Initialize the board
+document.addEventListener('DOMContentLoaded', function() {
+    loadBoard();
+});
+
+async function loadBoard() {
+    try {
+        const response = await fetch('/tasks/api/board');
+        const listsData = await response.json();
+        renderBoard(listsData);
+    } catch (error) {
+        console.error('Error loading board:', error);
+        showNotification('Ошибка загрузки доски', 'error');
+    }
 }
 
-async function api(url, opts={}) {
-    const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', ...opts });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-}
-
-function renderBoard() {
-    const board = document.getElementById('board');
+function renderBoard(listsData) {
+    console.log('Rendering board with data:', listsData);
+    const board = document.getElementById('kanbanBoard');
     board.innerHTML = '';
+
+    if (!listsData || listsData.length === 0) {
+        console.log('No data to render, showing empty state');
+        const emptyState = document.createElement('div');
+        emptyState.className = 'text-center py-5';
+        emptyState.innerHTML = `
+            <i class="bi bi-kanban display-1 text-muted"></i>
+            <h4 class="text-muted mt-3">Доска пуста</h4>
+            <p class="text-muted">Создайте первую колонку для начала работы</p>
+            <button class="btn btn-primary" onclick="addColumn()">
+                <i class="bi bi-plus-circle"></i> Добавить колонку
+            </button>
+        `;
+        board.appendChild(emptyState);
+        return;
+    }
+
     listsData.forEach(({list, tasks}) => {
-        board.appendChild(renderList(list, tasks));
+        console.log('Creating column for list:', list, 'with tasks:', tasks);
+        const column = createColumn(list, tasks);
+        board.appendChild(column);
+    });
+
+    // Add "Add Column" button
+    const addColumnBtn = document.createElement('div');
+    addColumnBtn.className = 'add-column-btn';
+    addColumnBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Добавить колонку';
+    addColumnBtn.onclick = addColumn;
+    board.appendChild(addColumnBtn);
+}
+
+function createColumn(list, tasks) {
+    const column = document.createElement('div');
+    column.className = 'kanban-column';
+    column.dataset.columnId = list.id;
+
+    const header = document.createElement('div');
+    header.className = 'kanban-header';
+    
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.className = 'kanban-title-input';
+    titleInput.value = list.name;
+    titleInput.onblur = () => updateColumnName(list.id, titleInput.value);
+
+    const count = document.createElement('div');
+    count.className = 'kanban-count';
+    count.textContent = tasks.length;
+
+    const actions = document.createElement('div');
+    actions.className = 'kanban-actions';
+    actions.innerHTML = `
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteColumn(${list.id})" title="Удалить колонку">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+
+    header.appendChild(titleInput);
+    header.appendChild(count);
+    header.appendChild(actions);
+
+    const tasksContainer = document.createElement('div');
+    tasksContainer.className = 'kanban-tasks';
+    tasksContainer.dataset.columnId = list.id;
+
+    // Add tasks
+    tasks.forEach(task => {
+        const taskElement = createTask(task);
+        tasksContainer.appendChild(taskElement);
+    });
+
+    // Add "Add Task" button
+    const addTaskBtn = document.createElement('button');
+    addTaskBtn.className = 'add-task-btn';
+    addTaskBtn.innerHTML = '<i class="bi bi-plus"></i> Добавить задачу';
+    addTaskBtn.onclick = () => addTask(list.id);
+    tasksContainer.appendChild(addTaskBtn);
+
+    column.appendChild(header);
+    column.appendChild(tasksContainer);
+
+    // Add drag and drop functionality
+    setupColumnDragDrop(column, tasksContainer);
+
+    return column;
+}
+
+function createTask(task) {
+    const taskElement = document.createElement('div');
+    taskElement.className = 'kanban-task';
+    taskElement.draggable = true;
+    taskElement.dataset.taskId = task.id;
+
+    const priority = task.priority || 'low';
+    const priorityClass = `priority-${priority}`;
+
+    taskElement.innerHTML = `
+        <div class="task-priority ${priorityClass}"></div>
+        <div class="task-header">
+            <h6 class="task-title">${escapeHtml(task.title)}</h6>
+            <div class="task-actions">
+                <button class="task-btn task-btn-edit" onclick="editTask(${task.id})" title="Редактировать">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="task-btn task-btn-delete" onclick="deleteTask(${task.id})" title="Удалить">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+        <div class="task-description">${escapeHtml(task.description || '')}</div>
+        <div class="task-meta">
+            <div class="task-status">
+                <span class="status-badge status-${task.status}">${getStatusText(task.status)}</span>
+            </div>
+            <div class="task-due-date ${getDueDateClass(task.due_date)}">
+                ${formatDueDate(task.due_date)}
+            </div>
+        </div>
+    `;
+
+    // Add drag and drop functionality
+    setupTaskDragDrop(taskElement);
+
+    return taskElement;
+}
+
+function setupColumnDragDrop(column, tasksContainer) {
+    column.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        tasksContainer.classList.add('drop-zone');
+    });
+
+    column.addEventListener('dragleave', (e) => {
+        if (!column.contains(e.relatedTarget)) {
+            tasksContainer.classList.remove('drop-zone');
+        }
+    });
+
+    column.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        tasksContainer.classList.remove('drop-zone');
+        
+        const taskId = e.dataTransfer.getData('text/plain');
+        const columnId = parseInt(column.dataset.columnId);
+        
+        if (taskId && columnId) {
+            await moveTask(taskId, columnId);
+        }
     });
 }
 
-function renderList(list, tasks) {
-    const title = el('input', { value: list.name, class: 'input-inline kanban-title' });
-    title.addEventListener('change', async () => {
-        await api(`/tasks/api/lists/${list.id}`, { method: 'PUT', body: JSON.stringify({ name: title.value }) });
-        list.name = title.value;
+function setupTaskDragDrop(taskElement) {
+    taskElement.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', taskElement.dataset.taskId);
+        e.dataTransfer.effectAllowed = 'move';
+        taskElement.classList.add('dragging');
     });
 
-    const addBtn = el('button', { class: 'btn btn-sm btn-light' }, [document.createTextNode('+ Задача')]);
-    addBtn.addEventListener('click', async () => {
-        const data = await api('/tasks/api/tasks', { method: 'POST', body: JSON.stringify({ list_id: list.id, title: 'Новая задача', status: 'new' }) });
-        const column = container.querySelector('.kanban-tasks');
-        const card = renderCard({ id: data.id, title: 'Новая задача', description: null, status: 'new', due_date: null, list_id: list.id, position: data.position });
-        column.appendChild(card);
-        attachDnD(card);
+    taskElement.addEventListener('dragend', () => {
+        taskElement.classList.remove('dragging');
+        document.querySelectorAll('.drop-zone').forEach(el => el.classList.remove('drop-zone'));
     });
-
-    const header = el('div', { class: 'kanban-header' }, [title, addBtn]);
-    const column = el('div', { class: 'kanban-tasks', dataset: { listId: list.id } });
-
-    tasks.forEach(t => {
-        const card = renderCard(t);
-        column.appendChild(card);
-        attachDnD(card);
-    });
-
-    const container = el('div', { class: 'kanban-list', dataset: { listId: list.id } }, [header, column]);
-    container.addEventListener('dragover', ev => {
-        ev.preventDefault();
-        column.classList.add('drop-target');
-    });
-    container.addEventListener('dragleave', () => column.classList.remove('drop-target'));
-    container.addEventListener('drop', async ev => {
-        ev.preventDefault();
-        column.classList.remove('drop-target');
-        const taskId = Number(ev.dataTransfer.getData('text/plain'));
-        const after = Array.from(column.children).findIndex(ch => ch.classList && ch.classList.contains('placeholder'));
-        const newPos = after >= 0 ? after : column.children.length;
-        await moveTask(taskId, list.id, newPos);
-    });
-
-    return container;
 }
 
-function getStatusEmoji(status) {
-    const statusMap = {
-        'new': '🆕',
-        'in_progress': '⚡',
-        'completed': '✅'
+async function addColumn() {
+    const name = prompt('Название колонки:');
+    if (!name) return;
+
+    try {
+        const response = await fetch('/tasks/api/lists', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // Reload board
+        await loadBoard();
+        showNotification('Колонка добавлена', 'success');
+    } catch (error) {
+        console.error('Error adding column:', error);
+        showNotification('Ошибка добавления колонки', 'error');
+    }
+}
+
+async function updateColumnName(columnId, name) {
+    try {
+        await fetch(`/tasks/api/lists/${columnId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+    } catch (error) {
+        console.error('Error updating column name:', error);
+    }
+}
+
+async function deleteColumn(columnId) {
+    if (!confirm('Удалить колонку? Все задачи в ней будут удалены.')) return;
+
+    try {
+        const response = await fetch(`/tasks/api/lists/${columnId}`, { method: 'DELETE' });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        await loadBoard();
+        showNotification('Колонка удалена', 'success');
+    } catch (error) {
+        console.error('Error deleting column:', error);
+        showNotification('Ошибка удаления колонки', 'error');
+    }
+}
+
+async function addTask(columnId) {
+    try {
+        const response = await fetch('/tasks/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: 'Новая задача',
+                list_id: columnId,
+                status: 'new',
+                priority: 'low'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        await loadBoard();
+        showNotification('Задача добавлена', 'success');
+    } catch (error) {
+        console.error('Error adding task:', error);
+        showNotification('Ошибка добавления задачи', 'error');
+    }
+}
+
+async function editTask(taskId) {
+    currentTaskId = taskId;
+    
+    try {
+        // Load task data (you might need to implement this endpoint)
+        const response = await fetch(`/tasks/api/tasks/${taskId}`);
+        const task = await response.json();
+        
+        document.getElementById('taskTitle').value = task.title;
+        document.getElementById('taskDescription').value = task.description || '';
+        document.getElementById('taskStatus').value = task.status;
+        document.getElementById('taskPriority').value = task.priority || 'low';
+        document.getElementById('taskDueDate').value = task.due_date ? task.due_date.split('T')[0] : '';
+        
+        document.getElementById('deleteTaskBtn').style.display = 'inline-block';
+        
+        new bootstrap.Modal(document.getElementById('taskModal')).show();
+    } catch (error) {
+        console.error('Error loading task:', error);
+        showNotification('Ошибка загрузки задачи', 'error');
+    }
+}
+
+async function saveTask() {
+    if (!currentTaskId) return;
+
+    const taskData = {
+        title: document.getElementById('taskTitle').value,
+        description: document.getElementById('taskDescription').value,
+        status: document.getElementById('taskStatus').value,
+        priority: document.getElementById('taskPriority').value,
+        due_date: document.getElementById('taskDueDate').value ? new Date(document.getElementById('taskDueDate').value).toISOString() : null
     };
-    return statusMap[status] || '🆕';
+
+    try {
+        await fetch(`/tasks/api/tasks/${currentTaskId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(taskData)
+        });
+        
+        bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
+        loadBoard();
+        showNotification('Задача сохранена', 'success');
+    } catch (error) {
+        console.error('Error saving task:', error);
+        showNotification('Ошибка сохранения задачи', 'error');
+    }
+}
+
+async function deleteTask(taskId) {
+    if (!confirm('Удалить задачу?')) return;
+
+    try {
+        await fetch(`/tasks/api/tasks/${taskId}`, { method: 'DELETE' });
+        loadBoard();
+        showNotification('Задача удалена', 'success');
+    } catch (error) {
+        console.error('Error deleting task:', error);
+        showNotification('Ошибка удаления задачи', 'error');
+    }
+}
+
+async function moveTask(taskId, columnId) {
+    try {
+        const response = await fetch(`/tasks/api/tasks/${taskId}/move`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ list_id: columnId, position: 0 })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        await loadBoard();
+    } catch (error) {
+        console.error('Error moving task:', error);
+        showNotification('Ошибка перемещения задачи', 'error');
+    }
 }
 
 function getStatusText(status) {
@@ -154,98 +818,61 @@ function getStatusText(status) {
     return statusMap[status] || 'Новая';
 }
 
-function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('ru-RU');
+function formatDueDate(dueDate) {
+    if (!dueDate) return '';
+    const date = new Date(dueDate);
+    const today = new Date();
+    const diffTime = date - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return `Просрочено на ${Math.abs(diffDays)} дн.`;
+    if (diffDays === 0) return 'Сегодня';
+    if (diffDays === 1) return 'Завтра';
+    return `Через ${diffDays} дн.`;
 }
 
-function renderCard(task) {
-    const title = el('input', { value: task.title, class: 'input-inline w-100' });
-    title.addEventListener('change', async () => {
-        await api(`/tasks/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ title: title.value }) });
-    });
-
-    const del = el('button', { class: 'btn btn-danger btn-xxs ms-2' }, ['Удалить']);
-    del.addEventListener('click', async () => {
-        await api(`/tasks/api/tasks/${task.id}`, { method: 'DELETE' });
-        card.remove();
-    });
-
-    const head = el('div', { class: 'd-flex align-items-center justify-content-between' }, [title, del]);
-
-    // Статус с эмоджи
-    const statusSelect = el('select', { class: 'form-select form-select-sm mt-2' });
-    ['new', 'in_progress', 'completed'].forEach(status => {
-        const option = el('option', { value: status }, [`${getStatusEmoji(status)} ${getStatusText(status)}`]);
-        if (status === task.status) option.selected = true;
-        statusSelect.appendChild(option);
-    });
-    statusSelect.addEventListener('change', async () => {
-        await api(`/tasks/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ status: statusSelect.value }) });
-    });
-
-    // Срок выполнения
-    const dueDateInput = el('input', { 
-        type: 'date', 
-        class: 'form-control form-control-sm mt-2',
-        value: task.due_date ? task.due_date.split('T')[0] : ''
-    });
-    dueDateInput.addEventListener('change', async () => {
-        const value = dueDateInput.value ? new Date(dueDateInput.value).toISOString() : '';
-        await api(`/tasks/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ due_date: value }) });
-    });
-
-    const desc = el('textarea', { class: 'form-control form-control-sm mt-2', rows: 2, placeholder: 'Описание...' });
-    if (task.description) desc.value = task.description;
-    desc.addEventListener('change', async () => {
-        await api(`/tasks/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ description: desc.value }) });
-    });
-
-    const card = el('div', { class: 'kanban-card', draggable: true, dataset: { taskId: task.id } }, [
-        head, 
-        statusSelect, 
-        dueDateInput, 
-        desc
-    ]);
-    return card;
+function getDueDateClass(dueDate) {
+    if (!dueDate) return '';
+    const date = new Date(dueDate);
+    const today = new Date();
+    const diffTime = date - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return 'overdue';
+    if (diffDays <= 1) return 'due-soon';
+    return '';
 }
 
-function attachDnD(card) {
-    card.addEventListener('dragstart', ev => {
-        ev.dataTransfer.setData('text/plain', card.dataset.taskId);
-        ev.dataTransfer.effectAllowed = 'move';
-        card.classList.add('opacity-50');
-    });
-    card.addEventListener('dragend', () => {
-        card.classList.remove('opacity-50');
-        document.querySelectorAll('.drop-target').forEach(n => n.classList.remove('drop-target'));
-    });
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
-async function moveTask(taskId, listId, position) {
-    await api(`/tasks/api/tasks/${taskId}/move`, { method: 'POST', body: JSON.stringify({ list_id: listId, position }) });
-    // Reload UI minimally: re-fetch board
-    const res = await fetch('/tasks/');
-    const html = await res.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const fresh = doc.querySelector('#board');
-    document.querySelector('#board').replaceWith(fresh);
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 3000);
 }
 
-async function createList() {
-    const data = await api('/tasks/api/lists', { method: 'POST', body: JSON.stringify({ name: 'Новый список' }) });
-    listsData.push({ list: { id: data.id, name: data.name, position: data.position }, tasks: [] });
-    renderBoard();
+function toggleView() {
+    isListView = !isListView;
+    // Implement list view if needed
+    showNotification('Функция в разработке', 'info');
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    renderBoard();
-});
 </script>
 {% endblock %}
-
-
-
-

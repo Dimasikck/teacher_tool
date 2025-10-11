@@ -3,8 +3,30 @@ from flask_login import login_required, current_user
 from models import db, Student, Group, Attendance, Lesson, ControlPoint, ControlPointScore
 from datetime import datetime
 import pandas as pd
+import re
 
 journal_bp = Blueprint('journal', __name__)
+def normalize_subject_name(name: str) -> str:
+    """Нормализует название дисциплины, убирая префиксы Лек./лаб./Пр. и лишние разделители."""
+    if not name:
+        return ''
+    cleaned = name.strip()
+    # Убираем распространенные префиксы форм занятий, но не обрезаем реальные названия типа "Профессиональные..."
+    # Правила:
+    # - Полные слова в начале: лекция, лабораторная, практика, семинар, консультация
+    # - Аббревиатуры в начале: лек., лек.., лаб., лаб.., пр., пр.. (для "Пр" обязательна хотя бы одна точка)
+    prefix_pattern = (
+        r'^(?:'
+        r'(?:лекция|лабораторная|практика|семинар|консультация)'
+        r'|(?:лек\.{1,2})'
+        r'|(?:лаб\.{1,2})'
+        r'|(?:пр\.{1,2})'
+        r')\s*[-:.,]?\s*'
+    )
+    cleaned = re.sub(prefix_pattern, '', cleaned, flags=re.IGNORECASE)
+    # Сжимаем пробелы
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    return cleaned
 
 
 @journal_bp.route('/journal')
@@ -52,14 +74,27 @@ def lessons():
             notes=data.get('notes', ''),
             teacher_id=current_user.id
         )
+        # Привязываем дисциплину, если передана, иначе используем course группы
+        subject = normalize_subject_name(data.get('subject') or '')
+        if not subject:
+            try:
+                group = Group.query.filter_by(id=data['group_id'], teacher_id=current_user.id).first()
+                subject = normalize_subject_name((group.course or '') if group else '')
+            except Exception:
+                subject = ''
+        if subject:
+            lesson.subject = subject
         db.session.add(lesson)
         db.session.commit()
         return jsonify({'id': lesson.id, 'status': 'success'})
 
     group_id = request.args.get('group_id')
+    subject = request.args.get('subject', type=str)
     lessons = Lesson.query.filter_by(teacher_id=current_user.id)
     if group_id:
         lessons = lessons.filter_by(group_id=group_id)
+    if subject:
+        lessons = lessons.filter((Lesson.subject == subject) | ((Lesson.subject == None) & (Group.course == subject)))
 
     return jsonify([{
         'id': l.id,
@@ -76,6 +111,7 @@ def group_journal():
     """Возвращает структуру журнала для группы: список студентов, список занятий и отметки."""
     group_id = request.args.get('group_id', type=int)
     month_str = request.args.get('month')  # Ожидаем формат YYYY-MM
+    subject = request.args.get('subject', type=str)
     if not group_id:
         return jsonify({'error': 'group_id is required'}), 400
 
@@ -85,6 +121,7 @@ def group_journal():
     students = Student.query.filter_by(group_id=group_id).order_by(Student.name.asc()).all()
 
     lessons_query = Lesson.query.filter_by(group_id=group_id, teacher_id=current_user.id)
+    # Фильтрация по предмету делается после выборки, с нормализацией
 
     # Фильтрация по месяцу, если указано
     if month_str:
@@ -101,6 +138,9 @@ def group_journal():
             pass
 
     lessons = lessons_query.order_by(Lesson.date.asc()).all()
+    if subject:
+        norm_subj = normalize_subject_name(subject)
+        lessons = [l for l in lessons if normalize_subject_name(l.subject or l.topic or '') == norm_subj]
 
     # Загружаем контрольные точки для группы
     control_points_query = ControlPoint.query.filter_by(group_id=group_id, teacher_id=current_user.id)
@@ -120,6 +160,12 @@ def group_journal():
             pass
 
     control_points = control_points_query.order_by(ControlPoint.date.asc()).all()
+    if subject:
+        norm_subj = normalize_subject_name(subject)
+        control_points = [
+            cp for cp in control_points
+            if (normalize_subject_name(cp.subject or '') == norm_subj) or not (cp.subject and cp.subject.strip())
+        ]
 
     # Подсчеты занятий
     month_count = len(lessons)
@@ -152,8 +198,11 @@ def group_journal():
             'points': score.points
         }
 
-    # Определяем читаемое название дисциплины: если course пустой/числовой, берём самое частое Lesson.topic
-    subject = (group.course or '').strip()
+    # Определяем читаемое название дисциплины: если не выбрана, возьмем из явного subject,
+    # затем из наиболее частой темы занятий, иначе Group.course
+    subject_name = normalize_subject_name(subject or '')
+    if not subject_name:
+        subject_name = normalize_subject_name(group.course or '')
     def _is_numeric(value: str) -> bool:
         try:
             float(value)
@@ -161,18 +210,18 @@ def group_journal():
         except Exception:
             return False
 
-    if not subject or _is_numeric(subject):
+    if not subject_name or _is_numeric(subject_name):
         topics = [l.topic.strip() for l in lessons if (l.topic or '').strip()]
         if topics:
             from collections import Counter
-            subject = Counter(topics).most_common(1)[0][0]
+            subject_name = normalize_subject_name(Counter(topics).most_common(1)[0][0])
 
     return jsonify({
         'group': {
             'id': group.id,
             'name': group.name,
             'course': group.course,
-            'subject': subject or group.course,
+            'subject': subject_name or group.course,
             'education_form': group.education_form
         },
         'students': [{'id': s.id, 'name': s.name} for s in students],
@@ -185,6 +234,92 @@ def group_journal():
             'total_lessons': total_count
         }
     })
+
+
+@journal_bp.route('/api/group/subjects')
+@login_required
+def group_subjects():
+    """Возвращает список дисциплин для группы (из Lesson.subject, ControlPoint.subject и Group.course)."""
+    group_id = request.args.get('group_id', type=int)
+    if not group_id:
+        return jsonify({'error': 'group_id is required'}), 400
+
+    Group.query.filter_by(id=group_id, teacher_id=current_user.id).first_or_404()
+
+    subjects = set()
+
+    # Явно заданные названия дисциплин в Lesson.subject
+    lesson_subjects = db.session.query(Lesson.subject).filter(
+        Lesson.group_id == group_id,
+        Lesson.teacher_id == current_user.id,
+        Lesson.subject != None,
+        Lesson.subject != ''
+    ).distinct().all()
+    for (subj,) in lesson_subjects:
+        norm = normalize_subject_name(subj)
+        if norm:
+            subjects.add(norm)
+
+    # Названия дисциплин из контрольных точек
+    cp_subjects = db.session.query(ControlPoint.subject).filter(
+        ControlPoint.group_id == group_id,
+        ControlPoint.teacher_id == current_user.id,
+        ControlPoint.subject != None,
+        ControlPoint.subject != ''
+    ).distinct().all()
+    for (subj,) in cp_subjects:
+        norm = normalize_subject_name(subj)
+        if norm:
+            subjects.add(norm)
+
+    # Если явных дисциплин нет, используем темы занятий как список дисциплин (fallback)
+    if not subjects:
+        lesson_topics = db.session.query(Lesson.topic).filter(
+            Lesson.group_id == group_id,
+            Lesson.teacher_id == current_user.id,
+            Lesson.topic != None,
+            Lesson.topic != ''
+        ).distinct().all()
+        for (top,) in lesson_topics:
+            norm = normalize_subject_name(top)
+            if norm:
+                subjects.add(norm)
+
+    # Не добавляем курс группы в список дисциплин - показываем только реальные дисциплины
+
+    # Фильтруем мусор: числовые и слишком короткие значения
+    cleaned_subjects = []
+    for s in subjects:
+        val = (s or '').strip()
+        if not val:
+            continue
+        # отклоняем, если чисто число
+        try:
+            float(val)
+            continue
+        except Exception:
+            pass
+        # минимальная длина осмысленного названия
+        if len(val) < 2:
+            continue
+        cleaned_subjects.append(val)
+
+    # Если после очистки ничего не осталось, пробуем взять наиболее часто встречающуюся тему занятия
+    if not cleaned_subjects:
+        lesson_topics = db.session.query(Lesson.topic).filter(
+            Lesson.group_id == group_id,
+            Lesson.teacher_id == current_user.id,
+            Lesson.topic != None,
+            Lesson.topic != ''
+        ).all()
+        from collections import Counter
+        counts = Counter([normalize_subject_name(t[0]) for t in lesson_topics if normalize_subject_name(t[0])])
+        if counts:
+            top_topic, _ = counts.most_common(1)[0]
+            cleaned_subjects.append(top_topic)
+
+    # Возвращаем отсортированный список
+    return jsonify(sorted(cleaned_subjects))
 
 
 @journal_bp.route('/api/journal/mark', methods=['POST'])
@@ -332,6 +467,7 @@ def create_control_point():
     date_str = data.get('date')
     title = data.get('title', 'КТ')
     max_points = data.get('max_points', 100)
+    subject = normalize_subject_name(data.get('subject') or '')
 
     if not group_id or not date_str:
         return jsonify({'error': 'group_id and date are required'}), 400
@@ -344,17 +480,16 @@ def create_control_point():
     except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
 
-    # Проверяем, что контрольная точка с такой датой не существует
-    existing = ControlPoint.query.filter_by(group_id=group_id, date=date, teacher_id=current_user.id).first()
-    if existing:
-        return jsonify({'error': 'Control point with this date already exists'}), 400
+    # Разрешаем несколько контрольных точек в один день
 
     control_point = ControlPoint(
         group_id=group_id,
         teacher_id=current_user.id,
         date=date,
         title=title,
-        max_points=max_points
+        max_points=max_points,
+        # Не записываем предмет по умолчанию из Group.course, чтобы не засорять список дисциплин
+        subject=subject or None
     )
 
     db.session.add(control_point)

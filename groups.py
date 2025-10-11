@@ -191,16 +191,16 @@ def delete_group(group_id):
         teacher_id=current_user.id
     ).first_or_404()
     
-    # Проверяем, есть ли студенты в группе
-    students_count = Student.query.filter_by(group_id=group_id).count()
-    if students_count > 0:
-        flash('Нельзя удалить группу, в которой есть студенты', 'error')
-        return redirect(url_for('groups.group_detail', group_id=group_id))
+    # Удаляем всех студентов группы
+    students = Student.query.filter_by(group_id=group_id).all()
+    for student in students:
+        db.session.delete(student)
     
+    # Удаляем группу
     db.session.delete(group)
     db.session.commit()
     
-    flash('Группа успешно удалена', 'success')
+    flash('Группа и все студенты успешно удалены', 'success')
     return redirect(url_for('groups.groups'))
 
 

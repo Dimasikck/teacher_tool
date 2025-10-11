@@ -142,6 +142,11 @@
             </div>
             <div class="card-footer">
                 <div class="btn-group w-100" role="group">
+                    <button type="button"
+                            class="btn btn-outline-info btn-sm"
+                            onclick="toggleSubjects({{ group.id }})">
+                        <i class="bi bi-book"></i> Дисциплины
+                    </button>
                     <a href="{{ url_for('groups.group_detail', group_id=group.id) }}" 
                        class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-eye"></i> Открыть
@@ -155,6 +160,7 @@
                         <i class="bi bi-trash"></i> Удалить
                     </button>
                 </div>
+                <div id="subjects-{{ group.id }}" class="mt-3" style="display:none;"></div>
             </div>
         </div>
     </div>
@@ -270,6 +276,52 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     });
 });
+
+// Показать/скрыть блок с дисциплинами выбранной группы и подгрузить их при первом открытии
+function toggleSubjects(groupId) {
+    const container = document.getElementById(`subjects-${groupId}`);
+    if (!container) return;
+
+    const isHidden = container.style.display === 'none' || container.style.display === '';
+    if (isHidden) {
+        // Если еще не загружали, помечаем и грузим
+        if (!container.dataset.loaded) {
+            container.innerHTML = '<div class="text-muted"><i class="bi bi-arrow-repeat spin"></i> Загрузка дисциплин...</div>';
+            fetch(`/api/group/subjects?group_id=${groupId}`)
+                .then(r => r.json())
+                .then(list => {
+                    container.dataset.loaded = 'true';
+                    if (!Array.isArray(list) || list.length === 0) {
+                        container.innerHTML = '<div class="alert alert-light mb-0">Дисциплины не найдены</div>';
+                        return;
+                    }
+                    const items = list.map(s => `<span class="badge bg-secondary me-1 mb-1">${escapeHtml(s)}</span>`).join('');
+                    container.innerHTML = `
+                        <div>
+                            <div class="mb-2 text-muted">Дисциплины группы:</div>
+                            ${items}
+                        </div>
+                    `;
+                })
+                .catch(() => {
+                    container.innerHTML = '<div class="alert alert-warning mb-0">Не удалось загрузить дисциплины</div>';
+                });
+        }
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+// Простейший escape для вставки текста в HTML
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 </script>
 {% endblock %}
 
