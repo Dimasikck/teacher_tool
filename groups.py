@@ -191,16 +191,16 @@ def delete_group(group_id):
         teacher_id=current_user.id
     ).first_or_404()
     
-    # Проверяем, есть ли студенты в группе
-    students_count = Student.query.filter_by(group_id=group_id).count()
-    if students_count > 0:
-        flash('Нельзя удалить группу, в которой есть студенты', 'error')
-        return redirect(url_for('groups.group_detail', group_id=group_id))
+    # Удаляем всех студентов группы
+    students = Student.query.filter_by(group_id=group_id).all()
+    for student in students:
+        db.session.delete(student)
     
+    # Удаляем группу
     db.session.delete(group)
     db.session.commit()
     
-    flash('Группа успешно удалена', 'success')
+    flash('Группа и все студенты успешно удалены', 'success')
     return redirect(url_for('groups.groups'))
 
 
@@ -427,3 +427,36 @@ def delete_student(group_id, student_id):
     db.session.commit()
     
     return jsonify({'success': True})
+
+
+@groups_bp.route('/search/student')
+@login_required
+def search_student():
+    """Поиск студента по имени среди всех групп преподавателя"""
+    student_name = request.args.get('name', '').strip()
+    
+    if not student_name:
+        return jsonify({'error': 'Введите имя студента для поиска'}), 400
+    
+    # Ищем студентов по частичному совпадению имени среди всех групп преподавателя
+    students = db.session.query(Student, Group).join(Group).filter(
+        Group.teacher_id == current_user.id,
+        Student.name.ilike(f'%{student_name}%')
+    ).order_by(Student.name.asc()).all()
+    
+    if not students:
+        return jsonify({'students': []})
+    
+    # Формируем результат
+    result = []
+    for student, group in students:
+        result.append({
+            'id': student.id,
+            'name': student.name,
+            'group_id': group.id,
+            'group_name': group.name,
+            'course': group.course,
+            'education_form': group.education_form
+        })
+    
+    return jsonify({'students': result})

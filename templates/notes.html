@@ -1,0 +1,585 @@
+{% extends "base.html" %}
+
+{% block title %}Заметки{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-sticky-note me-2"></i>
+                    Заметки
+                </h1>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="toggleView()">
+                        <i class="fas fa-th me-2"></i>
+                        <span id="viewToggleText">Список</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="showCreateModal()">
+                        <i class="fas fa-plus me-2"></i>
+                        Новая заметка
+                    </button>
+                </div>
+            </div>
+
+            <!-- Фильтры и поиск -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="searchInput" 
+                                       placeholder="Поиск по заголовку или содержимому...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="showArchived">
+                                <label class="form-check-label" for="showArchived">
+                                    Показать архивированные
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="colorFilter">
+                                <option value="">Все цвета</option>
+                                <option value="#ffffff">Белый</option>
+                                <option value="#ffeb3b">Желтый</option>
+                                <option value="#4caf50">Зеленый</option>
+                                <option value="#2196f3">Синий</option>
+                                <option value="#ff9800">Оранжевый</option>
+                                <option value="#e91e63">Розовый</option>
+                                <option value="#9c27b0">Фиолетовый</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Загрузка -->
+            <div id="loadingSpinner" class="text-center py-5" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+            </div>
+
+            <!-- Список заметок -->
+            <div id="notesContainer" class="row g-3">
+                <!-- Заметки будут загружены здесь -->
+            </div>
+
+            <!-- Пустое состояние -->
+            <div id="emptyState" class="text-center py-5" style="display: none;">
+                <i class="fas fa-sticky-note fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Нет заметок</h4>
+                <p class="text-muted">Создайте свою первую заметку</p>
+                <button class="btn btn-primary" onclick="showCreateModal()">
+                    <i class="fas fa-plus me-2"></i>
+                    Создать заметку
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно создания/редактирования заметки -->
+<div class="modal fade" id="noteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="noteModalTitle">Новая заметка</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="noteForm">
+                    <div class="mb-3">
+                        <label for="noteTitle" class="form-label">Заголовок</label>
+                        <input type="text" class="form-control" id="noteTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="noteContent" class="form-label">Содержимое</label>
+                        <textarea class="form-control" id="noteContent" rows="8" required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="noteColor" class="form-label">Цвет</label>
+                            <div class="d-flex gap-2">
+                                <input type="color" class="form-control form-control-color" id="noteColor" value="#ffffff">
+                                <select class="form-select" id="colorPresets">
+                                    <option value="#ffffff">Белый</option>
+                                    <option value="#ffeb3b">Желтый</option>
+                                    <option value="#4caf50">Зеленый</option>
+                                    <option value="#2196f3">Синий</option>
+                                    <option value="#ff9800">Оранжевый</option>
+                                    <option value="#e91e63">Розовый</option>
+                                    <option value="#9c27b0">Фиолетовый</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-4">
+                                <input class="form-check-input" type="checkbox" id="notePinned">
+                                <label class="form-check-label" for="notePinned">
+                                    Закрепить заметку
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveNote()">
+                    <i class="fas fa-save me-2"></i>
+                    Сохранить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно просмотра заметки -->
+<div class="modal fade" id="viewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewModalTitle">Просмотр заметки</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="viewNoteContent">
+                    <!-- Содержимое заметки будет загружено здесь -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" onclick="editCurrentNote()">
+                    <i class="fas fa-edit me-2"></i>
+                    Редактировать
+                </button>
+                <button type="button" class="btn btn-outline-warning" onclick="togglePinCurrent()">
+                    <i class="fas fa-thumbtack me-2"></i>
+                    <span id="pinButtonText">Закрепить</span>
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="toggleArchiveCurrent()">
+                    <i class="fas fa-archive me-2"></i>
+                    <span id="archiveButtonText">Архивировать</span>
+                </button>
+                <button type="button" class="btn btn-outline-danger" onclick="deleteCurrentNote()">
+                    <i class="fas fa-trash me-2"></i>
+                    Удалить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.note-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.note-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.note-card.pinned {
+    border-left: 4px solid var(--accent-primary);
+}
+
+.note-card.archived {
+    opacity: 0.7;
+}
+
+.note-content {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.note-actions {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.note-card:hover .note-actions {
+    opacity: 1;
+}
+
+.grid-view .note-card {
+    height: 200px;
+}
+
+.list-view .note-card {
+    height: auto;
+    min-height: 120px;
+}
+
+.note-meta {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.color-preview {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+    border: 2px solid var(--border-light);
+}
+</style>
+
+<script>
+let currentNote = null;
+let isGridView = true;
+let allNotes = [];
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    loadNotes();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    // Поиск
+    document.getElementById('searchInput').addEventListener('input', debounce(loadNotes, 300));
+    
+    // Фильтры
+    document.getElementById('showArchived').addEventListener('change', loadNotes);
+    document.getElementById('colorFilter').addEventListener('change', loadNotes);
+    
+    // Цветовые пресеты
+    document.getElementById('colorPresets').addEventListener('change', function() {
+        document.getElementById('noteColor').value = this.value;
+    });
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+async function loadNotes() {
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const notesContainer = document.getElementById('notesContainer');
+    const emptyState = document.getElementById('emptyState');
+    
+    loadingSpinner.style.display = 'block';
+    notesContainer.innerHTML = '';
+    emptyState.style.display = 'none';
+    
+    try {
+        const params = new URLSearchParams({
+            show_archived: document.getElementById('showArchived').checked,
+            search: document.getElementById('searchInput').value
+        });
+        
+        const response = await fetch(`/api/notes/?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            allNotes = data.notes;
+            renderNotes(data.notes);
+        } else {
+            showAlert('Ошибка загрузки заметок: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка загрузки заметок: ' + error.message, 'danger');
+    } finally {
+        loadingSpinner.style.display = 'none';
+    }
+}
+
+function renderNotes(notes) {
+    const notesContainer = document.getElementById('notesContainer');
+    const emptyState = document.getElementById('emptyState');
+    
+    if (notes.length === 0) {
+        emptyState.style.display = 'block';
+        return;
+    }
+    
+    // Фильтр по цвету
+    const colorFilter = document.getElementById('colorFilter').value;
+    const filteredNotes = colorFilter ? 
+        notes.filter(note => note.color === colorFilter) : notes;
+    
+    notesContainer.innerHTML = filteredNotes.map(note => createNoteCard(note)).join('');
+}
+
+function createNoteCard(note) {
+    const viewClass = isGridView ? 'col-md-4 col-lg-3' : 'col-12';
+    const cardClass = isGridView ? 'grid-view' : 'list-view';
+    const pinnedClass = note.is_pinned ? 'pinned' : '';
+    const archivedClass = note.is_archived ? 'archived' : '';
+    
+    const content = note.content.length > 100 ? 
+        note.content.substring(0, 100) + '...' : note.content;
+    
+    const createdDate = new Date(note.created_at).toLocaleDateString('ru-RU');
+    const updatedDate = new Date(note.updated_at).toLocaleDateString('ru-RU');
+    
+    return `
+        <div class="${viewClass}">
+            <div class="card note-card ${cardClass} ${pinnedClass} ${archivedClass}" 
+                 style="background-color: ${note.color};" 
+                 onclick="viewNote(${note.id})">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title mb-0 flex-grow-1">${escapeHtml(note.title)}</h6>
+                        <div class="note-actions">
+                            <button class="btn btn-sm btn-outline-primary me-1" 
+                                    onclick="event.stopPropagation(); togglePin(${note.id})"
+                                    title="${note.is_pinned ? 'Открепить' : 'Закрепить'}">
+                                <i class="fas fa-thumbtack"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning me-1" 
+                                    onclick="event.stopPropagation(); toggleArchive(${note.id})"
+                                    title="${note.is_archived ? 'Разархивировать' : 'Архивировать'}">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" 
+                                    onclick="event.stopPropagation(); deleteNote(${note.id})"
+                                    title="Удалить">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="note-content flex-grow-1 mb-2">
+                        ${escapeHtml(content)}
+                    </div>
+                    <div class="note-meta">
+                        <small>
+                            <i class="fas fa-calendar me-1"></i>
+                            Создано: ${createdDate}
+                            ${createdDate !== updatedDate ? ` | Обновлено: ${updatedDate}` : ''}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function toggleView() {
+    isGridView = !isGridView;
+    document.getElementById('viewToggleText').textContent = isGridView ? 'Список' : 'Сетка';
+    renderNotes(allNotes);
+}
+
+function showCreateModal() {
+    currentNote = null;
+    document.getElementById('noteModalTitle').textContent = 'Новая заметка';
+    document.getElementById('noteForm').reset();
+    document.getElementById('noteColor').value = '#ffffff';
+    document.getElementById('colorPresets').value = '#ffffff';
+    new bootstrap.Modal(document.getElementById('noteModal')).show();
+}
+
+function viewNote(noteId) {
+    const note = allNotes.find(n => n.id === noteId);
+    if (!note) return;
+    
+    currentNote = note;
+    document.getElementById('viewModalTitle').textContent = note.title;
+    document.getElementById('viewNoteContent').innerHTML = `
+        <div style="background-color: ${note.color}; padding: 20px; border-radius: 8px; min-height: 200px;">
+            <h5>${escapeHtml(note.title)}</h5>
+            <div style="white-space: pre-wrap;">${escapeHtml(note.content)}</div>
+            <div class="note-meta mt-3">
+                <small>
+                    <i class="fas fa-calendar me-1"></i>
+                    Создано: ${new Date(note.created_at).toLocaleString('ru-RU')}
+                    ${note.created_at !== note.updated_at ? 
+                        ` | Обновлено: ${new Date(note.updated_at).toLocaleString('ru-RU')}` : ''}
+                </small>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('pinButtonText').textContent = note.is_pinned ? 'Открепить' : 'Закрепить';
+    document.getElementById('archiveButtonText').textContent = note.is_archived ? 'Разархивировать' : 'Архивировать';
+    
+    new bootstrap.Modal(document.getElementById('viewModal')).show();
+}
+
+function editCurrentNote() {
+    if (!currentNote) return;
+    
+    document.getElementById('noteModalTitle').textContent = 'Редактировать заметку';
+    document.getElementById('noteTitle').value = currentNote.title;
+    document.getElementById('noteContent').value = currentNote.content;
+    document.getElementById('noteColor').value = currentNote.color;
+    document.getElementById('colorPresets').value = currentNote.color;
+    document.getElementById('notePinned').checked = currentNote.is_pinned;
+    
+    bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();
+    new bootstrap.Modal(document.getElementById('noteModal')).show();
+}
+
+async function saveNote() {
+    const title = document.getElementById('noteTitle').value.trim();
+    const content = document.getElementById('noteContent').value.trim();
+    const color = document.getElementById('noteColor').value;
+    const isPinned = document.getElementById('notePinned').checked;
+    
+    if (!title || !content) {
+        showAlert('Заполните все обязательные поля', 'warning');
+        return;
+    }
+    
+    try {
+        const url = currentNote ? `/api/notes/${currentNote.id}` : '/api/notes/';
+        const method = currentNote ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title: title,
+                content: content,
+                color: color,
+                is_pinned: isPinned
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('noteModal')).hide();
+            loadNotes();
+            showAlert(currentNote ? 'Заметка обновлена' : 'Заметка создана', 'success');
+        } else {
+            showAlert('Ошибка сохранения: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка сохранения: ' + error.message, 'danger');
+    }
+}
+
+async function togglePin(noteId) {
+    try {
+        const response = await fetch(`/api/notes/${noteId}/pin`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loadNotes();
+        } else {
+            showAlert('Ошибка: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка: ' + error.message, 'danger');
+    }
+}
+
+async function toggleArchive(noteId) {
+    try {
+        const response = await fetch(`/api/notes/${noteId}/archive`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loadNotes();
+        } else {
+            showAlert('Ошибка: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка: ' + error.message, 'danger');
+    }
+}
+
+async function deleteNote(noteId) {
+    if (!confirm('Вы уверены, что хотите удалить эту заметку?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/notes/${noteId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loadNotes();
+            showAlert('Заметка удалена', 'success');
+        } else {
+            showAlert('Ошибка удаления: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка удаления: ' + error.message, 'danger');
+    }
+}
+
+function togglePinCurrent() {
+    if (currentNote) {
+        togglePin(currentNote.id);
+        bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();
+    }
+}
+
+function toggleArchiveCurrent() {
+    if (currentNote) {
+        toggleArchive(currentNote.id);
+        bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();
+    }
+}
+
+function deleteCurrentNote() {
+    if (currentNote) {
+        deleteNote(currentNote.id);
+        bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();
+    }
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
+
+
