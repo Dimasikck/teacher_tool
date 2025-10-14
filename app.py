@@ -11,7 +11,10 @@ from tasks import tasks_bp
 from docs import docs_bp
 from admin import admin_bp
 from notes import notes_bp
+<<<<<<< HEAD
 from analytics import analytics_bp
+=======
+>>>>>>> 4ccf68fb13e4f8a80b84b9e450eb07618d907b8f
 import os
 import hmac
 import hashlib
@@ -47,7 +50,10 @@ app.register_blueprint(tasks_bp)
 app.register_blueprint(docs_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(notes_bp)
+<<<<<<< HEAD
 app.register_blueprint(analytics_bp)
+=======
+>>>>>>> 4ccf68fb13e4f8a80b84b9e450eb07618d907b8f
 
 
 @app.route('/')
