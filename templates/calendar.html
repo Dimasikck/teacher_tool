@@ -504,7 +504,7 @@
     </div>
     <div class="col-12">
         <div class="calendar-actions" role="group">
-            <button class="btn btn-primary" onclick="showEventModal()">
+            <button class="btn btn-primary" onclick="showLessonModal()">
                 <i class="bi bi-plus"></i> <span>Добавить занятие</span>
             </button>
             <button class="btn btn-primary" onclick="showRecurringLessonModal()">
@@ -522,8 +522,8 @@
             <button class="btn btn-success" onclick="exportToExcel()">
                 <i class="bi bi-download"></i> <span>Экспорт</span>
             </button>
-            <button class="btn btn-secondary" onclick="refreshCalendar()">
-                <i class="bi bi-arrow-clockwise"></i> <span>Обновить</span>
+            <button class="btn btn-primary" onclick="showEventModal()">
+                <i class="bi bi-calendar-event"></i> <span>Мероприятие</span>
             </button>
         </div>
     </div>
@@ -531,7 +531,7 @@
 
 <div id='calendar'></div>
 
-<div class="modal fade" id="eventModal">
+<div class="modal fade" id="lessonModal">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -593,6 +593,81 @@
                     Удалить
                 </button>
                 <button type="button" class="btn btn-primary" onclick="saveEvent()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для создания мероприятий -->
+<div class="modal fade" id="eventModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventModalTitle">Новое мероприятие</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Название мероприятия</label>
+                    <input type="text" id="eventTitle" class="form-control" placeholder="Например: Конференция, Семинар, Встреча">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Описание</label>
+                    <textarea id="eventDescription" class="form-control" rows="3" placeholder="Описание мероприятия (необязательно)"></textarea>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Дата</label>
+                            <input type="date" id="eventDate" class="form-control">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Начало</label>
+                            <input type="time" id="eventStart" class="form-control">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Конец</label>
+                            <input type="time" id="eventEnd" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Место проведения</label>
+                    <input type="text" id="eventLocation" class="form-control" placeholder="Например: Аудитория 101, Конференц-зал">
+                    <div class="form-text">Необязательное поле</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Тип мероприятия</label>
+                    <select id="eventType" class="form-select">
+                        <option value="conference">Конференция</option>
+                        <option value="seminar">Семинар</option>
+                        <option value="meeting">Встреча</option>
+                        <option value="workshop">Мастер-класс</option>
+                        <option value="presentation">Презентация</option>
+                        <option value="other">Другое</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Цвет</label>
+                    <div id="eventColorPicker">
+                        <span class="group-color-picker" style="background-color: #dc3545" data-color="#dc3545"></span>
+                        <span class="group-color-picker" style="background-color: #28a745" data-color="#28a745"></span>
+                        <span class="group-color-picker" style="background-color: #007bff" data-color="#007bff"></span>
+                        <span class="group-color-picker" style="background-color: #ffc107" data-color="#ffc107"></span>
+                        <span class="group-color-picker" style="background-color: #6f42c1" data-color="#6f42c1"></span>
+                        <span class="group-color-picker" style="background-color: #e83e8c" data-color="#e83e8c"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger d-none" id="deleteEventBtn" onclick="deleteEvent()">
+                    Удалить
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveEvent()">Сохранить мероприятие</button>
             </div>
         </div>
     </div>
@@ -1031,7 +1106,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (info.dateStr.includes('T')) {
                 document.getElementById('eventStart').value = info.dateStr.split('T')[1].substring(0, 5);
             }
-            showEventModal();
+            showLessonModal();
         },
         eventDrop: function(info) {
             updateEventTime(info.event);
@@ -1084,7 +1159,7 @@ function loadEvents(info, successCallback, failureCallback) {
         });
 }
 
-function showEventModal() {
+function showLessonModal() {
     currentEvent = null;
     document.getElementById('modalTitle').textContent = 'Новое занятие';
     document.getElementById('deleteBtn').classList.add('d-none');
@@ -1093,29 +1168,170 @@ function showEventModal() {
     document.getElementById('eventStart').value = '';
     document.getElementById('eventEnd').value = '';
     document.getElementById('eventClassroom').value = '';
+    new bootstrap.Modal(document.getElementById('lessonModal')).show();
+}
+
+function showEventModal() {
+    currentEvent = null;
+    document.getElementById('eventModalTitle').textContent = 'Новое мероприятие';
+    document.getElementById('deleteEventBtn').classList.add('d-none');
+    document.getElementById('eventTitle').value = '';
+    document.getElementById('eventDescription').value = '';
+    document.getElementById('eventDate').value = '';
+    document.getElementById('eventStart').value = '';
+    document.getElementById('eventEnd').value = '';
+    document.getElementById('eventLocation').value = '';
+    document.getElementById('eventType').value = 'conference';
+    
+    // Устанавливаем сегодняшнюю дату по умолчанию
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('eventDate').value = today;
+    
+    // Устанавливаем время по умолчанию
+    document.getElementById('eventStart').value = '10:00';
+    document.getElementById('eventEnd').value = '11:00';
+    
+    // Инициализируем цветовую палитру для мероприятий
+    document.querySelectorAll('#eventColorPicker .group-color-picker').forEach(picker => {
+        picker.addEventListener('click', function() {
+            document.querySelectorAll('#eventColorPicker .group-color-picker').forEach(p => p.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedColor = this.dataset.color;
+        });
+    });
+    
+    // Выбираем первый цвет по умолчанию
+    document.querySelector('#eventColorPicker .group-color-picker').classList.add('selected');
+    selectedColor = '#dc3545';
+    
     new bootstrap.Modal(document.getElementById('eventModal')).show();
 }
 
 function editEvent(event) {
     currentEvent = event;
-    document.getElementById('modalTitle').textContent = 'Редактировать занятие';
-    document.getElementById('deleteBtn').classList.remove('d-none');
-    document.getElementById('eventTitle').value = event.title;
-    document.getElementById('eventDate').value = event.startStr.split('T')[0];
-    document.getElementById('eventStart').value = event.start.toTimeString().substring(0, 5);
-    document.getElementById('eventEnd').value = event.end.toTimeString().substring(0, 5);
-    document.getElementById('eventGroup').value = event.extendedProps.groupId;
-    document.getElementById('eventClassroom').value = event.extendedProps.classroom || '';
-    selectedColor = event.backgroundColor;
+    
+    // Проверяем, является ли это мероприятием
+    if (event.extendedProps && event.extendedProps.is_event) {
+        document.getElementById('eventModalTitle').textContent = 'Редактировать мероприятие';
+        document.getElementById('deleteEventBtn').classList.remove('d-none');
+        
+        document.getElementById('eventTitle').value = event.title.split('\n')[2] || event.title; // Берем название из третьей строки
+        document.getElementById('eventDescription').value = event.extendedProps.description || '';
+        document.getElementById('eventDate').value = event.startStr.split('T')[0];
+        document.getElementById('eventStart').value = event.start.toTimeString().substring(0, 5);
+        document.getElementById('eventEnd').value = event.end.toTimeString().substring(0, 5);
+        document.getElementById('eventLocation').value = event.extendedProps.classroom || '';
+        document.getElementById('eventType').value = event.extendedProps.event_type || 'other';
+        
+        selectedColor = event.backgroundColor;
+        
+        // Обновляем цветовую палитру
+        document.querySelectorAll('#eventColorPicker .group-color-picker').forEach(p => {
+            p.classList.toggle('selected', p.dataset.color === selectedColor);
+        });
+        
+        new bootstrap.Modal(document.getElementById('eventModal')).show();
+    } else {
+        // Для обычных занятий используем модальное окно занятий
+        document.getElementById('modalTitle').textContent = 'Редактировать занятие';
+        document.getElementById('deleteBtn').classList.remove('d-none');
+        document.getElementById('eventTitle').value = event.title;
+        document.getElementById('eventDate').value = event.startStr.split('T')[0];
+        document.getElementById('eventStart').value = event.start.toTimeString().substring(0, 5);
+        document.getElementById('eventEnd').value = event.end.toTimeString().substring(0, 5);
+        document.getElementById('eventGroup').value = event.extendedProps.groupId;
+        document.getElementById('eventClassroom').value = event.extendedProps.classroom || '';
+        selectedColor = event.backgroundColor;
 
-    document.querySelectorAll('.group-color-picker').forEach(p => {
-        p.classList.toggle('selected', p.dataset.color === selectedColor);
-    });
+        document.querySelectorAll('.group-color-picker').forEach(p => {
+            p.classList.toggle('selected', p.dataset.color === selectedColor);
+        });
 
-    new bootstrap.Modal(document.getElementById('eventModal')).show();
+        new bootstrap.Modal(document.getElementById('lessonModal')).show();
+    }
 }
 
 function saveEvent() {
+    // Проверяем, какое модальное окно открыто
+    const eventModal = document.getElementById('eventModal');
+    const lessonModal = document.getElementById('lessonModal');
+    
+    if (eventModal.classList.contains('show') || eventModal.style.display !== 'none') {
+        // Сохраняем мероприятие
+        saveEventData();
+    } else if (lessonModal.classList.contains('show') || lessonModal.style.display !== 'none') {
+        // Сохраняем занятие
+        saveLessonData();
+    }
+}
+
+function saveEventData() {
+    const title = document.getElementById('eventTitle').value;
+    const description = document.getElementById('eventDescription').value;
+    const date = document.getElementById('eventDate').value;
+    const start = document.getElementById('eventStart').value;
+    const end = document.getElementById('eventEnd').value;
+    const location = document.getElementById('eventLocation').value;
+    const eventType = document.getElementById('eventType').value;
+
+    if (!title || !date || !start || !end) {
+        alert('Заполните все обязательные поля');
+        return;
+    }
+
+    const eventData = {
+        title: title,
+        description: description,
+        start: `${date}T${start}:00`,
+        end: `${date}T${end}:00`,
+        location: location,
+        event_type: eventType,
+        color: selectedColor,
+        is_event: true  // Помечаем как мероприятие
+    };
+
+    const url = currentEvent
+        ? `/api/schedule/update/${currentEvent.id}`
+        : '/api/schedule/create-event';
+
+    const method = currentEvent ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(eventData)
+    })
+    .then(r => {
+        if (!r.ok) {
+            throw new Error(`HTTP error! status: ${r.status}`);
+        }
+        return r.json();
+    })
+    .then(data => {
+        if (data.status === 'success' || data.id) {
+            // Закрываем модальное окно
+            bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+            
+            // Обновляем календарь
+            calendar.refetchEvents();
+            
+            // Показываем сообщение об успехе
+            if (!currentEvent) {
+                alert('Мероприятие успешно создано!');
+            } else {
+                alert('Мероприятие успешно обновлено!');
+            }
+        } else {
+            alert('Ошибка при сохранении мероприятия');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при сохранении мероприятия: ' + error.message);
+    });
+}
+
+function saveLessonData() {
     const title = document.getElementById('eventTitle').value;
     const date = document.getElementById('eventDate').value;
     const start = document.getElementById('eventStart').value;
@@ -1157,7 +1373,7 @@ function saveEvent() {
     .then(data => {
         if (data.status === 'success' || data.id) {
             // Закрываем модальное окно
-            bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+            bootstrap.Modal.getInstance(document.getElementById('lessonModal')).hide();
             
             // Обновляем календарь
             calendar.refetchEvents();
@@ -1180,16 +1396,18 @@ function saveEvent() {
 
 function deleteEvent() {
     if (!currentEvent) {
-        alert('Нет выбранного занятия для удаления');
+        alert('Нет выбранного события для удаления');
         return;
     }
     
-    if (!confirm('Вы уверены, что хотите удалить это занятие? Это действие нельзя отменить.')) {
+    const eventType = currentEvent.extendedProps && currentEvent.extendedProps.is_event ? 'мероприятие' : 'занятие';
+    
+    if (!confirm(`Вы уверены, что хотите удалить это ${eventType}? Это действие нельзя отменить.`)) {
         return;
     }
 
-    // Показываем индикатор загрузки
-    const deleteBtn = document.getElementById('deleteBtn');
+    // Определяем правильную кнопку удаления
+    const deleteBtn = document.getElementById('deleteBtn') || document.getElementById('deleteEventBtn');
     const originalText = deleteBtn.innerHTML;
     deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Удаление...';
     deleteBtn.disabled = true;
@@ -1212,21 +1430,28 @@ function deleteEvent() {
     .then(data => {
         console.log('Delete response data:', data);
         if (data.status === 'success') {
-            // Закрываем модальное окно
-            bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+            // Закрываем правильное модальное окно
+            const eventModal = document.getElementById('eventModal');
+            const lessonModal = document.getElementById('lessonModal');
+            
+            if (eventModal.classList.contains('show') || eventModal.style.display !== 'none') {
+                bootstrap.Modal.getInstance(eventModal).hide();
+            } else if (lessonModal.classList.contains('show') || lessonModal.style.display !== 'none') {
+                bootstrap.Modal.getInstance(lessonModal).hide();
+            }
             
             // Обновляем календарь
             calendar.refetchEvents();
             
             // Показываем сообщение об успехе
-            alert('Занятие успешно удалено!');
+            alert(`${eventType.charAt(0).toUpperCase() + eventType.slice(1)} успешно удалено!`);
         } else {
-            alert('Ошибка при удалении занятия: ' + (data.error || 'Неизвестная ошибка'));
+            alert(`Ошибка при удалении ${eventType}: ` + (data.error || 'Неизвестная ошибка'));
         }
     })
     .catch(error => {
         console.error('Error deleting event:', error);
-        alert('Ошибка при удалении занятия: ' + error.message);
+        alert(`Ошибка при удалении ${eventType}: ` + error.message);
     })
     .finally(() => {
         // Восстанавливаем кнопку

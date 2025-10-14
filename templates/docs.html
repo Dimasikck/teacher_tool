@@ -1,17 +1,20 @@
 {% extends 'base.html' %}
-{% block title %}Облачная документация{% endblock %}
+{% block title %}Yandex Disk - Облачные файлы{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <!-- Заголовок -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="bi bi-cloud"></i> Облачная документация</h2>
+        <h2><i class="bi bi-cloud"></i> Yandex Disk - Облачные файлы</h2>
         <div>
-            <button class="btn btn-primary" onclick="showCloudSettingsModal()">
-                <i class="bi bi-gear"></i> Настроить облако
+            <button class="btn btn-primary" onclick="showSettingsModal()">
+                <i class="bi bi-gear"></i> Настройки
             </button>
-            <button class="btn btn-success" onclick="showCategoryModal()">
-                <i class="bi bi-folder-plus"></i> Создать категорию
+            <button class="btn btn-success" onclick="uploadFile()">
+                <i class="bi bi-cloud-upload"></i> Загрузить файл
+            </button>
+            <button class="btn btn-info" onclick="refreshFiles()">
+                <i class="bi bi-arrow-clockwise"></i> Обновить
             </button>
         </div>
     </div>
@@ -19,464 +22,724 @@
     <!-- Статус подключения -->
     <div class="row mb-4">
         <div class="col-12">
-            {% if cloud_settings and cloud_settings.is_active %}
-                <div class="alert alert-success" id="cloudStatusAlert">
-                    <i class="bi bi-check-circle"></i>
-                    <strong>Облако подключено:</strong> {{ cloud_settings.cloud_type|title }} Cloud
-                    <span id="tokenStatus" class="ms-2"></span>
-                    <button class="btn btn-sm btn-outline-success ms-2" onclick="showCloudSettingsModal()">
-                        <i class="bi bi-pencil"></i> Редактировать
-                    </button>
-                </div>
-            {% else %}
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <strong>Облако не настроено</strong> - Нажмите "Настроить облако" для подключения
-                </div>
-            {% endif %}
-                </div>
+            <div id="connectionStatus" class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Подключение не настроено</strong> - Нажмите "Настройки" для подключения к Yandex Disk
             </div>
+        </div>
+    </div>
 
-    <!-- Обозреватель облака (после подключения) -->
+    <!-- Навигация по папкам -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
-                        <i class="bi bi-cloud"></i> Облако
-                        <span id="currentPath" class="text-muted ms-2">/</span>
+                        <i class="bi bi-folder"></i> Текущая папка: 
+                        <span id="currentPath" class="text-primary">/</span>
                     </div>
-                    <div class="input-group" style="max-width: 480px;">
-                        <input type="text" class="form-control form-control-sm" id="pathInput" placeholder="/путь/к/папке" value="/">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="navigateToPath()"><i class="bi bi-arrow-right"></i></button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="loadCloudRoot()" title="Корень"><i class="bi bi-house"></i></button>
+                    <div class="input-group" style="max-width: 400px;">
+                        <input type="text" class="form-control" id="pathInput" placeholder="/путь/к/папке" value="/">
+                        <button class="btn btn-outline-secondary" onclick="navigateToPath()">
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="goToRoot()" title="Корень">
+                            <i class="bi bi-house"></i>
+                        </button>
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="row" id="cloudFolders"></div>
-                    <hr>
-                    <div class="row" id="cloudFiles"></div>
-                    <div class="mt-3">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="runDiagnostics()">
-                            <i class="bi bi-activity"></i> Диагностика текущего пути
-                        </button>
-                        <pre id="diagOut" class="mt-2 small" style="max-height: 240px; overflow:auto; display:none"></pre>
-                    </div>
+                    <nav aria-label="breadcrumb">
+                        <ol id="breadcrumb" class="breadcrumb mb-0">
+                            <li class="breadcrumb-item"><a href="#" onclick="goToRoot()">Корень</a></li>
+                        </ol>
+                    </nav>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Категории -->
+    <!-- Список файлов и папок -->
     <div class="row mb-4">
-        <div class="col-12">
-            <h4><i class="bi bi-folder2"></i> Категории</h4>
-            {% if categories %}
-                <div class="row" id="categoriesList">
-                    {% for category in categories %}
-                    <div class="col-md-4 mb-3">
-                        <div class="card category-card" onclick="openCategory({{ category.id }})">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center">
-                                    <div class="me-3">
-                                        <i class="bi bi-folder-fill" style="font-size: 2rem; color: #667eea;"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="card-title mb-1">{{ category.name }}</h6>
-                                        <p class="card-text text-muted small mb-2">{{ category.cloud_path }}</p>
-                                        {% if category.description %}
-                                        <p class="card-text small">{{ category.description }}</p>
-                                        {% endif %}
-                                    </div>
-                                    <div class="dropdown">
-                                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
-                                            <i class="bi bi-three-dots"></i>
-                                        </button>
-                                        <ul class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="#" onclick="editCategory({{ category.id }})">
-                                                <i class="bi bi-pencil"></i> Редактировать
-                                            </a></li>
-                                            <li><a class="dropdown-item" href="#" onclick="deleteCategory({{ category.id }})">
-                                                <i class="bi bi-trash"></i> Удалить
-                                            </a></li>
-                                        </ul>
-                </div>
-            </div>
-        </div>
-                </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="text-center py-5">
-                    <i class="bi bi-folder-x" style="font-size: 4rem; color: #ccc;"></i>
-                    <h4 class="mt-3 text-muted">Нет категорий</h4>
-                    <p class="text-muted">Создайте первую категорию для организации файлов</p>
-                    <button class="btn btn-primary" onclick="showCategoryModal()">
-                        <i class="bi bi-folder-plus"></i> Создать категорию
-                    </button>
-                </div>
-            {% endif %}
-            </div>
-        </div>
-
-    <!-- Содержимое категории (скрыто по умолчанию) -->
-    <div id="categoryContent" class="row" style="display: none;">
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0" id="categoryTitle">
-                        <i class="bi bi-folder2-open"></i> <span id="categoryName"></span>
+                    <h5 class="mb-0">
+                        <i class="bi bi-files"></i> Файлы и папки
                     </h5>
-                    <div>
-                        <button class="btn btn-sm btn-primary" onclick="showUploadModal()">
-                            <i class="bi bi-cloud-upload"></i> Загрузить файл
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-secondary" onclick="toggleView('grid')" id="gridViewBtn">
+                            <i class="bi bi-grid-3x3-gap"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="closeCategory()">
-                            <i class="bi bi-x"></i> Закрыть
+                        <button class="btn btn-outline-secondary" onclick="toggleView('list')" id="listViewBtn">
+                            <i class="bi bi-list"></i>
                         </button>
+                    </div>
                 </div>
-            </div>
                 <div class="card-body">
-                    <div id="filesList" class="row">
+                    <div id="filesContainer" class="row">
                         <!-- Файлы будут загружены динамически -->
-        </div>
+                        <div class="col-12 text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Загрузка файлов...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-<!-- Модальное окно настроек облака -->
-<div class="modal fade" id="cloudSettingsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-gear"></i> Настройки облака</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-<div class="modal-body">
-    <div class="alert alert-info">
-        <div class="fw-bold mb-1">Краткая инструкция для Mail.ru Cloud:</div>
-        <div class="small">
-            1) В поле "API URL" укажите `https://cloud.mail.ru/api/v2`.
-            2) Получите `Client ID`/`Client Secret` в настройках вашего приложения Mail.ru.
-            3) Получите `Access Token` и при необходимости `Refresh Token`.
-            4) Отметьте "Активировать подключение" и сохраните.
-            5) Нажмите "Тестировать подключение" для проверки.
-        </div>
-    </div>
-                <form id="cloudSettingsForm">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="cloudType" class="form-label">Тип облака</label>
-                                <select class="form-select" id="cloudType" name="cloud_type" required>
-                                    <option value="webdav">WebDAV</option>
-                                    <option value="mail">Mail.ru Cloud (OAuth)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="apiUrl" class="form-label">WebDAV Hostname / API URL</label>
-                                <input type="url" class="form-control" id="apiUrl" name="api_url" value="https://webdav.cloud.mail.ru" required>
-                                <div class="form-text">Для Mail.ru Cloud: <code>https://webdav.cloud.mail.ru</code><br>Для Nextcloud: <code>https://your-domain.com/remote.php/dav/files/USERNAME</code></div>
-                            </div>
+    <!-- Модальное окно настроек -->
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-gear"></i> Настройки Yandex Disk</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <div class="fw-bold mb-1">Инструкция по настройке:</div>
+                        <div class="small">
+                            1) Перейдите на <a href="https://oauth.yandex.ru/" target="_blank">https://oauth.yandex.ru/</a><br>
+                            2) Создайте новое приложение<br>
+                            3) Установите Redirect URI: <code>https://oauth.yandex.ru/verification_code</code><br>
+                            4) Скопируйте Client ID и Client Secret<br>
+                            5) Введите данные в форму ниже<br>
+                            6) Нажмите "Получить токен" для авторизации
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="clientId" class="form-label">Логин (WebDAV login) / Client ID</label>
-                                <input type="text" class="form-control" id="clientId" name="client_id" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="clientSecret" class="form-label">Пароль (WebDAV password) / Client Secret</label>
-                                <input type="password" class="form-control" id="clientSecret" name="client_secret" required>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row" id="oauthFields">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="accessToken" class="form-label">Access Token (OAuth)</label>
-                                <input type="text" class="form-control" id="accessToken" name="access_token">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="refreshToken" class="form-label">Refresh Token (OAuth)</label>
-                                <input type="text" class="form-control" id="refreshToken" name="refresh_token" placeholder="Для WebDAV не требуется">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="isActive" name="is_active">
-                            <label class="form-check-label" for="isActive">
-                                Активировать подключение
-                            </label>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <button type="button" class="btn btn-outline-info" onclick="testCloudConnection()">
-                            <i class="bi bi-wifi"></i> Тестировать подключение
-                        </button>
-                        <div id="connectionTestResult" class="mt-2"></div>
-                        <div class="mt-2" id="oauthButtonRow">
-                            <button type="button" class="btn btn-outline-primary" onclick="startOAuth()">
-                                <i class="bi bi-box-arrow-in-right"></i> Войти через OAuth (Mail.ru)
-                            </button>
-                            <div class="form-text">Если видите 403 при авторизации Mail.ru, убедитесь, что redirect URI совпадает с зарегистрированным, и клиент создан для o2.mail.ru.</div>
-                        </div>
-                    </div>
-                </form>
-                                    </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="saveCloudSettings()">Сохранить</button>
-                                        </div>
-                                    </div>
+                    <form id="settingsForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="clientId" class="form-label">Client ID</label>
+                                    <input type="text" class="form-control" id="clientId" name="client_id" required>
                                 </div>
                             </div>
-
-<!-- Модальное окно создания категории -->
-<div class="modal fade" id="categoryModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-folder-plus"></i> Создать категорию</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="categoryForm">
-                    <div class="mb-3">
-                        <label for="categoryName" class="form-label">Название категории</label>
-                        <input type="text" class="form-control" id="categoryName" name="name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="cloudPath" class="form-label">Путь к папке в облаке</label>
-                        <div class="input-group">
-                            <select class="form-select" id="cloudPath" name="cloud_path" required>
-                                <option value="">Загрузка папок...</option>
-                            </select>
-                            <button class="btn btn-outline-secondary" type="button" onclick="loadCloudFolders()" title="Обновить список папок">
-                                <i class="bi bi-arrow-clockwise"></i>
-                            </button>
-                            <button class="btn btn-outline-primary" type="button" onclick="showCreateFolderModal()" title="Создать новую папку">
-                                <i class="bi bi-folder-plus"></i>
-                            </button>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="clientSecret" class="form-label">Client Secret</label>
+                                    <input type="password" class="form-control" id="clientSecret" name="client_secret" required>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-text">Выберите папку из вашего облачного хранилища или создайте новую</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="categoryDescription" class="form-label">Описание</label>
-                        <textarea class="form-control" id="categoryDescription" name="description" rows="3"></textarea>
-                    </div>
-                </form>
-                    </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="saveCategory()">Создать</button>
+                        <div class="mb-3">
+                            <label for="accessToken" class="form-label">Access Token</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="accessToken" name="access_token" placeholder="Введите токен вручную или получите автоматически">
+                                <button class="btn btn-outline-primary" type="button" onclick="getAccessToken()">
+                                    <i class="bi bi-key"></i> Получить токен
+                                </button>
+                            </div>
+                            <div class="form-text">Можно ввести код подтверждения (короткий) или токен доступа (длинный) вручную, либо получить автоматически</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="isActive" name="is_active">
+                                <label class="form-check-label" for="isActive">
+                                    Активировать подключение
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-outline-info" onclick="testConnection()">
+                                <i class="bi bi-wifi"></i> Тестировать подключение
+                            </button>
+                            <div id="testResult" class="mt-2"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSettings()">Сохранить</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Модальное окно создания папки в облаке -->
-<div class="modal fade" id="createFolderModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-folder-plus"></i> Создать папку в облаке</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="createFolderForm">
-                    <div class="mb-3">
-                        <label for="folderName" class="form-label">Название папки</label>
-                        <input type="text" class="form-control" id="folderName" name="folder_name" required>
-                        <div class="form-text">Введите название новой папки</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="parentPath" class="form-label">Родительская папка</label>
-                        <select class="form-select" id="parentPath" name="parent_path" required>
-                            <option value="/">Корневая папка</option>
-                        </select>
-                        <div class="form-text">Выберите папку, в которой создать новую</div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="createCloudFolder()">Создать папку</button>
+    <!-- Модальное окно загрузки файла -->
+    <div class="modal fade" id="uploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> Загрузить файл</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="fileInput" class="form-label">Выберите файл</label>
+                            <input type="file" class="form-control" id="fileInput" name="file" required>
+                            <div class="form-text">Поддерживаемые форматы: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, изображения, архивы</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="uploadPath" class="form-label">Папка назначения</label>
+                            <input type="text" class="form-control" id="uploadPath" name="path" value="/">
+                            <div class="form-text">Путь в Yandex Disk, куда загрузить файл</div>
+                        </div>
+                        <div class="progress mb-3" style="display: none;" id="uploadProgress">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="startUpload()">Загрузить</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Модальное окно загрузки файла -->
-<div class="modal fade" id="uploadModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> Загрузить файл</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="uploadForm" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="fileInput" class="form-label">Выберите файл</label>
-                        <input type="file" class="form-control" id="fileInput" name="file" required>
-                        <div class="form-text">Поддерживаемые форматы: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, изображения, архивы</div>
+    <!-- Модальное окно просмотра файла -->
+    <div class="modal fade" id="viewModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewModalTitle">
+                        <i class="bi bi-file-earmark"></i> Просмотр файла
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="fileViewer">
+                        <!-- Содержимое файла будет загружено динамически -->
                     </div>
-                    <div class="progress mb-3" style="display: none;" id="uploadProgress">
-                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="uploadFile()">Загрузить</button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="button" class="btn btn-primary" onclick="downloadCurrentFile()">
+                        <i class="bi bi-download"></i> Скачать
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <style>
-.category-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    cursor: pointer;
-    border: 1px solid #e9ecef;
-}
-
-.category-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.file-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border: 1px solid #e9ecef;
-}
-
-.file-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
+/* Стили для файлов и папок с поддержкой темной темы */
 .file-item {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    border: 1px solid var(--border-light);
+    margin-bottom: 1rem;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    color: var(--text-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.file-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--accent-gradient);
+    opacity: 0;
     transition: opacity 0.3s ease;
 }
 
-.file-item.hidden {
-    opacity: 0.3;
-    pointer-events: none;
+.file-item:hover::before {
+    opacity: 1;
 }
 
-/* Адаптивность */
+.file-item:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 8px 30px var(--shadow-medium);
+    border-color: var(--border-color);
+}
+
+.file-item.folder {
+    background: var(--accent-gradient);
+    color: white;
+    border: none;
+}
+
+.file-item.folder:hover {
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
+}
+
+.file-item.file {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.file-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    transition: transform 0.3s ease;
+}
+
+.file-item:hover .file-icon {
+    transform: scale(1.1);
+}
+
+.file-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: inherit;
+    word-break: break-word;
+}
+
+.file-meta {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    opacity: 0.8;
+}
+
+.grid-view .file-item {
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.list-view .file-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    height: auto;
+    min-height: 80px;
+}
+
+.list-view .file-icon {
+    font-size: 1.5rem;
+    margin-right: 1rem;
+    margin-bottom: 0;
+}
+
+.list-view .file-info {
+    flex: 1;
+}
+
+.file-actions {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.file-item:hover .file-actions {
+    opacity: 1;
+}
+
+.breadcrumb-item a {
+    color: var(--accent-primary);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.breadcrumb-item a:hover {
+    color: var(--accent-secondary);
+    text-decoration: underline;
+}
+
+#fileViewer {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    color: var(--text-primary);
+}
+
+.file-preview {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px var(--shadow-light);
+}
+
+.text-preview {
+    white-space: pre-wrap;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+}
+
+#connectionStatus {
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    font-weight: 500;
+    border: 1px solid var(--border-light);
+    backdrop-filter: blur(20px);
+    transition: all 0.3s ease;
+}
+
+#connectionStatus.connected {
+    background: linear-gradient(135deg, var(--success-color) 0%, #38a169 100%);
+    color: white;
+    border-color: var(--success-color);
+}
+
+#connectionStatus.disconnected {
+    background: linear-gradient(135deg, var(--error-color) 0%, #e53e3e 100%);
+    color: white;
+    border-color: var(--error-color);
+}
+
+#connectionStatus.connecting {
+    background: linear-gradient(135deg, var(--warning-color) 0%, #dd6b20 100%);
+    color: white;
+    border-color: var(--warning-color);
+}
+
+/* Стили для модальных окон */
+.modal-content {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px var(--shadow-dark);
+}
+
+.modal-header {
+    background: var(--bg-glass);
+    border-bottom: 1px solid var(--border-light);
+    border-radius: 16px 16px 0 0;
+}
+
+.modal-footer {
+    background: var(--bg-glass);
+    border-top: 1px solid var(--border-light);
+    border-radius: 0 0 16px 16px;
+}
+
+.modal-title {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Стили для форм */
+.form-control, .form-select {
+    background: var(--input-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 12px 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+}
+
+.form-control:focus, .form-select:focus {
+    background: var(--input-bg);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--input-focus);
+    outline: none;
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.form-label {
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+
+.form-text {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+/* Стили для карточек */
+.card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px var(--shadow-light);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    position: relative;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--accent-gradient);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.card:hover::before {
+    opacity: 1;
+}
+
+.card:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 8px 30px var(--shadow-medium);
+    border-color: var(--border-color);
+}
+
+.card-header {
+    background: var(--bg-glass);
+    border-bottom: 1px solid var(--border-light);
+    border-radius: 16px 16px 0 0;
+    font-weight: 600;
+    color: var(--text-primary);
+    padding: 1.25rem 1.5rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+    color: var(--text-primary);
+}
+
+/* Стили для кнопок */
+.btn {
+    border-radius: 12px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    padding: 12px 24px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    border: none;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn:hover::before {
+    left: 100%;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px var(--shadow-medium);
+}
+
+.btn-primary {
+    background: var(--accent-gradient);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(20px);
+}
+
+.btn-secondary:hover {
+    background: var(--hover-bg);
+    transform: translateY(-2px);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--success-color) 0%, #38a169 100%);
+    color: white;
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(72, 187, 120, 0.4);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--error-color) 0%, #e53e3e 100%);
+    color: white;
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(245, 101, 101, 0.4);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, var(--warning-color) 0%, #dd6b20 100%);
+    color: white;
+}
+
+.btn-warning:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(237, 137, 54, 0.4);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, var(--info-color) 0%, #3182ce 100%);
+    color: white;
+}
+
+.btn-info:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(66, 153, 225, 0.4);
+}
+
+/* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
-    .category-card, .file-card {
-        margin-bottom: 1rem;
+    .file-item {
+        margin-bottom: 0.75rem;
+    }
+    
+    .grid-view .file-item {
+        height: 160px;
+        padding: 1rem;
+    }
+    
+    .list-view .file-item {
+        padding: 0.75rem;
+        min-height: 60px;
+    }
+    
+    .file-icon {
+        font-size: 1.5rem;
+    }
+    
+    .list-view .file-icon {
+        font-size: 1.25rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        font-size: 0.9rem;
     }
 }
 </style>
 
 <script>
-let currentCategoryId = null;
-let allFiles = [];
+let currentPath = '/';
+let currentView = 'grid';
+let currentFile = null;
+let settings = null;
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
-    // Загружаем настройки облака при загрузке страницы
-    loadCloudSettings();
+    loadSettings();
+    loadFiles();
 });
 
-// === УПРАВЛЕНИЕ НАСТРОЙКАМИ ОБЛАКА ===
+// === УПРАВЛЕНИЕ НАСТРОЙКАМИ ===
 
-function showCloudSettingsModal() {
-    const modal = new bootstrap.Modal(document.getElementById('cloudSettingsModal'));
+function showSettingsModal() {
+    const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
     modal.show();
 }
 
-function loadCloudSettings() {
-    fetch('/docs/api/cloud/settings')
+function loadSettings() {
+    fetch('/docs/api/yandex/settings')
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.log('Настройки облака не найдены');
+                console.log('Настройки не найдены');
+                updateConnectionStatus(false, 'Подключение не настроено');
                 return;
             }
             
-            // Заполняем форму существующими настройками
-            document.getElementById('cloudType').value = data.cloud_type;
-            document.getElementById('apiUrl').value = data.api_url;
-            document.getElementById('clientId').value = data.client_id;
+            settings = data;
+            document.getElementById('clientId').value = data.client_id || '';
             document.getElementById('clientSecret').value = data.client_secret || '';
             document.getElementById('accessToken').value = data.access_token || '';
-            document.getElementById('refreshToken').value = data.refresh_token || '';
-            document.getElementById('isActive').checked = data.is_active;
+            document.getElementById('isActive').checked = data.is_active || false;
             
-            toggleOAuthVisibility();
-            // Обновляем статус токена
-            updateTokenStatus(data.token_status);
+            updateConnectionStatus(data.is_active, data.is_active ? 'Подключено к Yandex Disk' : 'Подключение неактивно');
+            
+            if (data.is_active) {
+                loadFiles();
+            }
         })
         .catch(error => {
             console.error('Ошибка загрузки настроек:', error);
+            updateConnectionStatus(false, 'Ошибка загрузки настроек');
         });
 }
 
-function updateTokenStatus(status) {
-    const tokenStatusElement = document.getElementById('tokenStatus');
-    if (!tokenStatusElement) return;
-    
-    switch(status) {
-        case 'valid':
-            tokenStatusElement.innerHTML = '<span class="badge bg-success">Токен действителен</span>';
-            break;
-        case 'invalid':
-            tokenStatusElement.innerHTML = '<span class="badge bg-danger">Токен недействителен</span>';
-            break;
-        case 'error':
-            tokenStatusElement.innerHTML = '<span class="badge bg-warning">Ошибка проверки токена</span>';
-            break;
-        default:
-            tokenStatusElement.innerHTML = '';
+function updateConnectionStatus(isConnected, message) {
+    const statusDiv = document.getElementById('connectionStatus');
+    if (isConnected) {
+        statusDiv.className = 'alert alert-success';
+        statusDiv.innerHTML = `<i class="bi bi-check-circle"></i> <strong>${message}</strong>`;
+    } else {
+        statusDiv.className = 'alert alert-warning';
+        statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> <strong>${message}</strong>`;
     }
 }
 
-function testCloudConnection() {
-    const resultDiv = document.getElementById('connectionTestResult');
+function getAccessToken() {
+    const clientId = document.getElementById('clientId').value;
+    const clientSecret = document.getElementById('clientSecret').value;
+    
+    if (!clientId || !clientSecret) {
+        showNotification('Заполните Client ID и Client Secret', 'warning');
+        return;
+    }
+    
+    // Открываем окно авторизации Yandex
+    const authUrl = `https://oauth.yandex.ru/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent('https://oauth.yandex.ru/verification_code')}`;
+    window.open(authUrl, 'yandex_auth', 'width=600,height=600,scrollbars=yes,resizable=yes');
+}
+
+function testConnection() {
+    const resultDiv = document.getElementById('testResult');
     resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2" role="status"></div>Тестирование подключения...';
     
-    // Собираем данные из формы
-    const form = document.getElementById('cloudSettingsForm');
-    const formData = new FormData(form);
-    
-    const testData = {
-        cloud_type: formData.get('cloud_type'),
-        api_url: formData.get('api_url'),
-        client_id: formData.get('client_id'),
-        client_secret: formData.get('client_secret'),
-        access_token: formData.get('access_token'),
-        refresh_token: formData.get('refresh_token')
-    };
-    
-    fetch('/docs/api/cloud/test-connection', {
+    fetch('/docs/api/yandex/test-connection', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(testData)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            client_id: document.getElementById('clientId').value,
+            client_secret: document.getElementById('clientSecret').value,
+            access_token: document.getElementById('accessToken').value
+        })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            resultDiv.innerHTML = '<div class="alert alert-success mb-0"><i class="bi bi-check-circle"></i> ' + data.message + '</div>';
+            resultDiv.innerHTML = `<div class="alert alert-success mb-0"><i class="bi bi-check-circle"></i> ${data.message}</div>`;
+            
+            // Если получен токен доступа, обновляем поле
+            if (data.access_token) {
+                document.getElementById('accessToken').value = data.access_token;
+                showNotification('Токен доступа получен и обновлен!', 'success');
+            }
         } else {
-            resultDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-x-circle"></i> ' + data.error + '</div>';
+            resultDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-x-circle"></i> ${data.error}</div>`;
         }
     })
     .catch(error => {
@@ -485,34 +748,29 @@ function testCloudConnection() {
     });
 }
 
-function saveCloudSettings() {
-    const form = document.getElementById('cloudSettingsForm');
+function saveSettings() {
+    const form = document.getElementById('settingsForm');
     const formData = new FormData(form);
     
     const data = {
-        cloud_type: formData.get('cloud_type'),
-        api_url: formData.get('api_url'),
         client_id: formData.get('client_id'),
         client_secret: formData.get('client_secret'),
         access_token: formData.get('access_token'),
-        refresh_token: formData.get('refresh_token'),
         is_active: document.getElementById('isActive').checked
     };
     
-    fetch('/docs/api/cloud/settings', {
+    fetch('/docs/api/yandex/settings', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             showNotification(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('cloudSettingsModal'));
+            const modal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
             modal.hide();
-            location.reload();
+            loadSettings();
         } else {
             showNotification(data.error, 'error');
         }
@@ -523,251 +781,71 @@ function saveCloudSettings() {
     });
 }
 
-document.getElementById('cloudType').addEventListener('change', toggleOAuthVisibility);
+// === НАВИГАЦИЯ ПО ПАПКАМ ===
 
-function toggleOAuthVisibility() {
-    const type = document.getElementById('cloudType').value;
-    const oauthFields = document.getElementById('oauthFields');
-    const oauthBtnRow = document.getElementById('oauthButtonRow');
-    if (type === 'webdav') {
-        // Для WebDAV скрываем кнопку OAuth, оставляем поле refreshToken как Root Path
-        if (oauthBtnRow) oauthBtnRow.style.display = 'none';
-        if (oauthFields) oauthFields.style.display = '';
-        const refresh = document.getElementById('refreshToken');
-        if (refresh) refresh.placeholder = 'Root Path (например, / или /shared/root)';
-    } else {
-        if (oauthBtnRow) oauthBtnRow.style.display = '';
-        if (oauthFields) oauthFields.style.display = '';
-        const refresh = document.getElementById('refreshToken');
-        if (refresh) refresh.placeholder = 'Refresh Token (OAuth)';
+function goToRoot() {
+    currentPath = '/';
+    updatePathDisplay();
+    loadFiles();
+}
+
+function navigateToPath() {
+    const path = document.getElementById('pathInput').value || '/';
+    currentPath = path;
+    updatePathDisplay();
+    loadFiles();
+}
+
+function updatePathDisplay() {
+    document.getElementById('currentPath').textContent = currentPath;
+    document.getElementById('pathInput').value = currentPath;
+    
+    // Обновляем breadcrumb
+    const breadcrumb = document.getElementById('breadcrumb');
+    breadcrumb.innerHTML = '<li class="breadcrumb-item"><a href="#" onclick="goToRoot()">Корень</a></li>';
+    
+    if (currentPath !== '/') {
+        const parts = currentPath.split('/').filter(part => part);
+        let currentPartPath = '';
+        
+        parts.forEach((part, index) => {
+            currentPartPath += '/' + part;
+            const isLast = index === parts.length - 1;
+            
+            const li = document.createElement('li');
+            li.className = 'breadcrumb-item';
+            if (isLast) {
+                li.className += ' active';
+                li.textContent = part;
+            } else {
+                const a = document.createElement('a');
+                a.href = '#';
+                a.textContent = part;
+                a.onclick = () => {
+                    currentPath = currentPartPath;
+                    updatePathDisplay();
+                    loadFiles();
+                };
+                li.appendChild(a);
+            }
+            breadcrumb.appendChild(li);
+        });
     }
 }
 
-// === УПРАВЛЕНИЕ КАТЕГОРИЯМИ ===
+function navigateToFolder(path) {
+    currentPath = path;
+    updatePathDisplay();
+    loadFiles();
+}
 
-function loadCloudFolders() {
-    const cloudPathSelect = document.getElementById('cloudPath');
+// === ЗАГРУЗКА ФАЙЛОВ ===
+
+function loadFiles() {
+    const container = document.getElementById('filesContainer');
     
     // Показываем индикатор загрузки
-    cloudPathSelect.innerHTML = '<option value="">Загрузка папок...</option>';
-    cloudPathSelect.disabled = true;
-    
-    fetch('/docs/api/cloud/folders')
-        .then(response => response.json())
-        .then(data => {
-            cloudPathSelect.innerHTML = '';
-            
-            if (data.error) {
-                cloudPathSelect.innerHTML = '<option value="">Ошибка загрузки папок</option>';
-                showNotification(data.error, 'error');
-                return;
-            }
-            
-            if (data.folders && data.folders.length > 0) {
-                data.folders.forEach(folder => {
-                    const option = document.createElement('option');
-                    option.value = folder.path;
-                    option.textContent = folder.name;
-                    if (folder.path === '/') {
-                        option.textContent = '📁 ' + folder.name;
-                    } else {
-                        option.textContent = '📂 ' + folder.name;
-                    }
-                    cloudPathSelect.appendChild(option);
-                });
-                
-                // Выбираем корневую папку по умолчанию
-                cloudPathSelect.value = '/';
-            } else {
-                cloudPathSelect.innerHTML = '<option value="">Папки не найдены</option>';
-            }
-            
-            cloudPathSelect.disabled = false;
-        })
-        .catch(error => {
-            cloudPathSelect.innerHTML = '<option value="">Ошибка подключения</option>';
-            cloudPathSelect.disabled = false;
-            showNotification('Ошибка загрузки папок из облака', 'error');
-            console.error('Error:', error);
-        });
-}
-
-function showCategoryModal() {
-    // Сбрасываем форму
-    document.getElementById('categoryForm').reset();
-    
-    // Восстанавливаем стандартные настройки модального окна
-    document.querySelector('#categoryModal .modal-title').innerHTML = '<i class="bi bi-folder-plus"></i> Создать категорию';
-    document.querySelector('#categoryModal .btn-primary').textContent = 'Создать';
-    document.querySelector('#categoryModal .btn-primary').onclick = saveCategory;
-    
-    // Загружаем папки из облака
-    loadCloudFolders();
-    
-    const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
-    modal.show();
-}
-
-function showCreateFolderModal() {
-    // Сбрасываем форму
-    document.getElementById('createFolderForm').reset();
-    
-    // Загружаем папки для выбора родительской папки
-    loadParentFolders();
-    
-    const modal = new bootstrap.Modal(document.getElementById('createFolderModal'));
-    modal.show();
-}
-
-function loadParentFolders() {
-    const parentPathSelect = document.getElementById('parentPath');
-    
-    // Показываем индикатор загрузки
-    parentPathSelect.innerHTML = '<option value="">Загрузка папок...</option>';
-    parentPathSelect.disabled = true;
-    
-    fetch('/docs/api/cloud/folders')
-        .then(response => response.json())
-        .then(data => {
-            parentPathSelect.innerHTML = '';
-            
-            if (data.error) {
-                parentPathSelect.innerHTML = '<option value="/">Корневая папка</option>';
-                showNotification(data.error, 'error');
-                return;
-            }
-            
-            if (data.folders && data.folders.length > 0) {
-                data.folders.forEach(folder => {
-                    const option = document.createElement('option');
-                    option.value = folder.path;
-                    option.textContent = folder.name;
-                    if (folder.path === '/') {
-                        option.textContent = '📁 ' + folder.name;
-                    } else {
-                        option.textContent = '📂 ' + folder.name;
-                    }
-                    parentPathSelect.appendChild(option);
-                });
-                
-                // Выбираем корневую папку по умолчанию
-                parentPathSelect.value = '/';
-            } else {
-                parentPathSelect.innerHTML = '<option value="/">Корневая папка</option>';
-            }
-            
-            parentPathSelect.disabled = false;
-        })
-        .catch(error => {
-            parentPathSelect.innerHTML = '<option value="/">Корневая папка</option>';
-            parentPathSelect.disabled = false;
-            showNotification('Ошибка загрузки папок', 'error');
-            console.error('Error:', error);
-        });
-}
-
-function createCloudFolder() {
-    const form = document.getElementById('createFolderForm');
-    const formData = new FormData(form);
-    
-    const data = {
-        folder_name: formData.get('folder_name'),
-        parent_path: formData.get('parent_path')
-    };
-    
-    if (!data.folder_name) {
-        showNotification('Введите название папки', 'warning');
-        return;
-    }
-    
-    fetch('/docs/api/cloud/create-folder', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('createFolderModal'));
-            modal.hide();
-            
-            // Обновляем список папок в основном модальном окне
-            loadCloudFolders();
-            
-            // Если есть путь к созданной папке, выбираем её
-            if (data.path) {
-                setTimeout(() => {
-                    const cloudPathSelect = document.getElementById('cloudPath');
-                    cloudPathSelect.value = data.path;
-                }, 1000);
-            }
-        } else {
-            showNotification(data.error, 'error');
-        }
-    })
-    .catch(error => {
-        showNotification('Ошибка создания папки', 'error');
-        console.error('Error:', error);
-    });
-}
-
-function saveCategory() {
-    const form = document.getElementById('categoryForm');
-    const formData = new FormData(form);
-    
-    const data = {
-        name: formData.get('name'),
-        cloud_path: formData.get('cloud_path'),
-        description: formData.get('description')
-    };
-    
-    fetch('/docs/api/cloud/categories', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
-            modal.hide();
-            location.reload();
-        } else {
-            showNotification(data.error, 'error');
-        }
-    })
-    .catch(error => {
-        showNotification('Ошибка создания категории', 'error');
-        console.error('Error:', error);
-    });
-}
-
-function openCategory(categoryId) {
-    currentCategoryId = categoryId;
-    
-    // Получаем название категории
-    const categoryCard = document.querySelector(`[onclick="openCategory(${categoryId})"]`);
-    const categoryName = categoryCard.querySelector('.card-title').textContent;
-    
-    // Показываем содержимое категории
-    document.getElementById('categoryName').textContent = categoryName;
-    document.getElementById('categoryContent').style.display = 'block';
-    
-    // Загружаем файлы категории
-    loadCategoryFiles(categoryId);
-}
-
-function loadCategoryFiles(categoryId) {
-    const filesList = document.getElementById('filesList');
-    
-    // Показываем индикатор загрузки
-    filesList.innerHTML = `
+    container.innerHTML = `
         <div class="col-12 text-center py-5">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Загрузка...</span>
@@ -776,17 +854,16 @@ function loadCategoryFiles(categoryId) {
         </div>
     `;
     
-    fetch(`/docs/api/cloud/files/${categoryId}`)
+    fetch(`/docs/api/yandex/files?path=${encodeURIComponent(currentPath)}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                showNotification(data.error, 'error');
-                filesList.innerHTML = `
+                container.innerHTML = `
                     <div class="col-12 text-center py-5">
                         <i class="bi bi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
                         <h4 class="mt-3 text-muted">Ошибка загрузки</h4>
                         <p class="text-muted">${data.error}</p>
-                        <button class="btn btn-primary" onclick="loadCategoryFiles(${categoryId})">
+                        <button class="btn btn-primary" onclick="loadFiles()">
                             <i class="bi bi-arrow-clockwise"></i> Попробовать снова
                         </button>
                     </div>
@@ -794,35 +871,16 @@ function loadCategoryFiles(categoryId) {
                 return;
             }
             
-            filesList.innerHTML = '';
-            
-            if (data.files && data.files.length > 0) {
-                data.files.forEach(file => {
-                    const fileCard = createFileCard(file);
-                    filesList.appendChild(fileCard);
-                });
-            } else {
-                filesList.innerHTML = `
-                    <div class="col-12 text-center py-5">
-                        <i class="bi bi-folder-x" style="font-size: 4rem; color: #ccc;"></i>
-                        <h4 class="mt-3 text-muted">Папка пуста</h4>
-                        <p class="text-muted">Загрузите первый файл в эту категорию</p>
-                        <button class="btn btn-primary" onclick="showUploadModal()">
-                            <i class="bi bi-cloud-upload"></i> Загрузить файл
-                        </button>
-                    </div>
-                `;
-            }
+            renderFiles(data.files || []);
         })
         .catch(error => {
-            showNotification('Ошибка загрузки файлов', 'error');
             console.error('Error:', error);
-            filesList.innerHTML = `
+            container.innerHTML = `
                 <div class="col-12 text-center py-5">
                     <i class="bi bi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
                     <h4 class="mt-3 text-muted">Ошибка подключения</h4>
                     <p class="text-muted">Не удалось загрузить файлы</p>
-                    <button class="btn btn-primary" onclick="loadCategoryFiles(${categoryId})">
+                    <button class="btn btn-primary" onclick="loadFiles()">
                         <i class="bi bi-arrow-clockwise"></i> Попробовать снова
                     </button>
                 </div>
@@ -830,73 +888,150 @@ function loadCategoryFiles(categoryId) {
         });
 }
 
-function createFileCard(file) {
-    const col = document.createElement('div');
-    col.className = 'col-md-6 col-lg-4 mb-3 file-item';
+function renderFiles(files) {
+    const container = document.getElementById('filesContainer');
+    container.innerHTML = '';
     
-    // Определяем иконку файла
-    const fileIcon = file.icon || 'bi-file-earmark';
-    const fileSize = file.size_formatted || 'Неизвестно';
-    const fileModified = file.modified || 'Неизвестно';
-    const fileName = file.name.length > 30 ? file.name.substring(0, 30) + '...' : file.name;
-    
-    col.innerHTML = `
-        <div class="card h-100 file-card">
-            <div class="card-body">
-                <div class="d-flex align-items-start">
-                    <div class="me-3">
-                        <i class="bi ${fileIcon}" style="font-size: 2rem; color: #667eea;"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h6 class="card-title mb-1" title="${file.name}">${fileName}</h6>
-                        <p class="card-text text-muted small mb-2">
-                            <i class="bi bi-hdd"></i> ${fileSize}<br>
-                            <i class="bi bi-clock"></i> ${fileModified}
-                        </p>
-                        <div class="btn-group btn-group-sm" role="group">
-                            <button class="btn btn-outline-primary" onclick="viewFile('${file.name}')" title="Просмотр">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                            <button class="btn btn-outline-success" onclick="downloadFile('${file.name}')" title="Скачать">
-                                <i class="bi bi-download"></i>
-                            </button>
-                            <button class="btn btn-outline-danger" onclick="deleteFile('${file.name}')" title="Удалить">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+    if (files.length === 0) {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-folder-x" style="font-size: 4rem; color: #ccc;"></i>
+                <h4 class="mt-3 text-muted">Папка пуста</h4>
+                <p class="text-muted">Загрузите первый файл в эту папку</p>
+                <button class="btn btn-primary" onclick="uploadFile()">
+                    <i class="bi bi-cloud-upload"></i> Загрузить файл
+                </button>
             </div>
-        </div>
-    `;
+        `;
+        return;
+    }
+    
+    files.forEach(file => {
+        const fileElement = createFileElement(file);
+        container.appendChild(fileElement);
+    });
+}
+
+function createFileElement(file) {
+    const col = document.createElement('div');
+    col.className = currentView === 'grid' ? 'col-md-3 col-sm-6 mb-3' : 'col-12 mb-2';
+    
+    const isFolder = file.type === 'dir';
+    const fileClass = isFolder ? 'folder' : 'file';
+    
+    if (currentView === 'grid') {
+        col.innerHTML = `
+            <div class="file-item ${fileClass}" onclick="${isFolder ? `navigateToFolder('${file.path}')` : `viewFile('${file.path}', '${file.name}')`}">
+                <div class="file-icon">
+                    <i class="bi ${isFolder ? 'bi-folder-fill' : getFileIcon(file.name)}"></i>
+                </div>
+                <div class="file-name">${file.name}</div>
+                <div class="file-meta">
+                    ${isFolder ? 'Папка' : file.size_formatted || ''}
+                </div>
+                ${!isFolder ? `
+                    <div class="file-actions">
+                        <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewFile('${file.path}', '${file.name}')" title="Просмотр">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); downloadFile('${file.path}', '${file.name}')" title="Скачать">
+                            <i class="bi bi-download"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteFile('${file.path}', '${file.name}')" title="Удалить">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    } else {
+        col.innerHTML = `
+            <div class="file-item ${fileClass}" onclick="${isFolder ? `navigateToFolder('${file.path}')` : `viewFile('${file.path}', '${file.name}')`}">
+                <div class="file-icon">
+                    <i class="bi ${isFolder ? 'bi-folder-fill' : getFileIcon(file.name)}"></i>
+                </div>
+                <div class="file-info">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-meta">${isFolder ? 'Папка' : file.size_formatted || ''}</div>
+                </div>
+                ${!isFolder ? `
+                    <div class="file-actions">
+                        <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewFile('${file.path}', '${file.name}')" title="Просмотр">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); downloadFile('${file.path}', '${file.name}')" title="Скачать">
+                            <i class="bi bi-download"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteFile('${file.path}', '${file.name}')" title="Удалить">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
     
     return col;
 }
 
-function closeCategory() {
-    document.getElementById('categoryContent').style.display = 'none';
-    currentCategoryId = null;
+function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const iconMap = {
+        'pdf': 'bi-file-earmark-pdf',
+        'doc': 'bi-file-earmark-word',
+        'docx': 'bi-file-earmark-word',
+        'xls': 'bi-file-earmark-excel',
+        'xlsx': 'bi-file-earmark-excel',
+        'ppt': 'bi-file-earmark-ppt',
+        'pptx': 'bi-file-earmark-ppt',
+        'txt': 'bi-file-earmark-text',
+        'jpg': 'bi-file-earmark-image',
+        'jpeg': 'bi-file-earmark-image',
+        'png': 'bi-file-earmark-image',
+        'gif': 'bi-file-earmark-image',
+        'mp4': 'bi-file-earmark-play',
+        'mp3': 'bi-file-earmark-music',
+        'zip': 'bi-file-earmark-zip',
+        'rar': 'bi-file-earmark-zip',
+        'html': 'bi-file-earmark-code',
+        'css': 'bi-file-earmark-code',
+        'js': 'bi-file-earmark-code',
+        'py': 'bi-file-earmark-code',
+        'java': 'bi-file-earmark-code',
+        'cpp': 'bi-file-earmark-code',
+        'c': 'bi-file-earmark-code',
+        'h': 'bi-file-earmark-code'
+    };
+    return iconMap[ext] || 'bi-file-earmark';
 }
 
-// === ЗАГРУЗКА ФАЙЛОВ ===
+function toggleView(view) {
+    currentView = view;
+    
+    // Обновляем кнопки
+    document.getElementById('gridViewBtn').classList.toggle('active', view === 'grid');
+    document.getElementById('listViewBtn').classList.toggle('active', view === 'list');
+    
+    // Перезагружаем файлы с новым видом
+    loadFiles();
+}
 
-function showUploadModal() {
-    if (!currentCategoryId) {
-        showNotification('Выберите категорию для загрузки файла', 'warning');
+// === ОПЕРАЦИИ С ФАЙЛАМИ ===
+
+function uploadFile() {
+    if (!settings || !settings.is_active) {
+        showNotification('Сначала настройте подключение к Yandex Disk', 'warning');
         return;
     }
     
+    document.getElementById('uploadPath').value = currentPath;
     const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
     modal.show();
 }
 
-function uploadFile() {
-    if (!currentCategoryId) {
-        showNotification('Выберите категорию для загрузки файла', 'warning');
-        return;
-    }
-    
+function startUpload() {
     const fileInput = document.getElementById('fileInput');
+    const uploadPath = document.getElementById('uploadPath').value;
     const file = fileInput.files[0];
     
     if (!file) {
@@ -906,13 +1041,14 @@ function uploadFile() {
     
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('path', uploadPath);
     
     const progressBar = document.getElementById('uploadProgress');
     const progressBarFill = progressBar.querySelector('.progress-bar');
     
     progressBar.style.display = 'block';
     
-    fetch(`/docs/api/cloud/upload/${currentCategoryId}`, {
+    fetch('/docs/api/yandex/upload', {
         method: 'POST',
         body: formData
     })
@@ -925,7 +1061,7 @@ function uploadFile() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('uploadModal'));
             modal.hide();
             fileInput.value = '';
-            loadCategoryFiles(currentCategoryId);
+            loadFiles();
         } else {
             showNotification(data.error, 'error');
         }
@@ -937,41 +1073,98 @@ function uploadFile() {
     });
 }
 
-// === ОПЕРАЦИИ С ФАЙЛАМИ ===
-
-function viewFile(filename) {
-    // Открываем файл в новом окне для просмотра
-    const viewUrl = `/docs/view/${encodeURIComponent(filename)}`;
-    window.open(viewUrl, '_blank');
+function viewFile(path, name) {
+    currentFile = { path, name };
+    
+    document.getElementById('viewModalTitle').innerHTML = `<i class="bi bi-file-earmark"></i> ${name}`;
+    
+    const viewer = document.getElementById('fileViewer');
+    viewer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-3">Загрузка файла...</p></div>';
+    
+    const modal = new bootstrap.Modal(document.getElementById('viewModal'));
+    modal.show();
+    
+    // Загружаем содержимое файла
+    fetch(`/docs/api/yandex/view?path=${encodeURIComponent(path)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                viewer.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
+                        <h4 class="mt-3 text-muted">Ошибка загрузки</h4>
+                        <p class="text-muted">${data.error}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            renderFileContent(data.content, data.type, name);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            viewer.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
+                    <h4 class="mt-3 text-muted">Ошибка подключения</h4>
+                    <p class="text-muted">Не удалось загрузить файл</p>
+                </div>
+            `;
+        });
 }
 
-function downloadFile(filename) {
-    // Скачиваем файл
-    const downloadUrl = `/docs/download/${encodeURIComponent(filename)}`;
+function renderFileContent(content, type, name) {
+    const viewer = document.getElementById('fileViewer');
+    
+    if (type.startsWith('image/')) {
+        viewer.innerHTML = `<img src="${content}" class="file-preview" alt="${name}">`;
+    } else if (type.startsWith('text/') || name.endsWith('.txt') || name.endsWith('.md')) {
+        viewer.innerHTML = `<div class="text-preview">${content}</div>`;
+    } else {
+        viewer.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-file-earmark" style="font-size: 4rem; color: #6c757d;"></i>
+                <h4 class="mt-3 text-muted">Предварительный просмотр недоступен</h4>
+                <p class="text-muted">Файл "${name}" не может быть отображен в браузере</p>
+                <button class="btn btn-primary" onclick="downloadCurrentFile()">
+                    <i class="bi bi-download"></i> Скачать файл
+                </button>
+            </div>
+        `;
+    }
+}
+
+function downloadCurrentFile() {
+    if (currentFile) {
+        downloadFile(currentFile.path, currentFile.name);
+    }
+}
+
+function downloadFile(path, name) {
+    const downloadUrl = `/docs/api/yandex/download?path=${encodeURIComponent(path)}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = filename;
+    link.download = name;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-function deleteFile(filename) {
-    if (!confirm(`Вы уверены, что хотите удалить файл "${filename}"?`)) {
+function deleteFile(path, name) {
+    if (!confirm(`Вы уверены, что хотите удалить "${name}"?`)) {
         return;
     }
     
-    fetch(`/docs/delete/${encodeURIComponent(filename)}`, {
-        method: 'POST'
+    fetch('/docs/api/yandex/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             showNotification(data.message, 'success');
-            // Перезагружаем список файлов
-            if (currentCategoryId) {
-                loadCategoryFiles(currentCategoryId);
-            }
+            loadFiles();
         } else {
             showNotification(data.error, 'error');
         }
@@ -982,100 +1175,8 @@ function deleteFile(filename) {
     });
 }
 
-// === УПРАВЛЕНИЕ КАТЕГОРИЯМИ (РЕДАКТИРОВАНИЕ И УДАЛЕНИЕ) ===
-
-function editCategory(categoryId) {
-    // Сначала загружаем папки из облака
-    loadCloudFolders();
-    
-    // Получаем данные категории
-    fetch(`/docs/api/cloud/categories/${categoryId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                showNotification(data.error, 'error');
-                return;
-            }
-            
-            // Заполняем форму редактирования
-            document.getElementById('categoryName').value = data.name;
-            document.getElementById('categoryDescription').value = data.description || '';
-            
-            // Устанавливаем путь к папке после загрузки папок
-            setTimeout(() => {
-                document.getElementById('cloudPath').value = data.cloud_path;
-            }, 500);
-            
-            // Показываем модальное окно
-            const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
-            modal.show();
-            
-            // Изменяем заголовок и кнопку
-            document.querySelector('#categoryModal .modal-title').innerHTML = '<i class="bi bi-pencil"></i> Редактировать категорию';
-            document.querySelector('#categoryModal .btn-primary').textContent = 'Сохранить';
-            document.querySelector('#categoryModal .btn-primary').onclick = () => updateCategory(categoryId);
-        })
-        .catch(error => {
-            showNotification('Ошибка загрузки данных категории', 'error');
-            console.error('Error:', error);
-        });
-}
-
-function updateCategory(categoryId) {
-    const form = document.getElementById('categoryForm');
-    const formData = new FormData(form);
-    
-    const data = {
-        name: formData.get('name'),
-        cloud_path: formData.get('cloud_path'),
-        description: formData.get('description')
-    };
-    
-    fetch(`/docs/api/cloud/categories/${categoryId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
-            modal.hide();
-            location.reload();
-        } else {
-            showNotification(data.error, 'error');
-        }
-    })
-    .catch(error => {
-        showNotification('Ошибка обновления категории', 'error');
-        console.error('Error:', error);
-    });
-}
-
-function deleteCategory(categoryId) {
-    if (!confirm('Вы уверены, что хотите удалить эту категорию? Все файлы в ней останутся в облаке, но категория будет скрыта из интерфейса.')) {
-        return;
-    }
-    
-    fetch(`/docs/api/cloud/categories/${categoryId}`, {
-        method: 'DELETE'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            location.reload();
-        } else {
-            showNotification(data.error, 'error');
-        }
-    })
-    .catch(error => {
-        showNotification('Ошибка удаления категории', 'error');
-        console.error('Error:', error);
-    });
+function refreshFiles() {
+    loadFiles();
 }
 
 // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
@@ -1097,110 +1198,17 @@ function showNotification(message, type) {
         }
     }, 5000);
 }
-</script>
 
-<script>
-// Простая навигация по облаку
-let cloudCurrentPath = '/';
-
-function loadCloudRoot() {
-    loadCloudLocation('/');
-}
-
-function navigateToPath() {
-    const p = document.getElementById('pathInput').value || '/';
-    loadCloudLocation(p);
-}
-
-function loadCloudLocation(path) {
-    cloudCurrentPath = path || '/';
-    document.getElementById('currentPath').textContent = cloudCurrentPath;
-    document.getElementById('pathInput').value = cloudCurrentPath;
-    // load folders
-    fetch(`/docs/api/cloud/folders?path=${encodeURIComponent(cloudCurrentPath)}`)
-      .then(r => r.json())
-      .then(data => {
-        const cont = document.getElementById('cloudFolders');
-        cont.innerHTML = '';
-        if (data.error) {
-            cont.innerHTML = `<div class="col-12 text-danger small">${data.error}</div>`;
-            return;
-        }
-        const list = data.folders || [];
-        if (list.length === 0) {
-            cont.innerHTML = '<div class="col-12 text-muted small">Папок нет</div>';
-            return;
-        }
-        list.forEach(f => {
-            const col = document.createElement('div');
-            col.className = 'col-md-3 mb-2';
-            col.innerHTML = `
-                <div class="card p-2 clickable" onclick="loadCloudLocation('${f.path}')">
-                    <div><i class="bi bi-folder2${f.name==='..' ? '' : '-open'}"></i> ${f.name}</div>
-                </div>`;
-            cont.appendChild(col);
-        });
-      })
-      .catch(() => {
-        document.getElementById('cloudFolders').innerHTML = '<div class="col-12 text-danger small">Ошибка загрузки папок</div>';
-      });
-
-    // load files
-    fetch(`/docs/api/cloud/files-by-path?path=${encodeURIComponent(cloudCurrentPath)}`)
-      .then(r => r.json())
-      .then(data => {
-        const cont = document.getElementById('cloudFiles');
-        cont.innerHTML = '';
-        if (data.error) {
-            cont.innerHTML = `<div class="col-12 text-danger small">${data.error}</div>`;
-            return;
-        }
-        const list = data.files || [];
-        if (list.length === 0) {
-            cont.innerHTML = '<div class="col-12 text-muted small">Файлов нет</div>';
-            return;
-        }
-        list.forEach(file => {
-            const col = document.createElement('div');
-            col.className = 'col-md-3 mb-2';
-            const icon = file.icon || 'bi-file-earmark';
-            col.innerHTML = `
-                <div class="card p-2">
-                    <div class="d-flex align-items-center">
-                        <i class="bi ${icon} me-2"></i>
-                        <div class="small text-truncate" title="${file.name}">${file.name}</div>
-                    </div>
-                </div>`;
-            cont.appendChild(col);
-        });
-      })
-      .catch(() => {
-        document.getElementById('cloudFiles').innerHTML = '<div class="col-12 text-danger small">Ошибка загрузки файлов</div>';
-      });
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    loadCloudRoot();
+// Обработка callback от OAuth
+window.addEventListener('message', function(event) {
+    if (event.origin !== window.location.origin) return;
+    
+    if (event.data.type === 'yandex_oauth_success') {
+        document.getElementById('accessToken').value = event.data.access_token;
+        showNotification('Токен получен успешно!', 'success');
+    } else if (event.data.type === 'yandex_oauth_error') {
+        showNotification('Ошибка получения токена: ' + event.data.error, 'error');
+    }
 });
-
-function startOAuth() {
-    // Переходим на старт OAuth, где нас перенаправят на страницу согласия облака
-    window.location.href = '/docs/api/cloud/oauth/start';
-}
-
-function runDiagnostics() {
-    const p = cloudCurrentPath || '/';
-    const out = document.getElementById('diagOut');
-    out.style.display = 'block';
-    out.textContent = 'Выполняется...';
-    fetch(`/docs/api/cloud/diagnostics?path=${encodeURIComponent(p)}`)
-        .then(r => r.json())
-        .then(data => {
-            out.textContent = JSON.stringify(data, null, 2);
-        })
-        .catch(e => {
-            out.textContent = 'Ошибка диагностики: ' + e;
-        });
-}
 </script>
 {% endblock %}
