@@ -493,6 +493,77 @@
             --info-color: #63b3ed;
         }
 
+        /* Темная полоса прокрутки для темной темы */
+        html[data-theme="dark"] {
+            scrollbar-width: thin;
+            scrollbar-color: #4a5568 #2d3748;
+        }
+
+        html[data-theme="dark"] ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        html[data-theme="dark"] ::-webkit-scrollbar-track {
+            background: #2d3748;
+            border-radius: 6px;
+        }
+
+        html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #4a5568 0%, #718096 100%);
+            border-radius: 6px;
+            border: 2px solid #2d3748;
+            transition: all 0.3s ease;
+        }
+
+        html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #4a5568;
+        }
+
+        html[data-theme="dark"] ::-webkit-scrollbar-thumb:active {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
+
+        html[data-theme="dark"] ::-webkit-scrollbar-corner {
+            background: #2d3748;
+        }
+
+        /* Светлая полоса прокрутки для светлой темы */
+        html[data-theme="light"] {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e0 #f7fafc;
+        }
+
+        html[data-theme="light"] ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        html[data-theme="light"] ::-webkit-scrollbar-track {
+            background: #f7fafc;
+            border-radius: 6px;
+        }
+
+        html[data-theme="light"] ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #cbd5e0 0%, #a0aec0 100%);
+            border-radius: 6px;
+            border: 2px solid #f7fafc;
+            transition: all 0.3s ease;
+        }
+
+        html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #e2e8f0;
+        }
+
+        html[data-theme="light"] ::-webkit-scrollbar-thumb:active {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
+
+        html[data-theme="light"] ::-webkit-scrollbar-corner {
+            background: #f7fafc;
+        }
 
         /* Кнопка смены темы */
         .theme-toggle {
@@ -827,17 +898,77 @@
             }
         }
 
-        /* Улучшение контрастности для тёмной темы */
-        html[data-theme="dark"] a,
-        html[data-theme="dark"] .nav-link,
-        html[data-theme="dark"] .dropdown-item {
-            color: #e2e8f0;
+        /* Логотип */
+        .app-logo {
+            height: 60px;
+            width: auto;
+            max-width: 180px;
+            object-fit: contain;
+            transition: all 0.3s ease;
         }
-
-        html[data-theme="dark"] a:hover,
-        html[data-theme="dark"] .nav-link:hover,
-        html[data-theme="dark"] .dropdown-item:hover {
-            color: #ffffff;
+        
+        .app-logo:hover {
+            transform: scale(1.05);
+        }
+        
+        .logo-container {
+            /* display: flex;
+            align-items: center;
+            gap: 10px; */
+        }
+        
+        .logo-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        
+        .logo-text:hover {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+        
+        /* Логотип в мобильном хедере */
+        .mobile-header .logo-container {
+            flex: 1;
+            justify-content: flex-start;
+        }
+        
+        .mobile-header .app-logo {
+            height: 48px;
+        }
+        
+        .mobile-header .logo-text {
+            font-size: 1rem;
+            color: white;
+        }
+        
+        /* Логотип в сайдбаре */
+        .sidebar .logo-container {
+            /* justify-content: center;
+            margin-bottom: 20px;
+            padding: 0 20px; */
+        }
+        
+        .sidebar .app-logo {
+            height: 70px;
+        }
+        
+        .sidebar .logo-text {
+            color: white;
+            font-size: 1.1rem;
+        }
+        
+        /* Адаптивность логотипа */
+        @media (max-width: 768px) {
+            .app-logo {
+                height: 45px;
+            }
+            
+            .logo-text {
+                font-size: 0.9rem;
+            }
         }
 
         html[data-theme="dark"] .text-muted,
@@ -870,7 +1001,10 @@
             <button class="mobile-menu-btn" onclick="toggleSidebar()" type="button" aria-label="Открыть меню">
                 <i class="bi bi-list"></i>
             </button>
-            <h5>{{ current_user.username }}</h5>
+            <div class="logo-container">
+                <img src="/static/icons/logo.png" alt="Teacher Tools" class="app-logo">
+                <a href="{{ url_for('dashboard') }}" class="logo-text">Teacher Tool</a>
+            </div>
             <button class="mobile-menu-btn" onclick="logout()" type="button" aria-label="Выйти">
                 <i class="bi bi-box-arrow-right"></i>
             </button>
@@ -888,8 +1022,12 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-2 sidebar p-0" id="sidebar">
-                <div class="text-center py-4">
-                    <h5 class="text-white">{{ current_user.username }}</h5>
+                <div class="logo-container">
+                    
+                    <a href="{{ url_for('dashboard') }}" class="logo-text"><img src="/static/icons/logo.png" alt="Teacher Tools" class="app-logo">Teacher Tool</a>
+                </div>
+                <div class="text-center py-2">
+                    <h6 class="text-white">{{ current_user.username }}</h6>
                 </div>
                 <nav>
                     <a href="{{ url_for('dashboard') }}" onclick="closeSidebar()">
@@ -912,6 +1050,12 @@
                     </a>
                     <a href="{{ url_for('docs.index') }}" onclick="closeSidebar()">
                         <i class="bi bi-file-earmark-text"></i> Документация
+                    </a>
+                    <a href="{{ url_for('notes.notes') }}" onclick="closeSidebar()">
+                        <i class="bi bi-sticky"></i> Заметки
+                    </a>
+                    <a href="{{ url_for('analytics.analytics_dashboard') }}" onclick="closeSidebar()">
+                        <i class="bi bi-graph-up"></i> Аналитика
                     </a>
                     <a href="{{ url_for('auth.logout') }}" onclick="closeSidebar()">
                         <i class="bi bi-box-arrow-right"></i> Выход
