@@ -47,6 +47,7 @@ class Lesson(db.Model):
     notes = db.Column(db.Text)
     classroom = db.Column(db.String(50))  # Аудитория
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
+    subject = db.Column(db.String(200))  # Название дисциплины
 
 
 class Attendance(db.Model):
@@ -66,6 +67,7 @@ class ControlPoint(db.Model):
     title = db.Column(db.String(200), default='КТ')
     max_points = db.Column(db.Integer, default=100)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    subject = db.Column(db.String(200))  # Название дисциплины
 
 
 class ControlPointScore(db.Model):
@@ -88,6 +90,8 @@ class Assignment(db.Model):
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     checked_at = db.Column(db.DateTime)
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
+    due_date = db.Column(db.Date)  # Срок выполнения задания
+    subject = db.Column(db.String(200))  # Название дисциплины
 
 
 class Schedule(db.Model):
@@ -99,6 +103,10 @@ class Schedule(db.Model):
     color = db.Column(db.String(7))
     classroom = db.Column(db.String(50))  # Аудитория
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'))
+    # Поля для мероприятий
+    is_event = db.Column(db.Boolean, default=False)  # Является ли мероприятием
+    description = db.Column(db.Text)  # Описание мероприятия
+    event_type = db.Column(db.String(50))  # Тип мероприятия
 
 
 class TaskList(db.Model):
@@ -114,6 +122,7 @@ class Task(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     status = db.Column(db.String(20), default='new')  # new, in_progress, completed
+    priority = db.Column(db.String(10), default='low')  # low, medium, high
     due_date = db.Column(db.DateTime)
     position = db.Column(db.Integer, default=0)
     list_id = db.Column(db.Integer, db.ForeignKey('task_list.id'))
@@ -142,3 +151,27 @@ class CloudCategory(db.Model):
     description = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Note(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    color = db.Column(db.String(7), default='#ffffff')  # Hex цвет
+    is_pinned = db.Column(db.Boolean, default=False)
+    is_archived = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'content': self.content,
+            'color': self.color,
+            'is_pinned': self.is_pinned,
+            'is_archived': self.is_archived,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }

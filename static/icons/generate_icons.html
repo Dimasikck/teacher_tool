@@ -3,29 +3,278 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Генератор иконок PWA</title>
+    <title>Генератор логотипов и иконок Teacher Tools</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .icon-preview { margin: 10px; display: inline-block; }
-        canvas { border: 1px solid #ccc; margin: 5px; }
-        .download-btn { margin: 5px; padding: 5px 10px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+        
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .icon-preview { 
+            margin: 15px; 
+            display: inline-block; 
+            text-align: center;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .icon-preview:hover {
+            transform: translateY(-5px);
+        }
+        
+        canvas { 
+            border: 2px solid #e9ecef; 
+            margin: 10px; 
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .download-btn { 
+            margin: 5px; 
+            padding: 8px 16px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .svg-preview {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px;
+            display: inline-block;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .file-input-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .file-input {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px;
+        }
+        
+        .file-input:hover {
+            background: #5a6fd8;
+        }
+        
+        .logo-display {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .logo-display img {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .info-text {
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .svg-code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        
+        .copy-btn:hover {
+            background: #218838;
+        }
     </style>
 </head>
 <body>
-    <h1>Генератор иконок PWA для Teacher Tools</h1>
-    <p>Нажмите на кнопки для скачивания иконок нужного размера:</p>
-    
-    <div id="icons-container"></div>
+    <div class="container">
+        <h1>🎨 Генератор логотипов и иконок</h1>
+        <p class="subtitle">Teacher Tools - Создание иконок различных размеров из логотипа</p>
+        
+        <!-- Загрузка логотипа -->
+        <div class="section">
+            <h2>📁 Загрузка логотипа</h2>
+            <div class="file-input-container">
+                <input type="file" id="logoInput" accept="image/*" class="file-input">
+                <button onclick="loadDefaultLogo()" class="file-input">Использовать logo.png</button>
+            </div>
+            <div class="logo-display" id="logoDisplay">
+                <p class="info-text">Загрузите изображение логотипа или используйте стандартный logo.png</p>
+            </div>
+        </div>
+        
+        <!-- SVG конвертер -->
+        <div class="section">
+            <h2>🔄 Конвертер в SVG</h2>
+            <div id="svgContainer">
+                <p class="info-text">Загрузите логотип для конвертации в SVG формат</p>
+            </div>
+        </div>
+        
+        <!-- Генератор иконок -->
+        <div class="section">
+            <h2>📱 Генератор иконок PWA</h2>
+            <p class="info-text">Создание иконок различных размеров для Progressive Web App</p>
+            <div id="icons-container"></div>
+        </div>
+        
+        <!-- Дополнительные размеры -->
+        <div class="section">
+            <h2>🎯 Дополнительные размеры</h2>
+            <p class="info-text">Специальные размеры для различных целей</p>
+            <div id="additional-icons-container"></div>
+        </div>
+    </div>
 
     <script>
-        const sizes = [16, 32, 57, 60, 72, 76, 96, 114, 120, 128, 144, 152, 180, 192, 384, 512];
+        let currentLogo = null;
+        const pwaSizes = [16, 32, 57, 60, 72, 76, 96, 114, 120, 128, 144, 152, 180, 192, 384, 512];
+        const additionalSizes = [24, 48, 64, 80, 112, 256, 320, 640];
         
-        function createIcon(size) {
+        // Загрузка стандартного логотипа
+        function loadDefaultLogo() {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                currentLogo = img;
+                displayLogo(img);
+                generateAllIcons();
+            };
+            img.onerror = function() {
+                alert('Не удалось загрузить logo.png. Убедитесь, что файл существует.');
+            };
+            img.src = 'logo.png';
+        }
+        
+        // Обработка загрузки файла
+        document.getElementById('logoInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        currentLogo = img;
+                        displayLogo(img);
+                        generateAllIcons();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Отображение логотипа
+        function displayLogo(img) {
+            const container = document.getElementById('logoDisplay');
+            container.innerHTML = `
+                <img src="${img.src}" alt="Логотип">
+                <p class="info-text">Размер: ${img.width}x${img.height}px</p>
+            `;
+        }
+        
+        // Создание иконки из логотипа
+        function createIconFromLogo(size) {
             const canvas = document.createElement('canvas');
             canvas.width = size;
             canvas.height = size;
             const ctx = canvas.getContext('2d');
             
+            if (currentLogo) {
+                // Используем загруженный логотип
+                ctx.drawImage(currentLogo, 0, 0, size, size);
+            } else {
+                // Создаем простую иконку если логотип не загружен
+                createDefaultIcon(ctx, size);
+            }
+            
+            return canvas;
+        }
+        
+        // Создание иконки по умолчанию
+        function createDefaultIcon(ctx, size) {
             // Создаем градиент
             const gradient = ctx.createLinearGradient(0, 0, size, size);
             gradient.addColorStop(0, '#667eea');
@@ -62,10 +311,69 @@
                 ctx.lineTo(bookX + bookWidth * 0.9, y);
                 ctx.stroke();
             }
-            
-            return canvas;
         }
         
+        // Конвертация в SVG
+        function convertToSVG(size = 200) {
+            if (!currentLogo) {
+                alert('Сначала загрузите логотип');
+                return;
+            }
+            
+            const canvas = createIconFromLogo(size);
+            const dataURL = canvas.toDataURL('image/png');
+            
+            const svgCode = `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="logoPattern" patternUnits="userSpaceOnUse" width="${size}" height="${size}">
+      <image href="${dataURL}" width="${size}" height="${size}"/>
+    </pattern>
+  </defs>
+  <rect width="${size}" height="${size}" fill="url(#logoPattern)"/>
+</svg>`;
+            
+            const container = document.getElementById('svgContainer');
+            container.innerHTML = `
+                <div class="svg-preview">
+                    <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <pattern id="logoPattern" patternUnits="userSpaceOnUse" width="100" height="100">
+                                <image href="${dataURL}" width="100" height="100"/>
+                            </pattern>
+                        </defs>
+                        <rect width="100" height="100" fill="url(#logoPattern)"/>
+                    </svg>
+                </div>
+                <div>
+                    <h4>SVG код:</h4>
+                    <div class="svg-code" id="svgCode">${svgCode}</div>
+                    <button class="copy-btn" onclick="copySVGCode()">Копировать SVG</button>
+                    <button class="download-btn" onclick="downloadSVG()">Скачать SVG</button>
+                </div>
+            `;
+        }
+        
+        // Копирование SVG кода
+        function copySVGCode() {
+            const svgCode = document.getElementById('svgCode').textContent;
+            navigator.clipboard.writeText(svgCode).then(() => {
+                alert('SVG код скопирован в буфер обмена!');
+            });
+        }
+        
+        // Скачивание SVG
+        function downloadSVG() {
+            const svgCode = document.getElementById('svgCode').textContent;
+            const blob = new Blob([svgCode], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'logo.svg';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Скачивание canvas
         function downloadCanvas(canvas, filename) {
             const link = document.createElement('a');
             link.download = filename;
@@ -73,27 +381,41 @@
             link.click();
         }
         
-        sizes.forEach(size => {
-            const container = document.createElement('div');
-            container.className = 'icon-preview';
+        // Генерация всех иконок
+        function generateAllIcons() {
+            generateIcons(pwaSizes, 'icons-container', 'PWA');
+            generateIcons(additionalSizes, 'additional-icons-container', 'Дополнительные');
             
-            const canvas = createIcon(size);
-            container.appendChild(canvas);
+            // Генерируем SVG
+            convertToSVG();
+        }
+        
+        // Генерация иконок для контейнера
+        function generateIcons(sizes, containerId, title) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<h3>${title} размеры:</h3>`;
             
-            const btn = document.createElement('button');
-            btn.className = 'download-btn';
-            btn.textContent = `Скачать ${size}x${size}`;
-            btn.onclick = () => downloadCanvas(canvas, `icon-${size}x${size}.png`);
-            container.appendChild(btn);
-            
-            document.getElementById('icons-container').appendChild(container);
+            sizes.forEach(size => {
+                const iconContainer = document.createElement('div');
+                iconContainer.className = 'icon-preview';
+                
+                const canvas = createIconFromLogo(size);
+                iconContainer.appendChild(canvas);
+                
+                const btn = document.createElement('button');
+                btn.className = 'download-btn';
+                btn.textContent = `Скачать ${size}x${size}`;
+                btn.onclick = () => downloadCanvas(canvas, `icon-${size}x${size}.png`);
+                iconContainer.appendChild(btn);
+                
+                container.appendChild(iconContainer);
+            });
+        }
+        
+        // Автоматическая загрузка стандартного логотипа при загрузке страницы
+        window.addEventListener('load', function() {
+            loadDefaultLogo();
         });
     </script>
 </body>
 </html>
-
-
-
-
-
-

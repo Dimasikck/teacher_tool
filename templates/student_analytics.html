@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}Аналитика студента {{ student.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1><i class="fas fa-user-graduate"></i> Аналитика студента "{{ student.name }}"</h1>
+                        <p class="text-muted">{{ student.email }}</p>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('analytics.analytics_dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Назад к списку
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-filter"></i> Фильтры</h5>
+                </div>
+                <div class="card-body">
+                    <form id="filterForm" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="groupSelect" class="form-label">Группа</label>
+                            <select class="form-select" id="groupSelect" name="group_id">
+                                <option value="">Выберите группу</option>
+                                {% for group in student_groups %}
+                                <option value="{{ group.id }}" {% if group.id == selected_group_id %}selected{% endif %}>
+                                    {{ group.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="startDate" class="form-label">Дата начала</label>
+                            <input type="date" class="form-control" id="startDate" name="start_date" value="{{ start_date }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="endDate" class="form-label">Дата окончания</label>
+                            <input type="date" class="form-control" id="endDate" name="end_date" value="{{ end_date }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i> Применить
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if analytics %}
+    <!-- Общая статистика студента -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ analytics.attendance }}%</h4>
+                            <p class="card-text">Посещаемость</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ analytics.avg_grade }}</h4>
+                            <p class="card-text">Средний балл</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-star fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ analytics.completion }}%</h4>
+                            <p class="card-text">Выполнение заданий</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-tasks fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card 
+                {% if analytics.category == 'Отличник' %}bg-success
+                {% elif analytics.category == 'Средний уровень' %}bg-warning
+                {% else %}bg-danger{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ analytics.category }}</h4>
+                            <p class="card-text">Категория</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-{% if analytics.category == 'Отличник' %}trophy{% elif analytics.category == 'Средний уровень' %}user{% else %}exclamation-triangle{% endif %} fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line"></i> Динамика успеваемости</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="progressChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie"></i> Распределение оценок</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="gradeChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Рекомендации -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-lightbulb"></i> Рекомендации</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if analytics.attendance < 70 %}
+                        <div class="col-md-6 mb-3">
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-calendar-times"></i> Низкая посещаемость</h6>
+                                <p class="mb-0">Рекомендуется провести индивидуальную беседу со студентом для выяснения причин пропусков занятий.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if analytics.avg_grade < 60 %}
+                        <div class="col-md-6 mb-3">
+                            <div class="alert alert-danger">
+                                <h6><i class="fas fa-exclamation-triangle"></i> Низкие оценки</h6>
+                                <p class="mb-0">Предложить дополнительные консультации и индивидуальные задания для улучшения успеваемости.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if analytics.completion < 50 %}
+                        <div class="col-md-6 mb-3">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-tasks"></i> Низкое выполнение заданий</h6>
+                                <p class="mb-0">Увеличить количество практических заданий и контролировать их выполнение.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if analytics.attendance >= 95 and analytics.avg_grade >= 90 %}
+                        <div class="col-md-6 mb-3">
+                            <div class="alert alert-success">
+                                <h6><i class="fas fa-trophy"></i> Отличные результаты</h6>
+                                <p class="mb-0">Студент показывает отличные результаты. Рекомендуется похвалить и предложить дополнительные задания повышенной сложности.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Детальная информация -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar"></i> Сравнение с группой</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h6>Посещаемость</h6>
+                            <div class="progress mb-2" style="height: 25px;">
+                                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ analytics.attendance }}%">
+                                    {{ analytics.attendance }}%
+                                </div>
+                            </div>
+                            <small class="text-muted">Студент</small>
+                        </div>
+                        <div class="col-6">
+                            <h6>Средний балл</h6>
+                            <div class="d-flex align-items-center justify-content-center">
+                                <span class="h4 text-primary">{{ analytics.avg_grade }}</span>
+                            </div>
+                            <small class="text-muted">Студент</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-trending-up"></i> Прогноз успеваемости</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        {% set predicted_grade = analytics.avg_grade * 1.1 %}
+                        <h4 class="text-{% if predicted_grade >= 80 %}success{% elif predicted_grade >= 60 %}warning{% else %}danger{% endif %}">
+                            {{ "%.1f"|format(predicted_grade) }}
+                        </h4>
+                        <p class="text-muted">Прогнозируемый итоговый балл</p>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar 
+                                {% if predicted_grade >= 80 %}bg-success
+                                {% elif predicted_grade >= 60 %}bg-warning
+                                {% else %}bg-danger{% endif %}" 
+                                role="progressbar" 
+                                style="width: {{ predicted_grade }}%">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h5>Выберите группу для просмотра аналитики</h5>
+                    <p class="text-muted">Для отображения аналитики студента необходимо выбрать группу и период.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if analytics %}
+    initCharts();
+    {% endif %}
+});
+
+function initCharts() {
+    // График динамики успеваемости (заглушка)
+    const progressCtx = document.getElementById('progressChart').getContext('2d');
+    const progressChart = new Chart(progressCtx, {
+        type: 'line',
+        data: {
+            labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
+            datasets: [{
+                label: 'Средний балл',
+                data: [{{ analytics.avg_grade * 0.8 }}, {{ analytics.avg_grade * 0.9 }}, {{ analytics.avg_grade * 1.05 }}, {{ analytics.avg_grade }}],
+                borderColor: 'rgba(54, 162, 235, 1)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+    
+    // График распределения оценок (заглушка)
+    const gradeCtx = document.getElementById('gradeChart').getContext('2d');
+    const gradeChart = new Chart(gradeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Отлично', 'Хорошо', 'Удовлетворительно', 'Неудовлетворительно'],
+            datasets: [{
+                data: [
+                    {{ analytics.avg_grade >= 90 ? 1 : 0 }},
+                    {{ analytics.avg_grade >= 75 and analytics.avg_grade < 90 ? 1 : 0 }},
+                    {{ analytics.avg_grade >= 60 and analytics.avg_grade < 75 ? 1 : 0 }},
+                    {{ analytics.avg_grade < 60 ? 1 : 0 }}
+                ],
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 205, 86, 0.8)',
+                    'rgba(255, 99, 132, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 205, 86, 1)',
+                    'rgba(255, 99, 132, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

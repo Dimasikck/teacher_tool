@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+
+{% block title %}Аналитика группы {{ group.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1><i class="fas fa-chart-line"></i> Аналитика группы "{{ group.name }}"</h1>
+                        <p class="text-muted">{{ group.course or 'Без описания' }}</p>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('analytics.analytics_dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Назад к списку
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-filter"></i> Фильтры</h5>
+                </div>
+                <div class="card-body">
+                    <form id="filterForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="startDate" class="form-label">Дата начала</label>
+                            <input type="date" class="form-control" id="startDate" name="start_date" value="{{ start_date }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="endDate" class="form-label">Дата окончания</label>
+                            <input type="date" class="form-control" id="endDate" name="end_date" value="{{ end_date }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Применить
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="exportReport()">
+                                    <i class="fas fa-download"></i> Экспорт
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Общая статистика группы -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ analytics.total_students }}</h4>
+                            <p class="card-text">Студентов в группе</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ analytics.avg_attendance }}%</h4>
+                            <p class="card-text">Средняя посещаемость</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ analytics.avg_grade }}</h4>
+                            <p class="card-text">Средний балл</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-star fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ analytics.avg_completion }}%</h4>
+                            <p class="card-text">Выполнение заданий</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-tasks fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie"></i> Распределение оценок</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="gradeChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar"></i> Посещаемость студентов</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="attendanceChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Корреляция -->
+    {% if correlation %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line"></i> Корреляция посещаемости и успеваемости</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <canvas id="correlationChart" width="400" height="200"></canvas>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-info">
+                                <h6>Коэффициент корреляции: {{ correlation }}</h6>
+                                <p class="mb-0">
+                                    {% if correlation > 0.7 %}
+                                        <strong>Сильная положительная корреляция</strong><br>
+                                        Высокая посещаемость связана с хорошей успеваемостью
+                                    {% elif correlation > 0.3 %}
+                                        <strong>Умеренная положительная корреляция</strong><br>
+                                        Есть связь между посещаемостью и успеваемостью
+                                    {% elif correlation > -0.3 %}
+                                        <strong>Слабая корреляция</strong><br>
+                                        Связь между посещаемостью и успеваемостью незначительна
+                                    {% else %}
+                                        <strong>Отрицательная корреляция</strong><br>
+                                        Низкая посещаемость связана с плохой успеваемостью
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Детальная таблица студентов -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-table"></i> Детальная статистика студентов</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Студент</th>
+                                    <th>Посещаемость</th>
+                                    <th>Средний балл</th>
+                                    <th>Выполнение заданий</th>
+                                    <th>Категория</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student_data in analytics.students %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ student_data.student.name }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ student_data.student.email or 'Нет email' }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress me-2" style="width: 100px; height: 20px;">
+                                                <div class="progress-bar 
+                                                    {% if student_data.attendance >= 85 %}bg-success
+                                                    {% elif student_data.attendance >= 70 %}bg-warning
+                                                    {% else %}bg-danger{% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {{ student_data.attendance }}%">
+                                                </div>
+                                            </div>
+                                            <span class="badge 
+                                                {% if student_data.attendance >= 85 %}bg-success
+                                                {% elif student_data.attendance >= 70 %}bg-warning
+                                                {% else %}bg-danger{% endif %}">
+                                                {{ student_data.attendance }}%
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if student_data.avg_grade >= 85 %}bg-success
+                                            {% elif student_data.avg_grade >= 70 %}bg-warning
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ student_data.avg_grade }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress me-2" style="width: 100px; height: 20px;">
+                                                <div class="progress-bar bg-info" 
+                                                    role="progressbar" 
+                                                    style="width: {{ student_data.completion }}%">
+                                                </div>
+                                            </div>
+                                            <span class="badge bg-info">{{ student_data.completion }}%</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if student_data.category == 'Отличник' %}bg-success
+                                            {% elif student_data.category == 'Средний уровень' %}bg-warning
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ student_data.category }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('analytics.student_analytics', student_id=student_data.student.id, group_id=group.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-user"></i> Профиль
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Проблемные студенты -->
+    {% if problematic %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Студенты, требующие внимания</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for student in problematic %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ student.student.name }}</h6>
+                                    <p class="card-text">
+                                        {% for issue in student.issues %}
+                                        <span class="badge bg-danger me-1">{{ issue }}</span>
+                                        {% endfor %}
+                                    </p>
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <small class="text-muted">Посещаемость</small><br>
+                                            <strong>{{ student.attendance }}%</strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Средний балл</small><br>
+                                            <strong>{{ student.avg_grade }}</strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Задания</small><br>
+                                            <strong>{{ student.completion }}%</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Лучшие студенты -->
+    {% if top_students %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-trophy"></i> Лучшие студенты</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for student in top_students %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-medal fa-2x text-warning mb-2"></i>
+                                    <h6 class="card-title">{{ student.student.name }}</h6>
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <small class="text-muted">Посещаемость</small><br>
+                                            <strong class="text-success">{{ student.attendance }}%</strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Средний балл</small><br>
+                                            <strong class="text-success">{{ student.avg_grade }}</strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Задания</small><br>
+                                            <strong class="text-success">{{ student.completion }}%</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initCharts();
+});
+
+function initCharts() {
+    // График распределения оценок
+    const gradeCtx = document.getElementById('gradeChart').getContext('2d');
+    const gradeChart = new Chart(gradeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ grade_distribution.keys() | list | tojson }},
+            datasets: [{
+                data: {{ grade_distribution.values() | list | tojson }},
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(255, 205, 86, 0.8)',
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(255, 159, 64, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(255, 205, 86, 1)',
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(255, 159, 64, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // График посещаемости
+    const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
+    const attendanceChart = new Chart(attendanceCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ analytics.students | map(attribute='student.name') | list | tojson }},
+            datasets: [{
+                label: 'Посещаемость (%)',
+                data: {{ analytics.students | map(attribute='attendance') | list | tojson }},
+                backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+    
+    // График корреляции
+    {% if correlation %}
+    const correlationCtx = document.getElementById('correlationChart').getContext('2d');
+    const correlationChart = new Chart(correlationCtx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Студенты',
+                data: {{ analytics.students | map(attribute='attendance') | zip(analytics.students | map(attribute='avg_grade')) | list | tojson }},
+                backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Посещаемость (%)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Средний балл'
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+}
+
+function exportReport() {
+    const formData = new FormData(document.getElementById('filterForm'));
+    const params = new URLSearchParams(formData);
+    
+    window.open(`/analytics/export/{{ group.id }}?${params.toString()}&type=attendance`, '_blank');
+}
+</script>
+{% endblock %}

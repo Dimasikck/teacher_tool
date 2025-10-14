@@ -1,203 +1,522 @@
 {% extends "base.html" %}
-{% block title %}Облачные папки{% endblock %}
+{% block title %}Задания{% endblock %}
+
+{% block extra_css %}
+<style>
+    .assignment-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 20px var(--shadow-light);
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+    }
+    
+    .assignment-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px var(--shadow-medium);
+    }
+    
+    .score-input {
+        width: 80px;
+        text-align: center;
+        font-weight: bold;
+    }
+    
+    .score-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .student-row {
+        transition: background-color 0.2s ease;
+    }
+    
+    .student-row:hover {
+        background-color: var(--table-hover-bg);
+    }
+    
+    .assignment-header {
+        background: var(--accent-gradient);
+        color: white;
+        border-radius: 12px 12px 0 0;
+        padding: 15px 20px;
+    }
+    
+    .assignment-body {
+        padding: 20px;
+    }
+    
+    .due-date {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    
+    .overdue {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .due-soon {
+        color: #ffc107;
+        font-weight: bold;
+    }
+    
+    .on-time {
+        color: #28a745;
+    }
+    
+    /* Темная тема: делаем селект дисциплины темно-серым, когда он disabled */
+    [data-theme="dark"] #subjectSelect:disabled {
+        background-color: #2d3748 !important; /* темно-серый */
+        color: var(--text-muted) !important;
+        border-color: var(--border-color) !important;
+        opacity: 1 !important; /* отменяем обесцвечивание bootstrap */
+        cursor: not-allowed;
+    }
+    
+    /* Плавное исчезновение подсказок */
+    .alert {
+        transition: all 0.5s ease-in-out;
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    .alert.fade-out {
+        opacity: 0;
+        transform: translateY(-10px);
+        margin-bottom: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        height: 0;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Облачные папки и файлы</h1>
+<h1 class="mb-4">Задания</h1>
+
 
 <div class="row mb-4">
-    <div class="col-md-12 d-flex gap-2">
-        <button class="btn btn-primary" onclick="createFolder()">
-            <i class="bi bi-folder-plus"></i> Создать папку
-        </button>
-        <button class="btn btn-danger" onclick="deleteSelected()">
-            <i class="bi bi-trash"></i> Удалить выбранное
-        </button>
-        <button class="btn btn-secondary" onclick="renameSelected()">
-            <i class="bi bi-pencil"></i> Переименовать
-        </button>
-        <div class="btn-group" role="group">
-            <label class="btn btn-success mb-0">
-                <i class="bi bi-upload"></i> Выбрать файл
-                <input type="file" id="fileInput" hidden>
-            </label>
-            <button class="btn btn-success" onclick="uploadToSelected()">
-                <i class="bi bi-cloud-upload"></i> В выбранные
-            </button>
+    <div class="col-md-4">
+        <label class="form-label small text-muted">Группа</label>
+        <select id="groupSelect" class="form-select" onchange="loadGroupAssignments()">
+            <option value="">Выберите группу</option>
+            {% for group in groups %}
+            <option value="{{ group.id }}" data-name="{{ group.name }}" data-course="{{ group.course or '' }}">
+                {{ group.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label small text-muted">Дисциплина</label>
+        <select id="subjectSelect" class="form-select" onchange="loadGroupAssignments()" disabled>
+            <option value="">Выберите дисциплину</option>
+        </select>
         </div>
-        <button class="btn btn-outline-secondary" onclick="refreshCloud()">
-            <i class="bi bi-arrow-clockwise"></i> Обновить
+    <div class="col-md-4">
+        <label class="form-label small text-muted">&nbsp;</label>
+        <button class="btn btn-primary d-block" onclick="showCreateAssignmentModal()" id="createBtn" disabled>
+            <i class="bi bi-plus-circle"></i> Добавить задание
         </button>
     </div>
 </div>
 
-<!-- Убрали старую сводку -->
-
-<div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                Группы
+<div id="assignmentsContainer">
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-journal-text" style="font-size: 3rem;"></i>
+        <p class="mt-3">Выберите группу и дисциплину для просмотра заданий</p>
+    </div>
             </div>
-            <div class="card-body">
-                <ul class="list-group" id="groupList">
-                    {% for g, folders in cloud_folders.items() %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-people me-2"></i>{{ g }}</span>
-                        <button class="btn btn-sm btn-outline-primary" onclick="openGroup('{{ g }}')">Открыть</button>
-                    </li>
-                    {% endfor %}
-                </ul>
+
+<!-- Модальное окно создания задания -->
+<div class="modal fade" id="createAssignmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Создать задание</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Название задания</label>
+                    <input type="text" id="assignmentTitle" class="form-control" placeholder="Введите название задания" required>
+        </div>
+                <div class="mb-3">
+                    <label class="form-label">Срок выполнения</label>
+                    <input type="date" id="assignmentDueDate" class="form-control">
+                    <div class="form-text">Оставьте пустым, если срок не ограничен</div>
+    </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="createAssignment()">Создать</button>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span id="currentPath">Путь: /</span>
-                <small class="text-muted">WebDAV</small>
-            </div>
-            <div class="card-body">
-                <ul class="list-group" id="folderList">
-                    <li class="list-group-item text-muted">Выберите группу слева</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Удалено модальное окно создания заданий -->
-
-<!-- Удалено модальное окно проверки заданий -->
-
-<div class="mt-4">
-    <div id="statsContainer"></div>
 </div>
 
 <script>
-let currentGroup = null;
-let currentPath = '';
+let currentGroupId = null;
+let currentGroupData = null;
+let currentSubject = '';
 
-function openGroup(groupName) {
-    currentGroup = groupName;
-    currentPath = '';
-    document.getElementById('currentPath').textContent = `Путь: /${groupName}`;
-    loadFolder('');
-}
+function loadGroupAssignments() {
+    const groupSelect = document.getElementById('groupSelect');
+    const groupId = groupSelect.value;
+    const createBtn = document.getElementById('createBtn');
+    const subjectSelect = document.getElementById('subjectSelect');
+    
+    if (!groupId) {
+        createBtn.disabled = true;
+        subjectSelect.innerHTML = '<option value="">Выберите дисциплину</option>';
+        subjectSelect.disabled = true;
+        document.getElementById('assignmentsContainer').innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-journal-text" style="font-size: 3rem;"></i>
+                <p class="mt-3">Выберите группу для просмотра заданий</p>
+            </div>
+        `;
+        updateActionButtons();
+        return;
+    }
+    
+    createBtn.disabled = false;
 
-function loadFolder(path) {
-    fetch(`/api/cloud/list?group=${encodeURIComponent(currentGroup)}&path=${encodeURIComponent(path)}`)
-        .then(r => r.json())
-        .then(data => {
-            currentPath = data.path.replace(/^.*?\//, '');
-            const list = document.getElementById('folderList');
-            list.innerHTML = '';
-            if (!data.items || data.items.length === 0) {
-                list.innerHTML = '<li class="list-group-item text-muted">Пусто</li>';
-                return;
-            }
-            data.items.forEach(item => {
-                const li = document.createElement('li');
-                li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                li.innerHTML = `
-                    <div>
-                        <input type="checkbox" class="form-check-input me-2 select-item" data-path="${toRel(item.path)}">
-                        <i class="bi ${item.type==='file'?'bi-file-earmark':'bi-folder'} me-2"></i>
-                        ${item.type==='file' ? `<a href="/api/cloud/download?target=${encodeURIComponent(toRel(item.path))}">${item.name}</a>` : `<a href="#" onclick="navigate('${item.path}'); return false;">${item.name}</a>`}
-                    </div>
-                    ${item.type==='file' ? `<a class="btn btn-sm btn-outline-success" href="/api/cloud/download?target=${encodeURIComponent(toRel(item.path))}"><i class=\"bi bi-download\"></i> Скачать</a>` : `<button class="btn btn-sm btn-outline-secondary" onclick="navigate('${item.path}')">Открыть</button>`}
-                `;
-                list.appendChild(li);
+    // Если группа изменилась — перезагружаем дисциплины всегда
+    const groupChanged = currentGroupId !== groupId;
+    if (groupChanged) {
+        currentGroupId = groupId;
+        currentSubject = '';
+        subjectSelect.disabled = true;
+        subjectSelect.innerHTML = '<option value="">Загрузка дисциплин...</option>';
+
+        fetch(`/api/group/subjects?group_id=${groupId}`)
+            .then(r => r.json())
+            .then(subjects => {
+                let options = '<option value="">Выберите дисциплину</option>';
+                subjects.forEach(s => { options += `<option value="${s}">${s}</option>`; });
+                subjectSelect.innerHTML = options;
+                subjectSelect.value = '';
+                subjectSelect.disabled = false;
+            })
+            .catch(() => {
+                subjectSelect.innerHTML = '<option value="">Выберите дисциплину</option>';
+                subjectSelect.disabled = false;
             });
+
+        // Показываем подсказку выбрать дисциплину и выходим
+        document.getElementById('assignmentsContainer').innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-journal-text" style="font-size: 3rem;"></i>
+                <p class="mt-3">Выберите дисциплину</p>
+            </div>
+        `;
+        updateActionButtons();
+        return;
+    }
+    
+    currentSubject = subjectSelect.value || '';
+    
+    // Показываем загрузку
+    document.getElementById('assignmentsContainer').innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3">Загрузка заданий...</p>
+        </div>
+    `;
+    
+    const qs = new URLSearchParams();
+    if (currentSubject) qs.set('subject', currentSubject);
+    fetch(`/api/assignments/group/${groupId}?${qs.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            currentGroupData = data;
+            renderAssignments(data);
         })
+        .catch(error => {
+            console.error('Ошибка загрузки заданий:', error);
+            document.getElementById('assignmentsContainer').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Ошибка загрузки заданий. Попробуйте обновить страницу.
+                </div>
+            `;
+        });
 }
 
-function navigate(fullPath) {
-    // fullPath: абсолютный путь в облаке; преобразуем к относительному от группы
-    const parts = fullPath.split('/');
-    const name = parts[parts.length - 1] || parts[parts.length - 2];
-    const next = currentPath ? `${currentPath}/${name}` : name;
-    document.getElementById('currentPath').textContent = `Путь: /${currentGroup}/${next}`;
-    loadFolder(next);
+function renderAssignments(data) {
+    const container = document.getElementById('assignmentsContainer');
+    
+    if (!data.assignments || data.assignments.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-journal-text" style="font-size: 3rem;"></i>
+                <p class="mt-3">В группе "${data.group.name}" пока нет заданий</p>
+                <p class="text-muted">Создайте первое задание для студентов</p>
+            </div>
+        `;
+                return;
+    }
+    
+    let html = `
+        <div class="mb-3">
+            <h4>Группа: ${data.group.name}</h4>
+            ${data.group.course ? `<p class="text-muted">Курс: ${data.group.course}</p>` : ''}
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="min-width: 200px;">Студент</th>
+    `;
+    
+    // Заголовки столбцов (задания)
+    data.assignments.forEach(assignment => {
+        const dueDate = assignment.due_date ? new Date(assignment.due_date) : null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        let dueDateHtml = '';
+        let dueDateClass = '';
+        
+        if (dueDate) {
+            dueDate.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+            
+            if (diffDays < 0) {
+                dueDateClass = 'text-danger';
+                dueDateHtml = `<br><small class="${dueDateClass}">Просрочено</small>`;
+            } else if (diffDays <= 3) {
+                dueDateClass = 'text-warning';
+                dueDateHtml = `<br><small class="${dueDateClass}">Срок: ${diffDays} дн.</small>`;
+            } else {
+                dueDateClass = 'text-success';
+                dueDateHtml = `<br><small class="${dueDateClass}">Срок: ${diffDays} дн.</small>`;
+            }
+        } else {
+            dueDateHtml = '<br><small class="text-muted">Без срока</small>';
+        }
+        
+        html += `<th class="text-center" style="min-width: 120px;">${assignment.title}${dueDateHtml}</th>`;
+    });
+    
+    html += `
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    // Строки студентов
+    data.students.forEach(student => {
+        html += `<tr><td><strong>${student.name}</strong></td>`;
+        
+        data.assignments.forEach(assignment => {
+            const key = `${assignment.title}_${assignment.due_date || 'no_date'}`;
+            const studentData = data.scores_matrix[student.id] && data.scores_matrix[student.id][key];
+            const score = studentData ? studentData.score : null;
+            const checkedAt = studentData ? studentData.checked_at : null;
+            const assignmentId = studentData ? studentData.assignment_id : null;
+            
+            let statusIcon = '';
+            if (checkedAt) {
+                statusIcon = ' <i class="bi bi-check-circle text-success" title="Проверено"></i>';
+            } else {
+                statusIcon = ' <i class="bi bi-circle text-muted" title="Не проверено"></i>';
+            }
+            
+            html += `
+                <td class="text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <input type="number" 
+                               class="form-control score-input" 
+                               min="0" 
+                               max="100" 
+                               step="0.1"
+                               value="${score || ''}" 
+                               placeholder="0-100"
+                               data-student-id="${student.id}"
+                               data-assignment-title="${assignment.title}"
+                               data-assignment-due-date="${assignment.due_date || ''}"
+                               data-assignment-id="${assignmentId || ''}"
+                               onchange="updateScore(this)"
+                               style="width: 80px;">
+                        ${statusIcon}
+                    </div>
+                </td>
+            `;
+        });
+        
+        html += '</tr>';
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    updateActionButtons();
 }
 
-function refreshCloud() {
-    if (!currentGroup) return;
-    loadFolder(currentPath);
+function showCreateAssignmentModal() {
+    if (!currentGroupId) {
+        alert('Выберите группу');
+        return;
+    }
+    const subjectSelect = document.getElementById('subjectSelect');
+    if (!subjectSelect.value) {
+        alert('Выберите дисциплину');
+        return;
+    }
+    
+    // Очищаем форму
+    document.getElementById('assignmentTitle').value = '';
+    document.getElementById('assignmentDueDate').value = '';
+    
+    new bootstrap.Modal(document.getElementById('createAssignmentModal')).show();
 }
 
-function createFolder() {
-    if (!currentGroup) { alert('Выберите группу'); return; }
-    const name = prompt('Имя новой папки:');
-    if (!name) return;
-    fetch('/api/cloud/mkdir', {
+function createAssignment() {
+    const title = document.getElementById('assignmentTitle').value.trim();
+    const dueDate = document.getElementById('assignmentDueDate').value;
+    
+    if (!title) {
+        alert('Введите название задания');
+        return;
+    }
+    
+    const data = {
+        group_id: currentGroupId,
+        title: title,
+        due_date: dueDate || null,
+        subject: document.getElementById('subjectSelect').value || null
+    };
+    
+    fetch('/api/assignments/create', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({group: currentGroup, path: currentPath, name})
-    }).then(() => refreshCloud());
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('createAssignmentModal')).hide();
+            loadGroupAssignments(); // Перезагружаем список заданий
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка создания задания:', error);
+        alert('Ошибка создания задания');
+    });
 }
 
-function getSelected() {
-    return Array.from(document.querySelectorAll('.select-item:checked')).map(cb => cb.getAttribute('data-path'));
+function updateScore(input) {
+    const studentId = input.dataset.studentId;
+    const assignmentTitle = input.dataset.assignmentTitle;
+    const assignmentDueDate = input.dataset.assignmentDueDate;
+    const assignmentId = input.dataset.assignmentId;
+    const score = input.value;
+    
+    if (!assignmentId) {
+        alert('Ошибка: задание не найдено');
+        return;
+    }
+    
+    fetch('/api/assignments/score', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            assignment_id: assignmentId,
+            score: score
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            // Обновляем стиль поля ввода
+            input.style.borderColor = '#28a745';
+            setTimeout(() => {
+                input.style.borderColor = '';
+            }, 2000);
+            
+            // Обновляем иконку статуса
+            const icon = input.parentElement.querySelector('i');
+            if (icon) {
+                icon.className = 'bi bi-check-circle text-success';
+                icon.title = 'Проверено';
+            }
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+            // Возвращаем предыдущее значение
+            input.value = '';
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка обновления оценки:', error);
+        alert('Ошибка обновления оценки');
+        input.value = '';
+    });
 }
 
-function deleteSelected() {
-    const sel = getSelected();
-    if (sel.length === 0) { alert('Выберите элементы'); return; }
-    if (!confirm('Удалить выбранное?')) return;
-    Promise.all(sel.map(p => fetch('/api/cloud/delete', {
-        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({target: toRelative(p)})
-    }))).then(() => refreshCloud());
+// Функция плавного исчезновения подсказок
+function fadeOutAlert(alertId) {
+    const alert = document.getElementById(alertId);
+    if (alert) {
+        alert.classList.add('fade-out');
+        setTimeout(() => {
+            alert.style.display = 'none';
+        }, 500); // Время анимации
+    }
 }
 
-function renameSelected() {
-    const sel = getSelected();
-    if (sel.length !== 1) { alert('Выберите один элемент'); return; }
-    const newName = prompt('Новое имя:');
-    if (!newName) return;
-    const rel = toRelative(sel[0]);
-    const dst = rel.split('/').slice(0, -1).concat([newName]).join('/');
-    fetch('/api/cloud/rename', {
-        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({src: rel, dst})
-    }).then(() => refreshCloud());
+// Функция обновления состояния кнопок
+function updateActionButtons() {
+    const groupSelected = !!document.getElementById('groupSelect').value;
+    const subjectSelected = !!document.getElementById('subjectSelect').value;
+    const enabled = groupSelected && subjectSelected;
+    
+    const createBtn = document.getElementById('createBtn');
+    if (createBtn) {
+        createBtn.disabled = !enabled;
+    }
 }
 
-function toRelative(fullPath) {
-    // Преобразуем абсолютный путь облака в относительный {group}/{subpath}
-    const idx = fullPath.lastIndexOf('/' + currentGroup + '/');
-    if (idx >= 0) return fullPath.substring(idx + 1);
-    // fallback: если нет, собираем из UI текущего пути
-    const parts = fullPath.split('/');
-    const name = parts[parts.length - 1] || parts[parts.length - 2];
-    const sp = currentPath ? `${currentPath}/${name}` : name;
-    return `${currentGroup}/${sp}`;
-}
+// Инициализируем отображение плейсхолдера/статистики
+document.addEventListener('DOMContentLoaded', function() {
+    // Проверяем URL параметры для предзаполнения
+    const urlParams = new URLSearchParams(window.location.search);
+    const groupId = urlParams.get('group_id');
+    const subject = urlParams.get('subject');
+    
+    if (groupId && subject) {
+        // Предзаполняем группу
+        const groupSelect = document.getElementById('groupSelect');
+        groupSelect.value = groupId;
+        
+        // Загружаем дисциплины для группы
+        loadGroupAssignments();
+        
+        // После загрузки дисциплин устанавливаем выбранную дисциплину
+        setTimeout(() => {
+            const subjectSelect = document.getElementById('subjectSelect');
+            subjectSelect.value = subject;
+            loadGroupAssignments();
+        }, 500);
+    } else {
+        if (typeof updateActionButtons === 'function') {
+            updateActionButtons();
+        }
+    }
+});
 
-function uploadToSelected(){
-    if (!currentGroup) { alert('Выберите группу'); return; }
-    const input = document.getElementById('fileInput');
-    if (!input.files || input.files.length===0) { alert('Выберите файл'); return; }
-    const selected = Array.from(document.querySelectorAll('.select-item:checked')).map(cb => cb.getAttribute('data-path'));
-    // Если ничего не выбрано — загрузим в текущую открытую папку
-    const targets = selected.length>0 ? selected : [`${currentGroup}/${currentPath}`.replace(/\/$/, '')];
-    const file = input.files[0];
-    Promise.all(targets.map(t => {
-        const relParts = t.split('/');
-        const group = relParts[0];
-        const folder = relParts.slice(1).join('/');
-        const form = new FormData();
-        form.append('group', group);
-        form.append('path', folder);
-        form.append('file', file);
-        return fetch('/api/cloud/upload', { method: 'POST', body: form });
-    })).then(()=>{ input.value=''; refreshCloud(); });
-}
-function toRel(fullPath){
-    const idx = fullPath.lastIndexOf('/' + currentGroup + '/');
-    if (idx >= 0) return fullPath.substring(idx + 1);
-    const parts = fullPath.split('/');
-    const name = parts[parts.length - 1] || parts[parts.length - 2];
-    const sp = currentPath ? `${currentPath}/${name}` : name;
-    return `${currentGroup}/${sp}`;
-}
 </script>
 {% endblock %}
