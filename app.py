@@ -9,6 +9,9 @@ from calendar_module import calendar_bp
 from groups import groups_bp
 from tasks import tasks_bp
 from docs import docs_bp
+from admin import admin_bp
+from notes import notes_bp
+from analytics import analytics_bp
 import os
 import hmac
 import hashlib
@@ -18,6 +21,9 @@ from sqlalchemy import func, case
 
 app = Flask(__name__)
 app.config.from_object(Config)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.config['JSON_AS_ASCII'] = False
 
 db.init_app(app)
 login_manager = LoginManager(app)
@@ -29,7 +35,7 @@ login_manager.login_message_category = 'info'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Teacher.query.get(int(user_id))
+    return db.session.get(Teacher, int(user_id))
 
 
 app.register_blueprint(auth_bp)
@@ -39,6 +45,9 @@ app.register_blueprint(calendar_bp)
 app.register_blueprint(groups_bp)
 app.register_blueprint(tasks_bp)
 app.register_blueprint(docs_bp)
+app.register_blueprint(admin_bp)
+app.register_blueprint(notes_bp)
+app.register_blueprint(analytics_bp)
 
 
 @app.route('/')
@@ -172,15 +181,19 @@ def analytics_attendance_monthly_group():
     now = datetime.now()
     start_date = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
 
+    # Групповой размер и агрегации по месяцам: считаем отсутствия, а присутствие выводим как
+    # present = (количество занятий в месяце * размер группы) - количество отсутствий
+    from models import Student
+    group_size = db.session.query(func.count(Student.id)).filter(Student.group_id == group_id).scalar() or 0
+
     month_label = func.strftime('%Y-%m', Lesson.date)
-    present_count = func.sum(case((Attendance.present == True, 1), else_=0))
-    total_count = func.count(Attendance.id)
-    absent_count = (total_count - present_count)
+    lessons_count = func.count(func.distinct(Lesson.id))
+    absent_count = func.sum(case((Attendance.present == False, 1), else_=0))
 
     rows = (
         db.session.query(
             month_label.label('month'),
-            present_count.label('present'),
+            lessons_count.label('lessons_cnt'),
             absent_count.label('absent')
         )
         .join(Lesson, Attendance.lesson_id == Lesson.id)
@@ -201,7 +214,15 @@ def analytics_attendance_monthly_group():
             return dt.replace(year=dt.year + 1, month=1)
         return dt.replace(month=dt.month + 1)
 
-    data_map = {r.month: {'present': int(r.present or 0), 'absent': int(r.absent or 0)} for r in rows}
+    # Пересчитываем present по правилу: present = lessons_cnt * group_size - absent
+    data_map = {}
+    for r in rows:
+        lessons_cnt = int(r.lessons_cnt or 0)
+        absent = int(r.absent or 0)
+        present = lessons_cnt * group_size - absent
+        if present < 0:
+            present = 0
+        data_map[r.month] = {'present': present, 'absent': absent}
 
     cursor = start_date.replace(day=1)
     end_cursor = now.replace(day=1)
@@ -377,44 +398,117 @@ def analytics_scores_monthly_overall():
 @app.route('/api/analytics/scores-by-group')
 @login_required
 def analytics_scores_by_group():
-    from models import Assignment, Student, Group
-    # Считаем по группам количество оценок, приведённых к 5-балльной шкале:
-    # 5: score >= 90, 4: 75-89, 3: 60-74, 2: <60 (только у заданий с оценкой)
-    five = func.sum(case((Assignment.score >= 90, 1), else_=0))
-    four = func.sum(case(((Assignment.score >= 75) & (Assignment.score < 90), 1), else_=0))
-    three = func.sum(case(((Assignment.score >= 60) & (Assignment.score < 75), 1), else_=0))
-    two = func.sum(case(((Assignment.score < 60) & (Assignment.score != None), 1), else_=0))
-
-    rows = (
-        db.session.query(
-            Group.name.label('group_name'),
-            five.label('five'),
-            four.label('four'),
-            three.label('three'),
-            two.label('two')
-        )
-        .join(Student, Student.group_id == Group.id)
-        .join(Assignment, Assignment.student_id == Student.id)
-        .filter(Assignment.teacher_id == current_user.id)
-        .group_by(Group.name)
-        .order_by(Group.name)
-        .all()
-    )
-
+    """Статистика успеваемости по группам на основе контрольных точек из журнала"""
+    from models import ControlPoint, ControlPointScore, Student, Group
+    
+    # Получаем все контрольные точки преподавателя
+    control_points = ControlPoint.query.filter_by(teacher_id=current_user.id).all()
+    if not control_points:
+        return jsonify({'labels': [], 'excellent': [], 'good': [], 'average': [], 'low': []})
+    
+    # Получаем все оценки контрольных точек
+    cp_ids = [cp.id for cp in control_points]
+    scores = db.session.query(ControlPointScore).join(
+        Student, ControlPointScore.student_id == Student.id
+    ).join(Group, Student.group_id == Group.id).filter(
+        ControlPointScore.control_point_id.in_(cp_ids)
+    ).all()
+    
+    # Группируем по группам
+    group_stats = {}
+    for score in scores:
+        student = db.session.get(Student, score.student_id)
+        if not student or not student.group:
+            continue
+            
+        group_name = student.group.name
+        if group_name not in group_stats:
+            group_stats[group_name] = []
+        
+        # Находим контрольную точку для нормализации
+        cp = next((cp for cp in control_points if cp.id == score.control_point_id), None)
+        if not cp:
+            continue
+            
+        # Нормализуем к 100-балльной шкале
+        normalized_score = (score.points / cp.max_points) * 100 if cp.max_points > 0 else 0
+        group_stats[group_name].append(normalized_score)
+    
+    # Подсчитываем категории по группам
     labels = []
-    fives = []
-    fours = []
-    threes = []
-    twos = []
+    excellent = []
+    good = []
+    average = []
+    low = []
+    
+    for group_name, scores_list in group_stats.items():
+        labels.append(group_name)
+        
+        excellent_count = sum(1 for s in scores_list if s >= 85)
+        good_count = sum(1 for s in scores_list if s >= 70 and s < 85)
+        average_count = sum(1 for s in scores_list if s >= 55 and s < 70)
+        low_count = sum(1 for s in scores_list if s < 55)
+        
+        excellent.append(excellent_count)
+        good.append(good_count)
+        average.append(average_count)
+        low.append(low_count)
+    
+    return jsonify({
+        'labels': labels, 
+        'excellent': excellent, 
+        'good': good, 
+        'average': average, 
+        'low': low
+    })
 
-    for r in rows:
-        labels.append(r.group_name)
-        fives.append(int(r.five or 0))
-        fours.append(int(r.four or 0))
-        threes.append(int(r.three or 0))
-        twos.append(int(r.two or 0))
 
-    return jsonify({'labels': labels, 'five': fives, 'four': fours, 'three': threes, 'two': twos})
+@app.route('/api/analytics/assignments-by-group')
+@login_required
+def analytics_assignments_by_group():
+    """Статистика выполнения заданий по группам"""
+    from models import Assignment, Student, Group
+    
+    # Получаем все группы преподавателя
+    groups = Group.query.filter_by(teacher_id=current_user.id).all()
+    if not groups:
+        return jsonify({'labels': [], 'completed': [], 'uncompleted': []})
+    
+    labels = []
+    completed = []
+    uncompleted = []
+    
+    for group in groups:
+        # Получаем всех студентов группы
+        students = Student.query.filter_by(group_id=group.id).all()
+        
+        # Подсчитываем задания для всех студентов группы
+        group_completed = 0
+        group_uncompleted = 0
+        
+        for student in students:
+            # Получаем все задания студента
+            student_assignments = Assignment.query.filter_by(
+                student_id=student.id,
+                teacher_id=current_user.id
+            ).all()
+            
+            for assignment in student_assignments:
+                # Задание считается выполненным, если есть дата сдачи и оценка
+                if assignment.submitted_at and assignment.score is not None:
+                    group_completed += 1
+                else:
+                    group_uncompleted += 1
+        
+        labels.append(group.name)
+        completed.append(group_completed)
+        uncompleted.append(group_uncompleted)
+    
+    return jsonify({
+        'labels': labels,
+        'completed': completed,
+        'uncompleted': uncompleted
+    })
 
 
 @app.route('/api/analytics/control-points/group')
@@ -480,11 +574,12 @@ def analytics_control_points_group():
             # Нормализуем балл к шкале 0-100
             normalized_score = (score / cp.max_points) * 100 if cp.max_points > 0 else 0
             
-            if normalized_score >= 90:
+            # Категории: Отлично (85-100), Хорошо (70-84), Удовлетворительно (55-69), Неудовлетворительно (0-54)
+            if normalized_score >= 85:
                 excellent += 1
-            elif normalized_score >= 75:
+            elif normalized_score >= 70:
                 good += 1
-            elif normalized_score >= 60:
+            elif normalized_score >= 55:
                 average += 1
             else:
                 low += 1
@@ -562,15 +657,26 @@ def ensure_startup_state():
             except Exception:
                 pass  # Таблица может не существовать
             
-            # Миграция таблицы lesson
+            # Миграция таблицы assignment
             try:
-                result = db.session.execute(text("PRAGMA table_info('lesson')")).all()
+                result = db.session.execute(text("PRAGMA table_info('assignment')")).all()
                 column_names = {row[1] for row in result}
                 
-                if 'classroom' not in column_names:
-                    db.session.execute(text("ALTER TABLE 'lesson' ADD COLUMN classroom VARCHAR(50)"))
+                if 'due_date' not in column_names:
+                    db.session.execute(text("ALTER TABLE 'assignment' ADD COLUMN due_date DATE"))
+                if 'subject' not in column_names:
+                    db.session.execute(text("ALTER TABLE 'assignment' ADD COLUMN subject VARCHAR(200)"))
             except Exception:
                 pass  # Таблица может не существовать
+            
+            # Миграция таблицы control_point
+            try:
+                result = db.session.execute(text("PRAGMA table_info('control_point')")).all()
+                column_names = {row[1] for row in result}
+                if 'subject' not in column_names:
+                    db.session.execute(text("ALTER TABLE 'control_point' ADD COLUMN subject VARCHAR(200)"))
+            except Exception:
+                pass
             
             db.session.commit()
         except Exception:

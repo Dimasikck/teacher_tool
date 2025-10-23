@@ -277,10 +277,21 @@
         }
     }
 
+    /* Стили для логотипа */
+    .logo-container {
+        display: none; /* По умолчанию скрыт на десктопе */
+    }
+
     /* Адаптивность */
     @media (max-width: 768px) {
+        /* Показываем логотип только на мобильных устройствах */
+        .logo-container {
+            display: block;
+        }
+        
+        /* Скрываем заголовок "Teacher Tools" на мобильных */
         .auth-title h1 {
-            font-size: 2.5rem;
+            display: none;
         }
         
         .auth-title .subtitle {
@@ -297,11 +308,18 @@
         }
     }
 
-    @media (max-width: 480px) {
-        .auth-title h1 {
-            font-size: 2rem;
+    @media (min-width: 769px) {
+        /* На десктопе скрываем логотип и показываем заголовок */
+        .logo-container {
+            display: none;
         }
         
+        .auth-title h1 {
+            display: block;
+        }
+    }
+
+    @media (max-width: 480px) {
         .auth-card {
             padding: 25px 20px;
         }
@@ -311,6 +329,9 @@
 <div class="auth-container">
     <!-- Заголовок -->
     <div class="auth-title">
+        <div class="logo-container" style="margin-bottom: 20px;">
+            <img src="/static/icons/logo.png" alt="Teacher Tools" class="app-logo" style="height: 90px;">
+        </div>
         <h1>Teacher Tools</h1>
         <div class="subtitle">Система управления учебным процессом</div>
     </div>

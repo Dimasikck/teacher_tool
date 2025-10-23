@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+
+{% block title %}Аналитика{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header">
+                <h1><i class="fas fa-chart-line"></i> Аналитика</h1>
+                <p class="text-muted">Анализ успеваемости, посещаемости и выполнения заданий</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-filter"></i> Фильтры</h5>
+                </div>
+                <div class="card-body">
+                    <form id="filterForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="groupSelect" class="form-label">Группа</label>
+                            <select class="form-select" id="groupSelect" name="group_id">
+                                <option value="">Все группы</option>
+                                {% for group in groups %}
+                                <option value="{{ group.id }}">{{ group.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="startDate" class="form-label">Дата начала</label>
+                            <input type="date" class="form-control" id="startDate" name="start_date">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="endDate" class="form-label">Дата окончания</label>
+                            <input type="date" class="form-control" id="endDate" name="end_date">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i> Применить
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Общая статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title" id="totalGroups">0</h4>
+                            <p class="card-text">Групп</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title" id="totalStudents">0</h4>
+                            <p class="card-text">Студентов</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-user-graduate fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title" id="avgAttendance">0%</h4>
+                            <p class="card-text">Средняя посещаемость</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title" id="avgGrade">0</h4>
+                            <p class="card-text">Средний балл</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-star fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Список групп -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list"></i> Группы</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="groupsTable">
+                            <thead>
+                                <tr>
+                                    <th>Группа</th>
+                                    <th>Студентов</th>
+                                    <th>Средняя посещаемость</th>
+                                    <th>Средний балл</th>
+                                    <th>Выполнение заданий</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for group in groups %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ group.name }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ group.course or 'Без описания' }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary" id="students-{{ group.id }}">Загрузка...</span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar" id="attendance-{{ group.id }}" role="progressbar" style="width: 0%">
+                                                <span id="attendance-text-{{ group.id }}">0%</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success" id="grade-{{ group.id }}">0</span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-info" id="completion-{{ group.id }}" role="progressbar" style="width: 0%">
+                                                <span id="completion-text-{{ group.id }}">0%</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('analytics.group_analytics', group_id=group.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-chart-bar"></i> Анализ
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-success" 
+                                                onclick="exportReport({{ group.id }})">
+                                            <i class="fas fa-download"></i> Экспорт
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie"></i> Распределение по категориям</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar"></i> Посещаемость по группам</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="attendanceChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Проблемные студенты -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-exclamation-triangle text-warning"></i> Студенты, требующие внимания</h5>
+                </div>
+                <div class="card-body">
+                    <div id="problematicStudents">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Лучшие студенты -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-trophy text-warning"></i> Лучшие студенты</h5>
+                </div>
+                <div class="card-body">
+                    <div id="topStudents">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Устанавливаем даты по умолчанию
+    const today = new Date();
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    document.getElementById('startDate').value = monthAgo.toISOString().split('T')[0];
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+    
+    // Загружаем данные при загрузке страницы
+    loadAnalyticsData();
+    
+    // Обработчик формы фильтров
+    document.getElementById('filterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        loadAnalyticsData();
+    });
+});
+
+function loadAnalyticsData() {
+    const formData = new FormData(document.getElementById('filterForm'));
+    const params = new URLSearchParams(formData);
+    
+    // Загружаем данные для каждой группы
+    {% for group in groups %}
+    loadGroupData({{ group.id }}, params);
+    {% endfor %}
+    
+    // Загружаем общую статистику
+    loadOverallStats(params);
+
+    // Обновляем диаграмму посещаемости по группам
+    fetch(`/analytics/api/attendance-by-groups?${params.toString()}`)
+        .then(r => r.json())
+        .then(({labels, data}) => {
+            if (!attendanceChart) return;
+            attendanceChart.data.labels = labels || [];
+            attendanceChart.data.datasets[0].data = data || [];
+            attendanceChart.update();
+        })
+        .catch(() => {});
+
+    // Для выбранной группы строим категорийный график и списки студентов
+    const groupSelect = document.getElementById('groupSelect');
+    const selectedGroupId = groupSelect && groupSelect.value ? groupSelect.value : (groupSelect.options[1] ? groupSelect.options[1].value : '');
+    if (selectedGroupId) {
+        fetch(`/analytics/api/category-distribution?group_id=${selectedGroupId}&${params.toString()}`)
+            .then(r => r.json())
+            .then(({labels, data}) => {
+                if (!categoryChart) return;
+                categoryChart.data.labels = labels || [];
+                categoryChart.data.datasets[0].data = data || [];
+                categoryChart.update();
+            })
+            .catch(() => {});
+
+        // Проблемные студенты
+        fetch(`/analytics/api/problematic-students?group_id=${selectedGroupId}&${params.toString()}`)
+            .then(r => r.json())
+            .then(items => {
+                const container = document.getElementById('problematicStudents');
+                if (!Array.isArray(items) || items.length === 0) {
+                    container.innerHTML = '<div class="text-muted">Нет данных</div>';
+                    return;
+                }
+                container.innerHTML = items.map(i => `
+                    <div class="mb-2">
+                        <strong>${i.student}</strong>
+                        <div><small>Посещаемость: ${i.attendance}% | Балл: ${i.avg_grade} | Выполнение: ${i.completion}%</small></div>
+                        <ul class="mb-1">${i.issues.map(x => `<li>${x}</li>`).join('')}</ul>
+                    </div>
+                `).join('');
+            })
+            .catch(() => { document.getElementById('problematicStudents').innerHTML = '<div class="text-muted">Ошибка загрузки</div>'; });
+
+        // Лучшие студенты
+        fetch(`/analytics/api/top-students?group_id=${selectedGroupId}&${params.toString()}`)
+            .then(r => r.json())
+            .then(items => {
+                const container = document.getElementById('topStudents');
+                if (!Array.isArray(items) || items.length === 0) {
+                    container.innerHTML = '<div class="text-muted">Нет данных</div>';
+                    return;
+                }
+                container.innerHTML = items.map(i => `
+                    <div class="mb-2">
+                        <strong>${i.student}</strong>
+                        <div><small>Посещаемость: ${i.attendance}% | Балл: ${i.avg_grade} | Выполнение: ${i.completion}%</small></div>
+                    </div>
+                `).join('');
+            })
+            .catch(() => { document.getElementById('topStudents').innerHTML = '<div class="text-muted">Ошибка загрузки</div>'; });
+    }
+}
+
+function loadGroupData(groupId, params) {
+    // Сводная информация для таблицы
+    fetch(`/analytics/api/chart-data/${groupId}?${params.toString()}&type=summary`)
+        .then(response => response.json())
+        .then(summary => {
+            if (!summary || summary.error) return;
+            document.getElementById(`students-${groupId}`).textContent = summary.total_students;
+            const att = Math.round(summary.avg_attendance || 0);
+            document.getElementById(`attendance-${groupId}`).style.width = att + '%';
+            document.getElementById(`attendance-text-${groupId}`).textContent = att + '%';
+            document.getElementById(`grade-${groupId}`).textContent = summary.avg_grade || 0;
+            const completion = Math.round(summary.avg_completion || 0);
+            document.getElementById(`completion-${groupId}`).style.width = completion + '%';
+            document.getElementById(`completion-text-${groupId}`).textContent = completion + '%';
+        })
+        .catch(() => {});
+
+    // Данные для графиков по группе (например посещаемость студентов)
+    fetch(`/analytics/api/chart-data/${groupId}?${params.toString()}&type=attendance`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Ошибка загрузки данных:', data.error);
+                return;
+            }
+            
+            // Обновляем статистику группы
+            updateGroupStats(groupId, data);
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+        });
+}
+
+function updateGroupStats(groupId, data) {
+    // Здесь можно обновить статистику конкретной группы
+    // Пока что просто показываем загрузку
+}
+
+function loadOverallStats(params) {
+    // Общая статистика по всем группам преподавателя: агрегируем локально
+    let totalGroups = {{ groups|length }};
+    let totalStudents = 0;
+    let sumAttendance = 0;
+    let sumGrade = 0;
+    let countGrade = 0;
+    let sumCompletion = 0;
+
+    const formData = new FormData(document.getElementById('filterForm'));
+    const paramsStr = new URLSearchParams(formData).toString();
+
+    const groupIds = [{% for g in groups %}{{ g.id }}{% if not loop.last %}, {% endif %}{% endfor %}];
+    Promise.all(groupIds.map(gid => fetch(`/analytics/api/chart-data/${gid}?${paramsStr}&type=summary`).then(r => r.json()).catch(() => null)))
+        .then(results => {
+            results.filter(Boolean).forEach(s => {
+                totalStudents += s.total_students || 0;
+                sumAttendance += s.avg_attendance || 0;
+                if (s.avg_grade && s.avg_grade > 0) {
+                    sumGrade += s.avg_grade;
+                    countGrade += 1;
+                }
+                sumCompletion += s.avg_completion || 0;
+            });
+            const avgAttendance = totalGroups ? Math.round(sumAttendance / totalGroups) : 0;
+            const avgGrade = countGrade ? Math.round(sumGrade / countGrade) : 0;
+
+            document.getElementById('totalGroups').textContent = totalGroups;
+            document.getElementById('totalStudents').textContent = String(totalStudents);
+            document.getElementById('avgAttendance').textContent = `${avgAttendance}%`;
+            document.getElementById('avgGrade').textContent = String(avgGrade);
+        })
+        .catch(() => {
+            document.getElementById('totalGroups').textContent = totalGroups;
+        });
+}
+
+function exportReport(groupId) {
+    const formData = new FormData(document.getElementById('filterForm'));
+    const params = new URLSearchParams(formData);
+    
+    window.open(`/analytics/export/${groupId}?${params.toString()}&type=attendance`, '_blank');
+}
+
+// Инициализация графиков
+let categoryChart, attendanceChart;
+
+function initCharts() {
+    // График распределения по категориям
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    categoryChart = new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Отличники', 'Хорошисты', 'Средний уровень', 'Отстающие'],
+            datasets: [{
+                data: [0, 0, 0, 0],
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 205, 86, 0.8)',
+                    'rgba(255, 99, 132, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 205, 86, 1)',
+                    'rgba(255, 99, 132, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // График посещаемости
+    const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
+    attendanceChart = new Chart(attendanceCtx, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Посещаемость (%)',
+                data: [],
+                backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+// Инициализируем графики после загрузки страницы
+setTimeout(initCharts, 100);
+</script>
+{% endblock %}

@@ -26,6 +26,7 @@ def board():
                     'title': t.title,
                     'description': t.description,
                     'status': t.status,
+                    'priority': t.priority,
                     'due_date': t.due_date.isoformat() if t.due_date else None,
                     'position': t.position,
                     'list_id': t.list_id,
@@ -34,6 +35,36 @@ def board():
             ],
         })
     return render_template('tasks.html', lists=data)
+
+# API endpoint for board data
+@tasks_bp.route('/api/board')
+@login_required
+def api_board():
+    lists = TaskList.query.filter_by(teacher_id=current_user.id).order_by(TaskList.position.asc()).all()
+    data = []
+    for lst in lists:
+        tasks = Task.query.filter_by(teacher_id=current_user.id, list_id=lst.id).order_by(Task.position.asc()).all()
+        data.append({
+            'list': {
+                'id': lst.id,
+                'name': lst.name,
+                'position': lst.position,
+            },
+            'tasks': [
+                {
+                    'id': t.id,
+                    'title': t.title,
+                    'description': t.description,
+                    'status': t.status,
+                    'priority': t.priority,
+                    'due_date': t.due_date.isoformat() if t.due_date else None,
+                    'position': t.position,
+                    'list_id': t.list_id,
+                }
+                for t in tasks
+            ],
+        })
+    return jsonify(data)
 
 
 # API: create list
@@ -94,6 +125,7 @@ def create_task():
         title=title,
         description=(payload.get('description') or '').strip() or None,
         status=payload.get('status', 'new'),
+        priority=payload.get('priority', 'low'),
         list_id=list_id,
         position=(max_pos + 1),
         teacher_id=current_user.id
@@ -102,6 +134,22 @@ def create_task():
     db.session.commit()
     return jsonify({'id': task.id, 'title': task.title, 'position': task.position, 'list_id': task.list_id})
 
+
+# API: get single task
+@tasks_bp.route('/api/tasks/<int:task_id>', methods=['GET'])
+@login_required
+def get_task(task_id):
+    task = Task.query.filter_by(id=task_id, teacher_id=current_user.id).first_or_404()
+    return jsonify({
+        'id': task.id,
+        'title': task.title,
+        'description': task.description,
+        'status': task.status,
+        'priority': task.priority,
+        'due_date': task.due_date.isoformat() if task.due_date else None,
+        'list_id': task.list_id,
+        'position': task.position
+    })
 
 # API: update task
 @tasks_bp.route('/api/tasks/<int:task_id>', methods=['PUT'])
@@ -115,6 +163,8 @@ def update_task(task_id):
         task.description = (payload.get('description') or '').strip() or None
     if 'status' in payload:
         task.status = payload.get('status', task.status)
+    if 'priority' in payload:
+        task.priority = payload.get('priority', 'low')
     if 'due_date' in payload:
         # Expect ISO format or empty
         from datetime import datetime

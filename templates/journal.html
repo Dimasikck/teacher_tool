@@ -26,15 +26,42 @@
     .journal-actions .btn span {
         white-space: normal; /* разрешаем перенос строк внутри подписи */
     }
+    /* Темная тема: делаем селект дисциплины темно-серым, когда он disabled */
+    [data-theme="dark"] #subjectSelect:disabled {
+        background-color: #2d3748 !important; /* темно-серый */
+        color: var(--text-muted) !important;
+        border-color: var(--border-color) !important;
+        opacity: 1 !important; /* отменяем обесцвечивание bootstrap */
+        cursor: not-allowed;
+    }
+    
+    /* Плавное исчезновение подсказок */
+    .alert {
+        transition: all 0.5s ease-in-out;
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    .alert.fade-out {
+        opacity: 0;
+        transform: translateY(-10px);
+        margin-bottom: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        height: 0;
+        overflow: hidden;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <h1 class="mb-4">Журнал посещаемости и успеваемости</h1>
 
+
 <div class="row mb-3">
     <div class="col-md-4">
-        <select id="groupSelect" class="form-select" onchange="loadJournal()">
+        <label class="form-label small text-muted">Группа</label>
+        <select id="groupSelect" class="form-select" onchange="onGroupChange()">
             <option value="">Выберите группу</option>
             {% for group in groups %}
             <option value="{{ group.id }}" data-name="{{ group.name }}" data-course="{{ group.course or '' }}" data-form="{{ group.education_form or '' }}">{{ group.name }}</option>
@@ -42,25 +69,35 @@
         </select>
     </div>
     <div class="col-md-4">
+        <label class="form-label small text-muted">Дисциплина</label>
+        <select id="subjectSelect" class="form-select" onchange="loadJournal()" disabled>
+            <option value="">Выберите дисциплину</option>
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label small text-muted">Месяц</label>
         <input type="month" id="monthSelect" class="form-control" onchange="loadJournal()" />
     </div>
 </div>
 
 <div class="journal-actions" role="group">
-    <button class="btn btn-primary" onclick="loadJournal()">
+    <button id="loadBtn" class="btn btn-primary" onclick="loadJournal()" disabled>
         <i class="bi bi-arrow-clockwise"></i> <span>Загрузить</span>
     </button>
-    <button class="btn btn-success" onclick="showAddControlPoint()">
+    <button id="addCpBtn" class="btn btn-success" onclick="showAddControlPoint()" disabled>
         <i class="bi bi-plus-circle"></i> <span>Добавить КТ</span>
     </button>
-    <button class="btn btn-warning" onclick="syncFromCalendar()">
+    <button id="syncBtn" class="btn btn-warning" onclick="syncFromCalendar()" disabled>
         <i class="bi bi-arrow-repeat"></i> <span>Синхронизировать</span>
     </button>
-    <button class="btn btn-outline-secondary" onclick="showLessonsList()">
+    <button id="listBtn" class="btn btn-outline-secondary" onclick="showLessonsList()" disabled>
         <i class="bi bi-list-ul"></i> <span>Список занятий</span>
     </button>
-    <button class="btn btn-info" onclick="exportData()">
+    <button id="exportBtn" class="btn btn-info" onclick="exportData()" disabled>
         <i class="bi bi-download"></i> <span>Экспорт</span>
+    </button>
+    <button id="assignmentsBtn" class="btn btn-outline-primary" onclick="goToAssignments()" disabled>
+        <i class="bi bi-journal-text"></i> <span>Задания</span>
     </button>
 </div>
 
@@ -174,7 +211,12 @@
     </div>
 </div>
 
-<div class="mt-4">
+<div id="journalPlaceholder" class="text-center text-muted py-5">
+    <i class="bi bi-journal-text" style="font-size: 3rem;"></i>
+    <p class="mt-3">Выберите группу и дисциплину для просмотра журнала</p>
+</div>
+
+<div id="journalStatsBlock" class="mt-4" style="display:none;">
     <h3>Статистика посещаемости и успеваемости группы</h3>
     <div id="statsContainer"></div>
     <div class="row row-cols-1 row-cols-sm-2 g-3 mt-4" id="groupAnalytics" style="display:none;">
@@ -206,6 +248,8 @@
 
 <script>
 let currentLesson = null;
+let gControlPoints = [];
+let gControlPointMarks = {};
 
 function calculateStudentSummary(studentId, controlPoints, controlPointMarks) {
     if (!controlPoints || controlPoints.length === 0) {
@@ -269,12 +313,63 @@ function calculateStudentSummary(studentId, controlPoints, controlPointMarks) {
     };
 }
 
+function onGroupChange() {
+    const groupId = document.getElementById('groupSelect').value;
+    const subjectSelect = document.getElementById('subjectSelect');
+    
+    // Мгновенно скрываем предыдущий журнал при смене группы
+    const tableEl = document.getElementById('attendanceTable');
+    const headerEl = document.getElementById('journalHeader');
+    tableEl.innerHTML = '';
+    headerEl.innerHTML = '';
+    
+    // Блокируем действия до выбора дисциплины
+    updateActionButtons();
+    subjectSelect.innerHTML = '<option value="">Загрузка дисциплин...</option>';
+    subjectSelect.disabled = true;
+    
+    // Если группа снята — возвращаем пустые значения и выходим
+    if (!groupId) {
+        subjectSelect.innerHTML = '<option value="">Выберите дисциплину</option>';
+        updateActionButtons();
+        return;
+    }
+    
+    // Показываем легкий индикатор загрузки на месте таблицы
+    tableEl.innerHTML = '<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Загрузка данных...</div>';
+    
+    fetch(`/api/group/subjects?group_id=${groupId}`)
+        .then(r => r.json())
+        .then(subjects => {
+            let options = '<option value="">Выберите дисциплину</option>';
+            subjects.forEach(s => { options += `<option value="${s}">${s}</option>`; });
+            subjectSelect.innerHTML = options;
+            subjectSelect.disabled = false;
+            
+            // После загрузки дисциплин убираем индикатор и просим выбрать дисциплину
+            tableEl.innerHTML = '<div class="alert alert-info py-2">Выберите дисциплину для отображения журнала</div>';
+            updateActionButtons();
+        })
+        .catch(() => {
+            subjectSelect.innerHTML = '<option value="">Выберите дисциплину</option>';
+            subjectSelect.disabled = false;
+            tableEl.innerHTML = '<div class="alert alert-warning py-2">Не удалось загрузить список дисциплин. Повторите попытку.</div>';
+            updateActionButtons();
+        });
+}
+
 function loadJournal() {
     const groupSelect = document.getElementById('groupSelect');
     const groupId = groupSelect.value;
+    const subject = document.getElementById('subjectSelect').value;
     const month = document.getElementById('monthSelect').value;
+    updateActionButtons();
     if (!groupId) {
         alert('Выберите группу');
+        return;
+    }
+    if (!subject) {
+        alert('Выберите дисциплину');
         return;
     }
 
@@ -296,6 +391,7 @@ function loadJournal() {
     }
 
     const qs = new URLSearchParams({ group_id: groupId });
+    if (subject) qs.set('subject', subject);
     if (month) qs.set('month', month);
 
     fetch(`/api/journal/group?${qs.toString()}`)
@@ -358,6 +454,10 @@ function renderJournalTable(data) {
     // Сортируем по дате
     allColumns.sort((a, b) => a.date - b.date);
 
+    // Кэшируем КТ и оценки КТ для живого пересчета "Итог"
+    gControlPoints = controlPoints.slice();
+    gControlPointMarks = { ...controlPointMarks };
+
     let html = '<div class="table-responsive">';
     html += '<table class="table table-bordered table-sm align-middle">';
     html += '<thead><tr><th style="min-width:220px">Студент</th>';
@@ -388,7 +488,7 @@ function renderJournalTable(data) {
     html += '</tr></thead><tbody>';
 
      students.forEach(st => {
-         html += `<tr><td>${st.name}</td>`;
+         html += `<tr data-student="${st.id}"><td>${st.name}</td>`;
          
          // Ячейки в хронологическом порядке
          allColumns.forEach(column => {
@@ -446,8 +546,8 @@ function renderJournalTable(data) {
          });
          
          // Добавляем ячейку "Итог"
-         const summaryResult = calculateStudentSummary(st.id, controlPoints, controlPointMarks);
-         html += `<td class="text-center bg-info bg-opacity-10 summary-cell">
+        const summaryResult = calculateStudentSummary(st.id, controlPoints, controlPointMarks);
+        html += `<td class="text-center bg-info bg-opacity-10 summary-cell">
                      <div class="summary-average">${summaryResult.average}</div>
                      <div class="summary-grade" style="color: ${summaryResult.color};">${summaryResult.grade}</div>
                   </td>`;
@@ -461,6 +561,26 @@ function renderJournalTable(data) {
 
     // Подключаем подсветку строк и столбцов после рендера
     attachHighlightHandlers();
+    updateActionButtons();
+}
+
+// Обновление ячейки "Итог" по студенту без перезагрузки
+function updateStudentSummary(studentId) {
+    const table = document.querySelector('#attendanceTable table');
+    if (!table) return;
+    const row = table.querySelector(`tbody tr[data-student="${studentId}"]`);
+    if (!row) return;
+    const summaryCell = row.querySelector('.summary-cell');
+    if (!summaryCell) return;
+
+    const result = calculateStudentSummary(parseInt(studentId), gControlPoints, gControlPointMarks);
+    const avgEl = summaryCell.querySelector('.summary-average');
+    const gradeEl = summaryCell.querySelector('.summary-grade');
+    if (avgEl) avgEl.textContent = result.average;
+    if (gradeEl) {
+        gradeEl.textContent = result.grade;
+        gradeEl.style.color = result.color;
+    }
 }
 
 let groupAttendanceChart = null;
@@ -513,28 +633,28 @@ function loadGroupAnalytics(groupId) {
                         labels: data.labels,
                         datasets: [
                             { 
-                                label: 'Отлично (90-100%)', 
+                                label: 'Отлично (85-100%)', 
                                 data: data.excellent, 
                                 backgroundColor: '#198754',
                                 borderColor: '#198754',
                                 borderWidth: 1
                             },
                             { 
-                                label: 'Хорошо (75-89%)', 
+                                label: 'Хорошо (70-84%)', 
                                 data: data.good, 
                                 backgroundColor: '#0d6efd',
                                 borderColor: '#0d6efd',
                                 borderWidth: 1
                             },
                             { 
-                                label: 'Удовл. (60-74%)', 
+                                label: 'Удовл. (55-69%)', 
                                 data: data.average, 
                                 backgroundColor: '#ffc107',
                                 borderColor: '#ffc107',
                                 borderWidth: 1
                             },
                             { 
-                                label: 'Низко (<60%)', 
+                                label: 'Низко (<55%)', 
                                 data: data.low, 
                                 backgroundColor: '#dc3545',
                                 borderColor: '#dc3545',
@@ -1088,7 +1208,9 @@ function createControlPoint() {
             bootstrap.Modal.getInstance(document.getElementById('controlPointModal')).hide();
             loadJournal(); // Перезагружаем журнал
         } else {
-            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+            // Показываем более информативное сообщение об ошибке
+            const errorMessage = data.error || 'Неизвестная ошибка';
+            alert('Ошибка: ' + errorMessage);
         }
     })
     .catch(error => {
@@ -1203,6 +1325,15 @@ function saveControlPointScore(inputEl) {
         if (data.status === 'success') {
             // Обновляем стили
             inputEl.style.fontWeight = points !== null ? 'bold' : 'normal';
+
+            // Локально обновляем карту оценок КТ и пересчитываем Итог
+            const key = `${studentId}:${controlPointId}`;
+            if (points === null) {
+                delete gControlPointMarks[key];
+            } else {
+                gControlPointMarks[key] = { points: points };
+            }
+            updateStudentSummary(studentId);
         } else {
             alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
         }
@@ -1211,6 +1342,63 @@ function saveControlPointScore(inputEl) {
         console.error('Error:', error);
         alert('Ошибка при сохранении оценки: ' + error.message);
     });
+}
+
+// Функция плавного исчезновения подсказок
+function fadeOutAlert(alertId) {
+    const alert = document.getElementById(alertId);
+    if (alert) {
+        alert.classList.add('fade-out');
+        setTimeout(() => {
+            alert.style.display = 'none';
+        }, 500); // Время анимации
+    }
+}
+
+// Инициализируем отображение плейсхолдера/статистики
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof updateActionButtons === 'function') {
+        updateActionButtons();
+    }
+});
+
+function goToAssignments() {
+    const groupId = document.getElementById('groupSelect').value;
+    const subject = document.getElementById('subjectSelect').value;
+    
+    if (!groupId || !subject) {
+        alert('Выберите группу и дисциплину');
+        return;
+    }
+    
+    // Переходим на страницу заданий с предзаполненными параметрами
+    const url = new URL('/assignments', window.location.origin);
+    url.searchParams.set('group_id', groupId);
+    url.searchParams.set('subject', subject);
+    window.location.href = url.toString();
+}
+
+function updateActionButtons() {
+    const groupSelected = !!document.getElementById('groupSelect').value;
+    const subjectSelected = !!document.getElementById('subjectSelect').value;
+    const enabled = groupSelected && subjectSelected;
+    const ids = ['loadBtn','addCpBtn','syncBtn','listBtn','exportBtn','assignmentsBtn'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !enabled;
+    });
+    // Переключаем плейсхолдер и блок статистики
+    const placeholder = document.getElementById('journalPlaceholder');
+    const statsBlock = document.getElementById('journalStatsBlock');
+    if (placeholder && statsBlock) {
+        if (enabled) {
+            placeholder.style.display = 'none';
+            statsBlock.style.display = 'block';
+        } else {
+            placeholder.style.display = 'block';
+            statsBlock.style.display = 'none';
+        }
+    }
 }
 </script>
 

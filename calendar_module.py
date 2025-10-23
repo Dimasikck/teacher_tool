@@ -192,7 +192,9 @@ def get_events():
         # Применяем фильтры по дате, если они переданы
         if start:
             try:
-                start_date = datetime.fromisoformat(start.replace('Z', '+00:00'))
+                # Исправляем формат даты (заменяем пробел на +)
+                start_fixed = start.replace(' ', '+')
+                start_date = datetime.fromisoformat(start_fixed.replace('Z', '+00:00'))
                 query = query.filter(Schedule.start_time >= start_date)
                 print(f"DEBUG: Filtered by start date: {start_date}")
             except ValueError as e:
@@ -200,7 +202,9 @@ def get_events():
                 
         if end:
             try:
-                end_date = datetime.fromisoformat(end.replace('Z', '+00:00'))
+                # Исправляем формат даты (заменяем пробел на +)
+                end_fixed = end.replace(' ', '+')
+                end_date = datetime.fromisoformat(end_fixed.replace('Z', '+00:00'))
                 query = query.filter(Schedule.end_time <= end_date)
                 print(f"DEBUG: Filtered by end date: {end_date}")
             except ValueError as e:
@@ -211,7 +215,57 @@ def get_events():
 
         events = []
         for event in all_events:
-            group = Group.query.get(event.group_id)
+            # Для мероприятий (не занятий)
+            if hasattr(event, 'is_event') and event.is_event:
+                # Формируем время и место проведения
+                start_time = event.start_time.strftime('%H:%M')
+                end_time = event.end_time.strftime('%H:%M')
+                time_info = f"{start_time}-{end_time}"
+                if event.classroom:
+                    time_info += f" • {event.classroom}"
+                
+                # Формируем заголовок для мероприятия
+                event_type_names = {
+                    'conference': 'Конференция',
+                    'seminar': 'Семинар',
+                    'meeting': 'Встреча',
+                    'workshop': 'Мастер-класс',
+                    'presentation': 'Презентация',
+                    'other': 'Мероприятие'
+                }
+                event_type = getattr(event, 'event_type', 'other')
+                event_type_name = event_type_names.get(event_type, 'Мероприятие')
+                
+                title_lines = [
+                    f"📅 {event_type_name}",
+                    time_info,
+                    event.title
+                ]
+                description = getattr(event, 'description', '')
+                if description:
+                    title_lines.append(description)
+                
+                formatted_title = '\n'.join(title_lines)
+                
+                event_data = {
+                    'id': event.id,
+                    'title': formatted_title,
+                    'start': event.start_time.isoformat(),
+                    'end': event.end_time.isoformat(),
+                    'color': event.color or '#dc3545',
+                    'groupId': None,  # Мероприятия не привязаны к группам
+                    'groupColor': event.color or '#dc3545',
+                    'classroom': event.classroom,
+                    'is_event': True,
+                    'description': description,
+                    'event_type': event_type
+                }
+                events.append(event_data)
+                print(f"DEBUG: Event: {event_data}")
+                continue
+            
+            # Для обычных занятий (существующая логика)
+            group = db.session.get(Group, event.group_id)
             
             # Получаем аудиторию
             classroom = event.classroom or ""
@@ -251,7 +305,13 @@ def get_events():
                 'color': event.color or '#3788d8',
                 'groupId': event.group_id,
                 'groupColor': group.color if group else '#3788d8',
-                'classroom': classroom
+                'classroom': classroom,
+                'is_event': False,
+                # Добавляем уникальные свойства для предотвращения группировки
+                'uniqueId': f"lesson_{event.id}",
+                'eventId': event.id,
+                'groupId': event.group_id,
+                'teacherId': current_user.id
             }
             events.append(event_data)
             print(f"DEBUG: Event: {event_data}")
@@ -274,7 +334,7 @@ def get_all_events():
         
         result = []
         for event in events:
-            group = Group.query.get(event.group_id)
+            group = db.session.get(Group, event.group_id)
             result.append({
                 'id': event.id,
                 'title': event.title,
@@ -296,9 +356,54 @@ def get_all_events():
         return jsonify({'error': str(e)}), 500
 
 
-@calendar_bp.route('/api/schedule/create', methods=['POST'])
+@calendar_bp.route('/api/schedule/create-event', methods=['POST'])
 @login_required
 def create_event():
+    """Создание мероприятия (не занятия)"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        # Валидация обязательных полей
+        required_fields = ['title', 'start', 'end']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'Field {field} is required'}), 400
+
+        # Создаем мероприятие в расписании
+        event = Schedule(
+            title=data['title'],
+            start_time=datetime.fromisoformat(data['start']),
+            end_time=datetime.fromisoformat(data['end']),
+            group_id=None,  # Мероприятия не привязаны к группам
+            color=data.get('color', '#dc3545'),
+            classroom=data.get('location', ''),  # Используем поле classroom для места проведения
+            teacher_id=current_user.id,
+            is_event=True,  # Помечаем как мероприятие
+            description=data.get('description', ''),
+            event_type=data.get('event_type', 'other')
+        )
+
+        db.session.add(event)
+        db.session.commit()
+
+        return jsonify({
+            'id': event.id, 
+            'status': 'success',
+            'message': 'Мероприятие успешно создано'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@calendar_bp.route('/api/schedule/create', methods=['POST'])
+@login_required
+def create_lesson():
+    """Создание занятия (не мероприятия)"""
     try:
         data = request.json
         
@@ -606,6 +711,7 @@ def update_event(event_id):
         ).first()
         
         if lesson:
+            # Обновляем только это конкретное занятие
             lesson.date = event.start_time
             lesson.topic = event.title
             lesson.group_id = event.group_id  # Обновляем группу занятия
@@ -886,7 +992,7 @@ def export_schedule_excel():
         
         # Записываем данные
         for row, event in enumerate(events, 2):
-            group = Group.query.get(event.group_id)
+            group = db.session.get(Group, event.group_id)
             group_name = group.name if group else 'Неизвестная группа'
             
             # Форматируем дату и время
