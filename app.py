@@ -754,10 +754,11 @@ def analytics_lessons_timeline():
             }
             month_name = month_names[current_date.month]
             label = f"{month_name} {current_date.year}"
+            # Правильный переход к следующему месяцу
             if current_date.month == 12:
-                current_date = current_date.replace(year=current_date.year + 1, month=1)
+                current_date = current_date.replace(year=current_date.year + 1, month=1, day=1)
             else:
-                current_date = current_date.replace(month=current_date.month + 1)
+                current_date = current_date.replace(month=current_date.month + 1, day=1)
         
         all_periods.append({
             'key': key,
