@@ -1360,6 +1360,74 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof updateActionButtons === 'function') {
         updateActionButtons();
     }
+    
+    // Обработка параметров из URL (для перехода из календаря)
+    const urlParams = new URLSearchParams(window.location.search);
+    const groupIdParam = urlParams.get('group_id');
+    const subjectParam = urlParams.get('subject');
+    
+    if (groupIdParam) {
+        // Устанавливаем группу
+        const groupSelect = document.getElementById('groupSelect');
+        if (groupSelect) {
+            groupSelect.value = groupIdParam;
+            
+            // Вызываем onGroupChange для загрузки дисциплин
+            onGroupChange();
+            
+            // Если указана дисциплина, устанавливаем её после загрузки списка дисциплин
+            if (subjectParam) {
+                // Ждем загрузки дисциплин (проверяем каждые 100мс)
+                const checkSubjectSelect = setInterval(() => {
+                    const subjectSelect = document.getElementById('subjectSelect');
+                    if (subjectSelect && !subjectSelect.disabled && subjectSelect.options.length > 1) {
+                        clearInterval(checkSubjectSelect);
+                        
+                        // Ищем дисциплину в списке (точное совпадение или частичное)
+                        let found = false;
+                        for (let i = 0; i < subjectSelect.options.length; i++) {
+                            const option = subjectSelect.options[i];
+                            if (option.value === subjectParam || 
+                                option.text.toLowerCase().includes(subjectParam.toLowerCase()) ||
+                                subjectParam.toLowerCase().includes(option.text.toLowerCase())) {
+                                subjectSelect.value = option.value;
+                                found = true;
+                                break;
+                            }
+                        }
+                        
+                        // Если не нашли точное совпадение, но есть опции, выбираем первую подходящую
+                        if (!found && subjectSelect.options.length > 1) {
+                            // Пробуем найти по частичному совпадению в тексте
+                            for (let i = 1; i < subjectSelect.options.length; i++) {
+                                const option = subjectSelect.options[i];
+                                const optionText = option.text.toLowerCase();
+                                const paramText = subjectParam.toLowerCase();
+                                if (optionText.includes(paramText) || paramText.includes(optionText)) {
+                                    subjectSelect.value = option.value;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Если нашли дисциплину, загружаем журнал
+                        if (found) {
+                            // Небольшая задержка для завершения обновления UI
+                            setTimeout(() => {
+                                loadJournal();
+                            }, 100);
+                        }
+                    }
+                }, 100);
+                
+                // Останавливаем проверку через 5 секунд, если дисциплины не загрузились
+                setTimeout(() => {
+                    clearInterval(checkSubjectSelect);
+                }, 5000);
+            }
+        }
+    }
 });
 
 function goToAssignments() {

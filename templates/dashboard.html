@@ -58,7 +58,7 @@
                     <button type="button" class="btn btn-primary btn-sm" id="periodMonth" onclick="changePeriod('month')">Месяцы</button>
                 </div>
             </div>
-            <div class="card-body" style="height: 380px;">
+            <div class="card-body chart-container" style="height: 380px;">
                 <canvas id="lessonsTimelineChart"></canvas>
             </div>
         </div>
@@ -74,7 +74,7 @@
                     <i class="bi bi-arrows-fullscreen"></i>
                 </button>
             </div>
-            <div class="card-body" style="height: 320px;">
+            <div class="card-body chart-container" style="height: 320px;">
                 <canvas id="attendanceChart"></canvas>
             </div>
         </div>
@@ -87,7 +87,7 @@
                     <i class="bi bi-arrows-fullscreen"></i>
                 </button>
             </div>
-            <div class="card-body" style="height: 320px;">
+            <div class="card-body chart-container" style="height: 320px;">
                 <canvas id="scoresChart"></canvas>
             </div>
         </div>
@@ -100,7 +100,7 @@
                     <i class="bi bi-arrows-fullscreen"></i>
                 </button>
             </div>
-            <div class="card-body" style="height: 320px;">
+            <div class="card-body chart-container" style="height: 320px;">
                 <canvas id="assignmentsChart"></canvas>
             </div>
         </div>
@@ -183,6 +183,55 @@
     font-weight: 500;
 }
 
+/* Плавная загрузка графиков */
+.chart-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-container canvas {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.chart-container canvas.chart-loaded {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.chart-container.loading canvas {
+    opacity: 0 !important;
+    transform: translateY(12px) scale(0.97) !important;
+}
+
+.chart-container.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 48px;
+    height: 48px;
+    margin: -24px 0 0 -24px;
+    border-radius: 50%;
+    border: 3px solid rgba(102, 126, 234, 0.2);
+    border-top-color: #667eea;
+    animation: spin 0.9s linear infinite;
+    box-shadow: 0 0 30px rgba(102, 126, 234, 0.35);
+}
+
+.chart-container.loading::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08));
+    backdrop-filter: blur(3px);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* Анимация при наведении */
 @keyframes pulse {
     0% { transform: scale(1); }
@@ -213,6 +262,24 @@ function navigateToLessons() {
     window.location.href = '/calendar';
 }
 
+// Управление загрузкой графиков
+function setChartLoading(canvasId, isLoading) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const container = canvas.closest('.chart-container');
+    if (!container) return;
+
+    if (isLoading) {
+        container.classList.add('loading');
+        canvas.classList.remove('chart-loaded');
+    } else {
+        container.classList.remove('loading');
+        requestAnimationFrame(() => {
+            canvas.classList.add('chart-loaded');
+        });
+    }
+}
+
 // Переменные для графиков
 let lessonsTimelineChart = null;
 let attendanceChart = null;
@@ -239,6 +306,8 @@ function changePeriod(period) {
 
 // Функция загрузки данных для графика занятий
 function loadLessonsTimeline() {
+    setChartLoading('lessonsTimelineChart', true);
+
     fetch(`/api/analytics/lessons-timeline?period=${currentPeriod}`)
         .then(r => r.json())
         .then(data => {
@@ -273,6 +342,17 @@ function loadLessonsTimeline() {
                     }]
                 },
                 options: {
+                    animation: {
+                        duration: 1100,
+                        easing: 'easeOutQuart',
+                        delay: function(context) {
+                            // Плавное «прорисовывание» линии слева направо
+                            if (context.type === 'data' && context.mode === 'default') {
+                                return context.dataIndex * 60;
+                            }
+                            return 0;
+                        }
+                    },
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
@@ -344,9 +424,12 @@ function loadLessonsTimeline() {
                     }
                 }
             });
+
+            setChartLoading('lessonsTimelineChart', false);
         })
         .catch(error => {
             console.error('Ошибка загрузки данных графика занятий:', error);
+            setChartLoading('lessonsTimelineChart', false);
         });
 }
 
@@ -357,6 +440,7 @@ fetch('/api/analytics/overview')
         // Загружаем график занятий по времени
         loadLessonsTimeline();
         // Загрузим ежемесячную статистику посещаемости (stacked)
+        setChartLoading('attendanceChart', true);
         fetch('/api/analytics/attendance-monthly')
             .then(r => r.json())
             .then(monthly => {
@@ -380,6 +464,17 @@ fetch('/api/analytics/overview')
                         ]
                     },
                     options: {
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart',
+                            delay: function(context) {
+                                // Плавное нарастание столбцов по оси X
+                                if (context.type === 'data' && context.mode === 'default') {
+                                    return context.dataIndex * 50;
+                                }
+                                return 0;
+                            }
+                        },
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
@@ -404,9 +499,16 @@ fetch('/api/analytics/overview')
                         }
                     }
                 });
+
+                setChartLoading('attendanceChart', false);
+            })
+            .catch(err => {
+                console.error('Ошибка загрузки посещаемости:', err);
+                setChartLoading('attendanceChart', false);
             });
 
         // Загрузим общую статистику успеваемости по группам из журнала (горизонтальные полосы с накоплением)
+        setChartLoading('scoresChart', true);
         fetch('/api/analytics/scores-by-group')
             .then(r => r.json())
             .then(series => {
@@ -425,6 +527,17 @@ fetch('/api/analytics/overview')
                     },
                     options: {
                         indexAxis: 'y', // Горизонтальные полосы
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart',
+                            delay: function(context) {
+                                // Полосы появляются сверху вниз
+                                if (context.type === 'data' && context.mode === 'default') {
+                                    return context.dataIndex * 40;
+                                }
+                                return 0;
+                            }
+                        },
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
@@ -466,9 +579,16 @@ fetch('/api/analytics/overview')
                         }
                     }
                 });
+
+                setChartLoading('scoresChart', false);
+            })
+            .catch(err => {
+                console.error('Ошибка загрузки успеваемости:', err);
+                setChartLoading('scoresChart', false);
             });
 
         // Загрузим статистику выполнения заданий по группам
+        setChartLoading('assignmentsChart', true);
         fetch('/api/analytics/assignments-by-group')
             .then(r => r.json())
             .then(data => {
@@ -492,6 +612,16 @@ fetch('/api/analytics/overview')
                         ]
                     },
                     options: {
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart',
+                            delay: function(context) {
+                                if (context.type === 'data' && context.mode === 'default') {
+                                    return context.dataIndex * 50;
+                                }
+                                return 0;
+                            }
+                        },
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
@@ -536,6 +666,11 @@ fetch('/api/analytics/overview')
                         }
                     }
                 });
+                setChartLoading('assignmentsChart', false);
+            })
+            .catch(err => {
+                console.error('Ошибка загрузки заданий:', err);
+                setChartLoading('assignmentsChart', false);
             });
 
     });

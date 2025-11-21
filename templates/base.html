@@ -1051,12 +1051,26 @@
                     <a href="{{ url_for('docs.index') }}" onclick="closeSidebar()">
                         <i class="bi bi-file-earmark-text"></i> Документация
                     </a>
+                    <a href="{{ url_for('mail.index') }}" onclick="closeSidebar()">
+                        <i class="bi bi-envelope-paper"></i> Почта
+                    </a>
+                    <a href="{{ url_for('communications.index') }}" onclick="closeSidebar()">
+                        <i class="bi bi-chat-left-dots"></i> Коммуникация
+                    </a>
+                    <a href="{{ url_for('conference.index') }}" onclick="closeSidebar()">
+                        <i class="bi bi-camera-video"></i> Конференцсвязь
+                    </a>
                     <a href="{{ url_for('notes.notes') }}" onclick="closeSidebar()">
                         <i class="bi bi-sticky"></i> Заметки
                     </a>
                     <a href="{{ url_for('analytics.analytics_dashboard') }}" onclick="closeSidebar()">
                         <i class="bi bi-graph-up"></i> Аналитика
                     </a>
+                    {% if current_user.is_authenticated and current_user.username == 'admin' %}
+                    <a href="{{ url_for('admin.admin_panel') }}" onclick="closeSidebar()">
+                        <i class="bi bi-shield-lock"></i> Администрирование
+                    </a>
+                    {% endif %}
                     <a href="{{ url_for('auth.logout') }}" onclick="closeSidebar()">
                         <i class="bi bi-box-arrow-right"></i> Выход
                     </a>

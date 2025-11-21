@@ -1,0 +1,359 @@
+{% extends 'base.html' %}
+{% block title %}Почта{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mail-card {
+        border-radius: 20px;
+        border: 1px solid var(--border-light);
+        background: var(--bg-card);
+        box-shadow: 0 15px 50px rgba(15, 52, 96, 0.08);
+    }
+
+    .mail-status {
+        border-radius: 16px;
+        background: var(--bg-secondary);
+        padding: 1.25rem;
+    }
+
+    .mailbox-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .mail-item {
+        border-radius: 16px;
+        padding: 1rem;
+        border: 1px solid transparent;
+        cursor: pointer;
+    }
+
+    .mail-item:hover {
+        background: var(--bg-secondary);
+        border-color: var(--border-light);
+    }
+
+    .mail-preview {
+        border-radius: 18px;
+        border: 1px solid var(--border-light);
+        padding: 1.5rem;
+        min-height: 400px;
+        background: var(--bg-secondary);
+    }
+
+    .compose-area textarea {
+        min-height: 120px;
+    }
+
+    .label-badge {
+        border-radius: 999px;
+        font-size: 0.75rem;
+        padding: 0.1rem 0.6rem;
+        background: rgba(102, 126, 234, 0.15);
+        color: var(--accent-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column gap-1 mb-4">
+    <h1 class="mb-0">Почта</h1>
+    <p class="text-muted mb-0">Подключите рабочий почтовый ящик, просматривайте письма и отвечайте на запросы студентов в одной системе.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="mail-card h-100 p-4">
+            <h5 class="mb-3">Статус подключения</h5>
+            <div class="mail-status mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="fw-semibold">
+                        <i class="bi bi-check-circle-fill text-success me-2" id="mailStatusIcon"></i>
+                        <span id="mailStatusEmail">{{ account_status.email }}</span>
+                    </span>
+                    <span class="badge bg-success-subtle text-success" id="mailStatusBadge">
+                        {{ 'Подключено' if account_status.connected else 'Не настроено' }}
+                    </span>
+                </div>
+                <div class="text-muted small">
+                    Провайдер: <span id="mailStatusProvider">{{ account_status.provider }}</span><br>
+                    Последняя синхронизация: <span id="mailStatusLastSync">{{ account_status.last_sync }}</span><br>
+                    <span id="mailStatusQuota">{{ account_status.quota }}</span>
+                </div>
+            </div>
+            <button class="btn btn-outline-secondary w-100 mb-2" onclick="loadMailbox('INBOX')">
+                <i class="bi bi-arrow-repeat"></i> Синхронизировать
+            </button>
+            <button class="btn btn-outline-primary w-100" onclick="openMailSettings()">
+                <i class="bi bi-gear"></i> Настроить подключение
+            </button>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="mail-card p-4">
+            <ul class="nav nav-pills mb-3" id="mailTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="inbox-tab" data-bs-toggle="pill" data-bs-target="#inbox" type="button" role="tab">Входящие</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="sent-tab" data-bs-toggle="pill" data-bs-target="#sent" type="button" role="tab">Отправленные</button>
+                </li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="inbox" role="tabpanel">
+                    <div class="mailbox-list" id="inboxList">
+                        <div class="text-center text-muted py-4">Нажмите «Синхронизировать» для загрузки писем</div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="sent" role="tabpanel">
+                    <div class="mailbox-list" id="sentList">
+                        <div class="text-center text-muted py-4">Нет данных. Будут показаны отправленные письма.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-1">
+    <div class="col-lg-7">
+        <div class="mail-card p-4 h-100">
+            <h5 class="mb-3">Предпросмотр письма</h5>
+            <div class="mail-preview" id="mailPreview">
+                <p class="text-muted mb-0">Выберите письмо, чтобы увидеть содержимое и вложения.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="mail-card p-4 compose-area h-100">
+            <h5 class="mb-3">Новое письмо</h5>
+            <div class="mb-3">
+                <label class="form-label">Кому</label>
+                <input type="email" class="form-control" id="composeTo" placeholder="student@example.com">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Тема</label>
+                <input type="text" class="form-control" id="composeSubject" placeholder="Введите тему письма">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Сообщение</label>
+                <textarea class="form-control" id="composeBody" placeholder="Напишите текст письма"></textarea>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary flex-grow-1" onclick="sendMail()">
+                    <i class="bi bi-send"></i> Отправить
+                </button>
+                <button class="btn btn-outline-secondary">
+                    <i class="bi bi-paperclip"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно настроек почты -->
+<div class="modal fade" id="mailSettingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-gear"></i> Настройки почты</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="mailSettingsForm">
+                    <div class="mb-3">
+                        <label class="form-label">Адрес электронной почты</label>
+                        <input type="email" class="form-control" id="mailEmail">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Имя пользователя (логин)</label>
+                        <input type="text" class="form-control" id="mailUsername">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Пароль приложения</label>
+                        <input type="password" class="form-control" id="mailPassword">
+                        <div class="form-text">Рекомендуется использовать пароль приложения (Яндекс, Gmail и т.д.).</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">IMAP сервер</label>
+                            <input type="text" class="form-control" id="imapHost">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Порт</label>
+                            <input type="number" class="form-control" id="imapPort">
+                        </div>
+                        <div class="col-md-3 mb-3 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="imapSSL" checked>
+                                <label class="form-check-label" for="imapSSL">SSL</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">SMTP сервер</label>
+                            <input type="text" class="form-control" id="smtpHost">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Порт</label>
+                            <input type="number" class="form-control" id="smtpPort">
+                        </div>
+                        <div class="col-md-3 mb-3 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="smtpSSL" checked>
+                                <label class="form-check-label" for="smtpSSL">SSL</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="mailIsActive">
+                        <label class="form-check-label" for="mailIsActive">Активировать подключение</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveMailSettings()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showMailToast(message, type) {
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type === 'error' ? 'danger' : type} position-fixed top-0 end-0 m-3`;
+    alert.style.zIndex = 2000;
+    alert.textContent = message;
+    document.body.appendChild(alert);
+    setTimeout(() => alert.remove(), 4000);
+}
+
+function openMailSettings() {
+    fetch('/mail/api/settings')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('mailEmail').value = data.email || '';
+            document.getElementById('mailUsername').value = data.username || '';
+            document.getElementById('mailPassword').value = '';
+            document.getElementById('imapHost').value = data.imap_host || '';
+            document.getElementById('imapPort').value = data.imap_port || 993;
+            document.getElementById('imapSSL').checked = data.imap_ssl !== false;
+            document.getElementById('smtpHost').value = data.smtp_host || '';
+            document.getElementById('smtpPort').value = data.smtp_port || 465;
+            document.getElementById('smtpSSL').checked = data.smtp_ssl !== false;
+            document.getElementById('mailIsActive').checked = !!data.is_active;
+
+            const modal = new bootstrap.Modal(document.getElementById('mailSettingsModal'));
+            modal.show();
+        })
+        .catch(() => showMailToast('Ошибка загрузки настроек почты', 'error'));
+}
+
+function saveMailSettings() {
+    const payload = {
+        email: document.getElementById('mailEmail').value,
+        username: document.getElementById('mailUsername').value,
+        password: document.getElementById('mailPassword').value,
+        imap_host: document.getElementById('imapHost').value,
+        imap_port: document.getElementById('imapPort').value,
+        imap_ssl: document.getElementById('imapSSL').checked,
+        smtp_host: document.getElementById('smtpHost').value,
+        smtp_port: document.getElementById('smtpPort').value,
+        smtp_ssl: document.getElementById('smtpSSL').checked,
+        is_active: document.getElementById('mailIsActive').checked
+    };
+
+    fetch('/mail/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showMailToast('Настройки сохранены', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('mailSettingsModal')).hide();
+            document.getElementById('mailStatusEmail').textContent = payload.email;
+            document.getElementById('mailStatusProvider').textContent = payload.imap_host;
+            document.getElementById('mailStatusBadge').textContent = 'Подключено';
+            document.getElementById('mailStatusLastSync').textContent = 'Подключено';
+        } else {
+            showMailToast(data.error || 'Ошибка сохранения настроек', 'error');
+        }
+    })
+    .catch(() => showMailToast('Ошибка сервера при сохранении настроек', 'error'));
+}
+
+function renderMailbox(listId, messages) {
+    const container = document.getElementById(listId);
+    if (!messages || !messages.length) {
+        container.innerHTML = '<div class="text-center text-muted py-4">Нет писем</div>';
+        return;
+    }
+    container.innerHTML = '';
+    messages.forEach(msg => {
+        const item = document.createElement('div');
+        item.className = 'mail-item mb-3';
+        item.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="fw-semibold">${msg.subject}</div>
+                <small class="text-muted">${msg.time || ''}</small>
+            </div>
+            <div class="text-muted small">${msg.sender || ''}</div>
+            <div class="text-muted small">${msg.snippet || ''}</div>
+        `;
+        item.onclick = () => {
+            document.getElementById('mailPreview').innerHTML = `
+                <h5 class="mb-2">${msg.subject}</h5>
+                <div class="text-muted small mb-2">${msg.sender || ''} • ${msg.time || ''}</div>
+                <p>${msg.snippet || ''}</p>
+            `;
+        };
+        container.appendChild(item);
+    });
+}
+
+function loadMailbox(mailbox) {
+    const listId = mailbox === 'INBOX' ? 'inboxList' : 'sentList';
+    const container = document.getElementById(listId);
+    container.innerHTML = '<div class="text-center text-muted py-4"><div class="spinner-border text-primary"></div><p class="mt-2 mb-0">Загрузка писем...</p></div>';
+
+    fetch(`/mail/api/messages?mailbox=${encodeURIComponent(mailbox)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                container.innerHTML = `<div class="text-center text-danger py-4">${data.error}</div>`;
+                return;
+            }
+            renderMailbox(listId, data.messages || []);
+        })
+        .catch(() => {
+            container.innerHTML = '<div class="text-center text-danger py-4">Ошибка загрузки писем</div>';
+        });
+}
+
+function sendMail() {
+    const to = document.getElementById('composeTo').value;
+    const subject = document.getElementById('composeSubject').value;
+    const body = document.getElementById('composeBody').value;
+
+    fetch('/mail/api/send', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ to, subject, body })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showMailToast('Письмо отправлено', 'success');
+            document.getElementById('composeBody').value = '';
+        } else {
+            showMailToast(data.error || 'Ошибка отправки письма', 'error');
+        }
+    })
+    .catch(() => showMailToast('Ошибка сервера при отправке письма', 'error'));
+}
+</script>
+{% endblock %}

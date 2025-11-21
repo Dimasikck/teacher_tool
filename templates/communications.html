@@ -1,0 +1,447 @@
+{% extends 'base.html' %}
+{% block title %}Коммуникация{% endblock %}
+
+{% block extra_css %}
+<style>
+    .communications-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .communications-card {
+        border-radius: 20px;
+        border: 1px solid var(--border-light);
+        background: var(--bg-card);
+        box-shadow: 0 15px 50px rgba(15, 52, 96, 0.08);
+        padding: 1.75rem;
+    }
+
+    .messenger-tabs .nav-link {
+        border-radius: 16px;
+        padding: 0.75rem 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: 1px solid transparent;
+    }
+
+    .messenger-tabs .nav-link i {
+        font-size: 1.25rem;
+    }
+
+    .messenger-tabs .nav-link.active {
+        background: var(--accent-gradient);
+        color: #fff;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .messenger-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.9rem;
+        border-radius: 999px;
+        padding: 0.35rem 0.85rem;
+        font-weight: 600;
+    }
+
+    .messenger-status.online {
+        background: rgba(34, 197, 94, 0.15);
+        color: #16a34a;
+    }
+
+    .messenger-status.warning {
+        background: rgba(251, 191, 36, 0.18);
+        color: #b45309;
+    }
+
+    .messenger-status.offline {
+        background: rgba(239, 68, 68, 0.15);
+        color: #b91c1c;
+    }
+
+    .chat-preview {
+        border: 1px dashed var(--border-light);
+        border-radius: 18px;
+        padding: 1.25rem;
+        background: var(--bg-secondary);
+        min-height: 220px;
+    }
+
+    .chat-message {
+        max-width: 80%;
+        padding: 0.75rem 1rem;
+        border-radius: 14px;
+        margin-bottom: 0.75rem;
+        position: relative;
+        box-shadow: 0 10px 20px rgba(15, 52, 96, 0.08);
+    }
+
+    .chat-message.me {
+        margin-left: auto;
+        background: var(--accent-gradient);
+        color: #fff;
+    }
+
+    .chat-message.them {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+    }
+
+    .integration-checklist {
+        border-radius: 18px;
+        background: var(--bg-secondary);
+        padding: 1rem 1.25rem;
+    }
+
+    .integration-checklist li {
+        margin-bottom: 0.35rem;
+    }
+
+    @media (max-width: 992px) {
+        .communications-card {
+            padding: 1.25rem;
+        }
+
+        .messenger-tabs {
+            flex-direction: column;
+        }
+
+        .messenger-tabs .nav-link {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="communications-header mb-4">
+    <h1 class="mb-0">Коммуникация</h1>
+    <p class="text-muted mb-0">Управляйте чатами мессенджеров и синхронизируйте общение со студентами в одном интерфейсе.</p>
+</div>
+
+<div class="communications-card">
+    <ul class="nav nav-pills messenger-tabs gap-2 mb-4" id="messengerTabs" role="tablist">
+        {% for channel in channels %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %}"
+                    id="tab-btn-{{ channel.id }}"
+                    data-bs-toggle="pill"
+                    data-bs-target="#tab-{{ channel.id }}"
+                    type="button"
+                    role="tab"
+                    aria-controls="tab-{{ channel.id }}"
+                    aria-selected="{{ 'true' if loop.first else 'false' }}">
+                <i class="bi {{ channel.icon }}"></i>
+                {{ channel.name }}
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div class="tab-content" id="messengerTabsContent">
+        {% for channel in channels %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="tab-{{ channel.id }}" role="tabpanel" aria-labelledby="tab-btn-{{ channel.id }}">
+            <div class="row g-4 align-items-stretch">
+                <div class="col-lg-8">
+                    <div class="h-100 d-flex flex-column gap-4">
+                        <div>
+                            <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
+                                <span class="messenger-status {{ channel.status }}" id="status-{{ channel.id }}">
+                                    <span class="status-dot"></span>
+                                    <span id="status-text-{{ channel.id }}">{{ channel.status_text }}</span>
+                                </span>
+                                {% if channel.status == 'online' %}
+                                <button class="btn btn-sm btn-outline-primary" onclick="syncMessenger('{{ channel.id }}')">
+                                    <i class="bi bi-arrow-repeat"></i> Синхронизировать
+                                </button>
+                                {% endif %}
+                                <button class="btn btn-sm btn-outline-secondary" onclick="openSettingsModal('{{ channel.id }}')">
+                                    <i class="bi bi-gear"></i> Настроить
+                                </button>
+                            </div>
+                            <p class="text-muted mb-0">{{ channel.description }}</p>
+                        </div>
+
+                        <div class="chat-preview">
+                            <div class="chat-message them">
+                                <small class="d-block text-muted mb-1">Студенты</small>
+                                Здравствуйте! Напомните, пожалуйста, до какого числа сдавать проект?
+                            </div>
+                            <div class="chat-message me">
+                                <small class="d-block text-light mb-1">Вы</small>
+                                До пятницы, 25 числа. Ссылку для загрузки прикрепляю здесь 👇
+                            </div>
+                            <div class="chat-message them mb-0">
+                                <small class="d-block text-muted mb-1">Студенты</small>
+                                Спасибо! Все поняли.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="integration-checklist mb-4">
+                        <h6 class="fw-semibold mb-3">Быстрые действия</h6>
+                        <ul class="list-unstyled mb-0">
+                            {% for action in channel.actions %}
+                            <li class="d-flex align-items-center gap-2">
+                                <i class="bi bi-check-circle text-success"></i>
+                                <span>{{ action }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="p-3 rounded-4 border border-dashed text-center h-100 d-flex flex-column justify-content-center" style="border-color: var(--border-light);">
+                        <p class="text-muted mb-3">Хотите подключить дополнительный сценарий для {{ channel.name }}?</p>
+                        <button class="btn btn-primary w-100" onclick="openSettingsModal('{{ channel.id }}')">
+                            <i class="bi bi-plus-circle"></i> Добавить интеграцию
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Модальное окно настроек мессенджера -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="settingsModalTitle">
+                    <i class="bi bi-gear"></i> Настройки мессенджера
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="settingsForm">
+                    <input type="hidden" id="messengerType" name="messenger_type">
+                    
+                    <!-- WhatsApp настройки -->
+                    <div id="whatsappSettings" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Instance ID</label>
+                            <input type="text" class="form-control" id="whatsappInstanceId" name="instance_id" placeholder="Введите Instance ID">
+                            <div class="form-text">Instance ID из WhatsApp Business API</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">API Token</label>
+                            <input type="text" class="form-control" id="whatsappApiToken" name="api_token" placeholder="Введите API Token">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Номер телефона</label>
+                            <input type="text" class="form-control" id="whatsappPhone" name="phone_number" placeholder="+79991234567">
+                        </div>
+                    </div>
+                    
+                    <!-- Telegram настройки -->
+                    <div id="telegramSettings" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Bot Token</label>
+                            <input type="text" class="form-control" id="telegramApiToken" name="api_token" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                            <div class="form-text">Получите токен у <a href="https://t.me/BotFather" target="_blank">@BotFather</a></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">API ID (опционально)</label>
+                            <input type="text" class="form-control" id="telegramApiId" name="api_id" placeholder="Введите API ID">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">API Hash (опционально)</label>
+                            <input type="text" class="form-control" id="telegramApiHash" name="api_hash" placeholder="Введите API Hash">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Username бота</label>
+                            <input type="text" class="form-control" id="telegramBotUsername" name="bot_username" placeholder="@my_bot">
+                        </div>
+                    </div>
+                    
+                    <!-- Max настройки -->
+                    <div id="maxSettings" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">API Token</label>
+                            <input type="text" class="form-control" id="maxApiToken" name="api_token" placeholder="Введите API Token">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Webhook URL</label>
+                            <input type="url" class="form-control" id="maxWebhookUrl" name="webhook_url" placeholder="https://example.com/webhook">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="isActive" name="is_active">
+                            <label class="form-check-label" for="isActive">Активировать подключение</label>
+                        </div>
+                    </div>
+                    
+                    <div id="testResult" class="mb-3"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-info" onclick="testMessengerConnection()">
+                    <i class="bi bi-wifi"></i> Тестировать
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveMessengerSettings()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentMessengerType = null;
+
+function openSettingsModal(messengerType) {
+    currentMessengerType = messengerType;
+    const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
+    document.getElementById('messengerType').value = messengerType;
+    
+    // Скрываем все настройки
+    document.getElementById('whatsappSettings').style.display = 'none';
+    document.getElementById('telegramSettings').style.display = 'none';
+    document.getElementById('maxSettings').style.display = 'none';
+    
+    // Показываем нужные настройки
+    if (messengerType === 'whatsapp') {
+        document.getElementById('whatsappSettings').style.display = 'block';
+        document.getElementById('settingsModalTitle').innerHTML = '<i class="bi bi-whatsapp"></i> Настройки WhatsApp';
+    } else if (messengerType === 'telegram') {
+        document.getElementById('telegramSettings').style.display = 'block';
+        document.getElementById('settingsModalTitle').innerHTML = '<i class="bi bi-telegram"></i> Настройки Telegram';
+    } else if (messengerType === 'max') {
+        document.getElementById('maxSettings').style.display = 'block';
+        document.getElementById('settingsModalTitle').innerHTML = '<i class="bi bi-chat-dots"></i> Настройки Max';
+    }
+    
+    // Загружаем текущие настройки
+    loadMessengerSettings(messengerType);
+    modal.show();
+}
+
+function loadMessengerSettings(messengerType) {
+    fetch(`/communications/api/settings/${messengerType}`)
+        .then(r => r.json())
+        .then(data => {
+            if (messengerType === 'whatsapp') {
+                document.getElementById('whatsappInstanceId').value = data.instance_id || '';
+                document.getElementById('whatsappApiToken').value = data.api_token || '';
+                document.getElementById('whatsappPhone').value = data.phone_number || '';
+            } else if (messengerType === 'telegram') {
+                document.getElementById('telegramApiToken').value = data.api_token || '';
+                document.getElementById('telegramApiId').value = data.api_id || '';
+                document.getElementById('telegramApiHash').value = data.api_hash || '';
+                document.getElementById('telegramBotUsername').value = data.bot_username || '';
+            } else if (messengerType === 'max') {
+                document.getElementById('maxApiToken').value = data.api_token || '';
+                document.getElementById('maxWebhookUrl').value = data.webhook_url || '';
+            }
+            document.getElementById('isActive').checked = data.is_active || false;
+        })
+        .catch(err => {
+            console.error('Ошибка загрузки настроек:', err);
+            showToast('Ошибка загрузки настроек', 'danger');
+        });
+}
+
+function saveMessengerSettings() {
+    const messengerType = document.getElementById('messengerType').value;
+    const formData = {
+        is_active: document.getElementById('isActive').checked
+    };
+    
+    if (messengerType === 'whatsapp') {
+        formData.instance_id = document.getElementById('whatsappInstanceId').value;
+        formData.api_token = document.getElementById('whatsappApiToken').value;
+        formData.phone_number = document.getElementById('whatsappPhone').value;
+    } else if (messengerType === 'telegram') {
+        formData.api_token = document.getElementById('telegramApiToken').value;
+        formData.api_id = document.getElementById('telegramApiId').value;
+        formData.api_hash = document.getElementById('telegramApiHash').value;
+        formData.bot_username = document.getElementById('telegramBotUsername').value;
+    } else if (messengerType === 'max') {
+        formData.api_token = document.getElementById('maxApiToken').value;
+        formData.webhook_url = document.getElementById('maxWebhookUrl').value;
+    }
+    
+    fetch(`/communications/api/settings/${messengerType}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Настройки сохранены', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Ошибка сохранения', 'danger');
+        }
+    })
+    .catch(err => {
+        console.error('Ошибка сохранения:', err);
+        showToast('Ошибка сохранения настроек', 'danger');
+    });
+}
+
+function testMessengerConnection() {
+    const messengerType = document.getElementById('messengerType').value;
+    const resultDiv = document.getElementById('testResult');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Тестирование подключения...';
+    
+    fetch(`/communications/api/test-connection/${messengerType}`, {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success mb-0"><i class="bi bi-check-circle"></i> ${data.message}</div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-x-circle"></i> ${data.error || 'Ошибка подключения'}</div>`;
+        }
+    })
+    .catch(err => {
+        console.error('Ошибка тестирования:', err);
+        resultDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-x-circle"></i> Ошибка тестирования</div>';
+    });
+}
+
+function syncMessenger(messengerType) {
+    fetch(`/communications/api/sync/${messengerType}`, {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Синхронизация завершена', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Ошибка синхронизации', 'danger');
+        }
+    })
+    .catch(err => {
+        console.error('Ошибка синхронизации:', err);
+        showToast('Ошибка синхронизации', 'danger');
+    });
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed top-0 end-0 m-3`;
+    toast.style.zIndex = 2000;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// Обновляем статусы при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    // Статусы уже загружены с сервера в шаблоне
+});
+</script>
+{% endblock %}
+
+
