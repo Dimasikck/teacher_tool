@@ -12,30 +12,30 @@
         border-radius: 15px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
-    
-    /* Предотвращаем группировку событий в календаре */
-    .fc-event {
-        position: relative !important;
-        z-index: 1000 !important;
-        isolation: isolate !important;
-    }
 
-    .fc-event:hover {
-        z-index: 1001 !important;
-    }
 
-    .fc-event.fc-event-dragging {
-        z-index: 9999 !important;
-    }
 
-    /* Убеждаемся, что каждое событие отображается отдельно */
-    .fc-event-container {
-        position: relative !important;
-    }
 
-    .fc-event-container .fc-event {
-        margin-bottom: 1px !important;
-    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     /* Кнопки действий календаря: сохраняем прежний вид, улучшаем читаемость текста */
     .calendar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .calendar-actions .btn {
@@ -54,7 +54,7 @@
     .calendar-actions .btn span {
         white-space: normal; /* разрешаем перенос строк внутри подписи */
     }
-    
+
     .fc-event {
         cursor: pointer;
         transition: all 0.3s ease;
@@ -64,14 +64,14 @@
         padding: 2px 4px;
         overflow: hidden; /* по умолчанию контент не выходит за блок */
     }
-    
+
     .fc-event:hover {
         transform: scale(1.06); /* сильнее увеличиваем на ховере */
         box-shadow: 0 6px 16px rgba(0,0,0,0.25);
         z-index: 1000; /* поверх соседних событий */
         overflow: visible; /* разрешаем показать полный контент при ховере */
     }
-    
+
     .group-color-picker {
         display: inline-block;
         width: 35px;
@@ -82,17 +82,17 @@
         border: 3px solid transparent;
         transition: all 0.3s ease;
     }
-    
+
     .group-color-picker:hover {
         transform: scale(1.1);
     }
-    
+
     .group-color-picker.selected {
         border-color: #333;
         transform: scale(1.1);
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
-    
+
     .legend-item {
         display: inline-block;
         margin: 0 10px 10px 0;
@@ -101,7 +101,7 @@
         border-radius: 15px;
         font-size: 0.9rem;
     }
-    
+
     .legend-color {
         display: inline-block;
         width: 18px;
@@ -111,7 +111,7 @@
         vertical-align: middle;
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
-    
+
      /* Значок группы внутри события */
      .fc-event .group-badge {
          display: flex;
@@ -159,7 +159,7 @@
          white-space: nowrap;
          flex-shrink: 0;
      }
-     
+
      /* Название дисциплины */
      .fc-event .fc-event-title {
          font-size: 0.75rem;
@@ -230,6 +230,30 @@
         overflow: hidden !important;       /* по умолчанию обрезаем */
         transition: all 0.3s ease;         /* плавная анимация */
         position: relative;               /* для z-index */
+        border: none !important;          /* убираем стандартную границу */
+        border-radius: 4px !important;    /* скругленные углы */
+    }
+    
+    /* Принудительно применяем цвета к событиям в месячном представлении */
+    .fc-daygrid-event .fc-event-main {
+        background: inherit !important;    /* наследуем цвет от родителя */
+        border: none !important;          /* убираем границы */
+        border-radius: 4px !important;   /* скругленные углы */
+        padding: 2px 4px !important;     /* внутренние отступы */
+    }
+    
+    /* Стили для событий с цветами */
+    .fc-daygrid-event[style*="background-color"] .fc-event-main {
+        background: inherit !important;
+    }
+    
+    /* Убираем прозрачность для событий в месячном представлении */
+    .fc-daygrid-event {
+        opacity: 1 !important;
+    }
+    
+    .fc-daygrid-event .fc-event-main {
+        opacity: 1 !important;
     }
     .fc-daygrid-event-harness:hover {
         z-index: 1000 !important;          /* поверх соседей */
@@ -273,64 +297,64 @@
          overflow: visible;
          text-overflow: clip;
      }
-    
+
     /* Мобильная адаптация календаря */
     @media (max-width: 768px) {
         #calendar {
             padding: 10px;
             margin: 10px 0;
         }
-        
+
         .fc-toolbar {
             flex-direction: column !important;
             gap: 10px !important;
         }
-        
+
         .fc-toolbar-chunk {
             display: flex !important;
             justify-content: center !important;
             flex-wrap: wrap !important;
             gap: 5px !important;
         }
-        
+
         .fc-button {
             font-size: 0.75rem !important;
             padding: 0.25rem 0.5rem !important;
             border-radius: 6px !important;
         }
-        
+
         .fc-toolbar-title {
             font-size: 1.2rem !important;
             text-align: center !important;
         }
-        
+
         .fc-daygrid-event {
             font-size: 0.7rem !important;
             padding: 1px 3px !important;
         }
-        
+
         .fc-timegrid-event {
             font-size: 0.7rem !important;
         }
-        
+
         .fc-col-header-cell {
             font-size: 0.8rem !important;
             padding: 8px 4px !important;
         }
-        
+
         .fc-timegrid-slot {
             height: 2em !important;
         }
-        
+
         .fc-timegrid-axis {
             font-size: 0.7rem !important;
         }
-        
+
         .fc-timegrid-slot-label {
             font-size: 0.8rem !important;
             font-weight: 500 !important;
         }
-        
+
         /* Кнопки управления */
         .btn-group {
             display: flex !important;
@@ -338,51 +362,51 @@
             gap: 5px !important;
             justify-content: center !important;
         }
-        
+
         .btn-group .btn {
             flex: 1 !important;
             min-width: 80px !important;
             font-size: 0.8rem !important;
             padding: 0.375rem 0.5rem !important;
         }
-        
+
         /* Легенда */
         .legend {
             text-align: center !important;
             margin-bottom: 15px !important;
         }
-        
+
         .legend-item {
             display: inline-block !important;
             margin: 2px 5px !important;
             padding: 3px 8px !important;
             font-size: 0.8rem !important;
         }
-        
+
         /* Модальные окна */
         .modal-dialog {
             margin: 10px !important;
             max-width: calc(100% - 20px) !important;
         }
-        
+
         .modal-body {
             padding: 15px !important;
         }
-        
+
         .modal-header {
             padding: 15px !important;
         }
-        
+
         .modal-footer {
             padding: 10px 15px !important;
         }
-        
+
         /* Формы */
         .form-control, .form-select {
             font-size: 16px !important; /* Предотвращает зум на iOS */
             margin-bottom: 10px !important;
         }
-        
+
         /* Цветовая палитра */
         .group-color-picker {
             width: 30px !important;
@@ -390,39 +414,39 @@
             margin: 3px !important;
         }
     }
-    
+
     /* Планшеты */
     @media (min-width: 769px) and (max-width: 1024px) {
         #calendar {
             padding: 20px;
         }
-        
+
         .fc-toolbar {
             flex-direction: row !important;
         }
-        
+
         .fc-button {
             font-size: 0.85rem !important;
         }
-        
+
         .btn-group .btn {
             min-width: 100px !important;
         }
     }
-    
+
     /* Улучшения для всех размеров */
     .fc-daygrid-day-number {
         font-weight: 600 !important;
     }
-    
+
     .fc-day-today {
         background-color: rgba(102, 126, 234, 0.1) !important;
     }
-    
+
     .fc-daygrid-event-harness {
         margin: 1px !important;
     }
-    
+
     .fc-timegrid-event-harness {
         margin: 1px !important;
     }
@@ -509,6 +533,21 @@
         color: var(--text-primary);
         border: 1px solid var(--border-color);
     }
+    
+    /* Темная тема для событий в месячном представлении */
+    [data-theme="dark"] .fc-daygrid-event {
+        opacity: 1 !important;
+    }
+    
+    [data-theme="dark"] .fc-daygrid-event .fc-event-main {
+        opacity: 1 !important;
+        background: inherit !important;
+    }
+    
+    /* Убираем прозрачность для событий в темной теме */
+    [data-theme="dark"] .fc-event {
+        opacity: 1 !important;
+    }
 </style>
 {% endblock %}
 
@@ -555,21 +594,22 @@
 
 <div id='calendar'></div>
 
+<!-- Модальное окно для занятий -->
 <div class="modal fade" id="lessonModal">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">Новое занятие</h5>
+                <h5 class="modal-title" id="lessonModalTitle">Новое занятие</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
                     <label class="form-label">Название</label>
-                    <input type="text" id="eventTitle" class="form-control">
+                    <input type="text" id="lessonTitle" class="form-control">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Группа</label>
-                    <select id="eventGroup" class="form-select">
+                    <select id="lessonGroup" class="form-select">
                         {% for group in groups %}
                         <option value="{{ group.id }}">{{ group.name }}</option>
                         {% endfor %}
@@ -579,30 +619,30 @@
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label class="form-label">Дата</label>
-                            <input type="date" id="eventDate" class="form-control">
+                            <input type="date" id="lessonDate" class="form-control">
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="mb-3">
                             <label class="form-label">Начало</label>
-                            <input type="time" id="eventStart" class="form-control">
+                            <input type="time" id="lessonStart" class="form-control">
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="mb-3">
                             <label class="form-label">Конец</label>
-                            <input type="time" id="eventEnd" class="form-control">
+                            <input type="time" id="lessonEnd" class="form-control">
                         </div>
                     </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Аудитория</label>
-                    <input type="text" id="eventClassroom" class="form-control" placeholder="Например: 101, А-201, Лекторий">
+                    <input type="text" id="lessonClassroom" class="form-control" placeholder="Например: 101, А-201, Лекторий">
                     <div class="form-text">Необязательное поле</div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Цвет</label>
-                    <div id="colorPicker">
+                    <div id="lessonColorPicker">
                         <span class="group-color-picker" style="background-color: #3788d8" data-color="#3788d8"></span>
                         <span class="group-color-picker" style="background-color: #28a745" data-color="#28a745"></span>
                         <span class="group-color-picker" style="background-color: #dc3545" data-color="#dc3545"></span>
@@ -613,8 +653,11 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-danger d-none" id="deleteBtn" onclick="deleteEvent()">
+                <button type="button" class="btn btn-danger d-none" id="deleteLessonBtn" onclick="deleteEvent()">
                     Удалить
+                </button>
+                <button type="button" class="btn btn-success d-none" id="goToJournalBtn" onclick="goToJournal()">
+                    <i class="bi bi-arrow-right-circle"></i> Перейти
                 </button>
                 <button type="button" class="btn btn-primary" onclick="saveEvent()">Сохранить</button>
             </div>
@@ -622,7 +665,7 @@
     </div>
 </div>
 
-<!-- Модальное окно для создания мероприятий -->
+<!-- Модальное окно для мероприятий -->
 <div class="modal fade" id="eventModal">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -633,7 +676,7 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label class="form-label">Название мероприятия</label>
-                    <input type="text" id="eventTitle" class="form-control" placeholder="Например: Конференция, Семинар, Встреча">
+                    <input type="text" id="eventTitle" class="form-control" placeholder="Например: Конференция по математике">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Описание</label>
@@ -661,7 +704,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Место проведения</label>
-                    <input type="text" id="eventLocation" class="form-control" placeholder="Например: Аудитория 101, Конференц-зал">
+                    <input type="text" id="eventLocation" class="form-control" placeholder="Например: Аудитория 201, Конференц-зал">
                     <div class="form-text">Необязательное поле</div>
                 </div>
                 <div class="mb-3">
@@ -680,10 +723,10 @@
                     <div id="eventColorPicker">
                         <span class="group-color-picker" style="background-color: #dc3545" data-color="#dc3545"></span>
                         <span class="group-color-picker" style="background-color: #28a745" data-color="#28a745"></span>
-                        <span class="group-color-picker" style="background-color: #007bff" data-color="#007bff"></span>
                         <span class="group-color-picker" style="background-color: #ffc107" data-color="#ffc107"></span>
                         <span class="group-color-picker" style="background-color: #6f42c1" data-color="#6f42c1"></span>
                         <span class="group-color-picker" style="background-color: #e83e8c" data-color="#e83e8c"></span>
+                        <span class="group-color-picker" style="background-color: #17a2b8" data-color="#17a2b8"></span>
                     </div>
                 </div>
             </div>
@@ -691,11 +734,86 @@
                 <button type="button" class="btn btn-danger d-none" id="deleteEventBtn" onclick="deleteEvent()">
                     Удалить
                 </button>
-                <button type="button" class="btn btn-primary" onclick="saveEvent()">Сохранить мероприятие</button>
+                <button type="button" class="btn btn-primary" onclick="saveEvent()">Сохранить</button>
             </div>
         </div>
     </div>
 </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 <div class="modal fade" id="aiSuggestModal">
     <div class="modal-dialog">
@@ -764,7 +882,7 @@
                     <input type="file" id="excelFileInput" class="form-control" accept=".xls,.xlsx" onchange="previewExcelFile()">
                     <div class="form-text">Поддерживаются файлы .xls и .xlsx</div>
                 </div>
-                
+
                 <div id="excelPreview" class="mb-3" style="display: none;">
                     <h6>Предварительный просмотр файла:</h6>
                     <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
@@ -776,7 +894,7 @@
                         </table>
                     </div>
                 </div>
-                
+
                 <div class="row">
                     <div class="col-md-6">
                         <h6>Настройка столбцов:</h6>
@@ -820,7 +938,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="alert alert-info">
                     <strong>Инструкция:</strong><br>
                     1. Загрузите Excel файл<br>
@@ -828,7 +946,7 @@
                     3. Укажите с какой строки начинаются данные<br>
                     4. Нажмите "Загрузить"
                 </div>
-                
+
                 <div id="uploadProgress" class="mt-3" style="display: none;">
                     <div class="progress">
                         <div class="progress-bar" role="progressbar" style="width: 0%"></div>
@@ -1013,26 +1131,59 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 'auto',
         weekends: true,
         events: loadEvents,
+        eventDidMount: function(info) {
+            // Принудительно применяем цвета к событиям в месячном представлении
+            if (info.view.type === 'dayGridMonth') {
+                const eventEl = info.el;
+                const event = info.event;
+                
+                // Получаем цвет события - приоритет: color события > backgroundColor > borderColor > groupColor
+                const eventColor = event.extendedProps.color || event.backgroundColor || event.borderColor || event.extendedProps.groupColor || '#3788d8';
+                
+                // Применяем цвет к событию
+                eventEl.style.backgroundColor = eventColor;
+                eventEl.style.borderColor = eventColor;
+                eventEl.style.color = '#ffffff'; // Белый текст для лучшей читаемости
+                
+                // Убираем прозрачность
+                eventEl.style.opacity = '1';
+                
+                // Применяем стили к внутренним элементам
+                const mainEl = eventEl.querySelector('.fc-event-main');
+                if (mainEl) {
+                    mainEl.style.backgroundColor = eventColor;
+                    mainEl.style.border = 'none';
+                    mainEl.style.borderRadius = '4px';
+                }
+                
+                // Обновляем цвет кружка группы, если он есть
+                const groupDot = eventEl.querySelector('.group-dot');
+                if (groupDot && event.extendedProps.groupColor) {
+                    groupDot.style.background = event.extendedProps.groupColor;
+                }
+            }
+        },
          eventContent: function(arg) {
              const container = document.createElement('div');
-             
+
              // Получаем данные из события
              const title = arg.event.title || '';
-             const color = arg.event.extendedProps.groupColor || arg.event.backgroundColor || arg.event.borderColor || '#3788d8';
+             const eventColor = arg.event.extendedProps.color || arg.event.backgroundColor || arg.event.borderColor || '#3788d8';
+             const groupColor = arg.event.extendedProps.groupColor || '#3788d8';
              const classroom = (arg.event.extendedProps.classroom || '').trim();
-             
+
              // Разбираем многострочный заголовок
              const lines = title.split('\n');
-             
+
              if (lines.length >= 3) {
                  const groupName = lines[0].trim();
                  const timeAuditoriumLine = lines[1].trim();
                  const discipline = lines[2].trim();
-                 
+
                  // Разделяем время и аудиторию
                  let timePart = '';
                  let auditoriumPart = '';
-                 
+
                  if (timeAuditoriumLine.includes(' • ')) {
                      const parts = timeAuditoriumLine.split(' • ');
                      timePart = parts[0].trim();
@@ -1040,7 +1191,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  } else {
                      timePart = timeAuditoriumLine;
                  }
-                 
+
                  // 1. Кружок группы и название группы
                  if (groupName) {
                      const badge = document.createElement('div');
@@ -1052,7 +1203,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                      const dot = document.createElement('span');
                      dot.className = 'group-dot';
-                     dot.style.background = color;
+                     dot.style.background = groupColor; // Используем цвет группы для кружка
                      dot.style.width = '8px';
                      dot.style.height = '8px';
                      dot.style.borderRadius = '50%';
@@ -1068,7 +1219,7 @@ document.addEventListener('DOMContentLoaded', function() {
                      badge.appendChild(name);
                      container.appendChild(badge);
                  }
-                 
+
                  // 2. Время и аудитория
                  if (timePart || auditoriumPart) {
                      const header = document.createElement('div');
@@ -1101,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                      container.appendChild(header);
                  }
-                 
+
                  // 3. Название дисциплины
                  if (discipline) {
                      const titleDiv = document.createElement('div');
@@ -1126,64 +1277,64 @@ document.addEventListener('DOMContentLoaded', function() {
             editEvent(info.event);
         },
         dateClick: function(info) {
-            document.getElementById('eventDate').value = info.dateStr.split('T')[0];
+            document.getElementById('lessonDate').value = info.dateStr.split('T')[0];
             if (info.dateStr.includes('T')) {
-                document.getElementById('eventStart').value = info.dateStr.split('T')[1].substring(0, 5);
+                document.getElementById('lessonStart').value = info.dateStr.split('T')[1].substring(0, 5);
             }
             showLessonModal();
         },
         eventDrop: function(info) {
-            console.log('Event dropped:', info.event.id, info.event.title);
-            console.log('Old start:', info.oldEvent.start);
-            console.log('New start:', info.event.start);
-            console.log('Event element:', info.event.el);
+
+
+
+
             updateEventTime(info.event);
         },
-        eventDragStart: function(info) {
-            console.log('Event drag start:', info.event.id, info.event.title);
-            console.log('Dragged element:', info.event.el);
-            // Предотвращаем группировку при перетаскивании
-            info.event.el.style.zIndex = '9999';
-            info.event.el.style.position = 'relative';
-        },
-        eventDragStop: function(info) {
-            console.log('Event drag stop:', info.event.id, info.event.title);
-            // Возвращаем нормальный z-index
-            info.event.el.style.zIndex = '1000';
-        },
+
+
+
+
+
+
+
+
+
+
+
+
         eventResize: function(info) {
-            console.log('Event resized:', info.event.id, info.event.title);
+
             updateEventTime(info.event);
         },
         editable: true,
-        droppable: true,
-        // Предотвращаем группировку событий
-        eventOverlap: false,
-        // Отключаем автоматическое группирование
-        eventDisplay: 'block',
-        // Отключаем группировку по времени
-        slotEventOverlap: false,
-        // Отключаем группировку событий
-        eventGroupId: false,
-        // Предотвращаем объединение событий
-        eventMerge: false,
-        // Убеждаемся, что каждое событие уникально
-        eventDidMount: function(info) {
-            console.log('Event mounted:', info.event.id, info.event.title);
-            // Добавляем уникальный атрибут для каждого события
-            info.el.setAttribute('data-event-id', info.event.id);
-            // Добавляем уникальный CSS класс для каждого события
-            info.el.classList.add(`event-${info.event.id}`);
-            // Предотвращаем группировку событий
-            info.el.style.position = 'relative';
-            info.el.style.zIndex = '1000';
-        },
-        // Дополнительные настройки для предотвращения группировки
-        eventConstraint: false,
-        eventAllow: function(dropInfo, draggedEvent) {
-            console.log('Event allow check:', draggedEvent.id, draggedEvent.title);
-            return true;
-        }
+        droppable: true
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     });
 
     calendar.render();
@@ -1199,7 +1350,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function loadEvents(info, successCallback, failureCallback) {
     console.log('Loading events for period:', info.startStr, 'to', info.endStr);
-    
+
     fetch(`/api/schedule/events?start=${info.startStr}&end=${info.endStr}`)
         .then(r => {
             console.log('Response status:', r.status);
@@ -1211,14 +1362,14 @@ function loadEvents(info, successCallback, failureCallback) {
         .then(events => {
             console.log('Loaded events:', events);
             console.log('Number of events:', events.length);
-            
+
             // Проверяем, есть ли ошибка в ответе
             if (events.error) {
                 console.error('API Error:', events.error);
                 failureCallback(new Error(events.error));
                 return;
             }
-            
+
             successCallback(events);
         })
         .catch(error => {
@@ -1226,16 +1377,38 @@ function loadEvents(info, successCallback, failureCallback) {
             failureCallback(error);
         });
 }
-
 function showLessonModal() {
     currentEvent = null;
-    document.getElementById('modalTitle').textContent = 'Новое занятие';
-    document.getElementById('deleteBtn').classList.add('d-none');
-    document.getElementById('eventTitle').value = '';
-    document.getElementById('eventDate').value = '';
-    document.getElementById('eventStart').value = '';
-    document.getElementById('eventEnd').value = '';
-    document.getElementById('eventClassroom').value = '';
+    document.getElementById('lessonModalTitle').textContent = 'Новое занятие';
+    document.getElementById('deleteLessonBtn').classList.add('d-none');
+    document.getElementById('goToJournalBtn').classList.add('d-none'); // Скрываем кнопку "Перейти" для новых занятий
+    document.getElementById('lessonTitle').value = '';
+    document.getElementById('lessonDate').value = '';
+    document.getElementById('lessonStart').value = '';
+    document.getElementById('lessonEnd').value = '';
+    document.getElementById('lessonClassroom').value = '';
+    
+    // Устанавливаем сегодняшнюю дату по умолчанию
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('lessonDate').value = today;
+    
+    // Устанавливаем время по умолчанию
+    document.getElementById('lessonStart').value = '09:00';
+    document.getElementById('lessonEnd').value = '10:30';
+    
+    // Инициализируем цветовую палитру для занятий
+    document.querySelectorAll('#lessonColorPicker .group-color-picker').forEach(picker => {
+        picker.addEventListener('click', function() {
+            document.querySelectorAll('#lessonColorPicker .group-color-picker').forEach(p => p.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedColor = this.dataset.color;
+        });
+    });
+    
+    // Выбираем первый цвет по умолчанию
+    document.querySelector('#lessonColorPicker .group-color-picker').classList.add('selected');
+    selectedColor = '#3788d8';
+    
     new bootstrap.Modal(document.getElementById('lessonModal')).show();
 }
 
@@ -1301,17 +1474,35 @@ function editEvent(event) {
         new bootstrap.Modal(document.getElementById('eventModal')).show();
     } else {
         // Для обычных занятий используем модальное окно занятий
-        document.getElementById('modalTitle').textContent = 'Редактировать занятие';
-        document.getElementById('deleteBtn').classList.remove('d-none');
-        document.getElementById('eventTitle').value = event.title;
-        document.getElementById('eventDate').value = event.startStr.split('T')[0];
-        document.getElementById('eventStart').value = event.start.toTimeString().substring(0, 5);
-        document.getElementById('eventEnd').value = event.end.toTimeString().substring(0, 5);
-        document.getElementById('eventGroup').value = event.extendedProps.groupId;
-        document.getElementById('eventClassroom').value = event.extendedProps.classroom || '';
+        document.getElementById('lessonModalTitle').textContent = 'Редактировать занятие';
+        document.getElementById('deleteLessonBtn').classList.remove('d-none');
+        document.getElementById('goToJournalBtn').classList.remove('d-none'); // Показываем кнопку "Перейти"
+        
+        // Извлекаем название дисциплины из многострочного заголовка
+        const titleLines = event.title.split('\n');
+        const discipline = titleLines.length >= 3 ? titleLines[2] : event.title;
+        
+        document.getElementById('lessonTitle').value = discipline;
+        document.getElementById('lessonDate').value = event.startStr.split('T')[0];
+        document.getElementById('lessonStart').value = event.start.toTimeString().substring(0, 5);
+        document.getElementById('lessonEnd').value = event.end.toTimeString().substring(0, 5);
+        // Устанавливаем группу, если есть совпадающая опция; иначе выбираем первую доступную
+        const groupSelect = document.getElementById('lessonGroup');
+        const targetGroupId = String(event.extendedProps.groupId || '');
+        let matched = false;
+        Array.from(groupSelect.options).forEach(opt => {
+            if (opt.value === targetGroupId) {
+                groupSelect.value = opt.value;
+                matched = true;
+            }
+        });
+        if (!matched && groupSelect.options.length > 0) {
+            groupSelect.selectedIndex = 0;
+        }
+        document.getElementById('lessonClassroom').value = event.extendedProps.classroom || '';
         selectedColor = event.backgroundColor;
 
-        document.querySelectorAll('.group-color-picker').forEach(p => {
+        document.querySelectorAll('#lessonColorPicker .group-color-picker').forEach(p => {
             p.classList.toggle('selected', p.dataset.color === selectedColor);
         });
 
@@ -1320,14 +1511,14 @@ function editEvent(event) {
 }
 
 function saveEvent() {
-    // Проверяем, какое модальное окно открыто
+    // Проверяем, какое модальное окно открыто - используем только класс 'show'
     const eventModal = document.getElementById('eventModal');
     const lessonModal = document.getElementById('lessonModal');
     
-    if (eventModal.classList.contains('show') || eventModal.style.display !== 'none') {
+    if (eventModal.classList.contains('show')) {
         // Сохраняем мероприятие
         saveEventData();
-    } else if (lessonModal.classList.contains('show') || lessonModal.style.display !== 'none') {
+    } else if (lessonModal.classList.contains('show')) {
         // Сохраняем занятие
         saveLessonData();
     }
@@ -1400,12 +1591,12 @@ function saveEventData() {
 }
 
 function saveLessonData() {
-    const title = document.getElementById('eventTitle').value;
-    const date = document.getElementById('eventDate').value;
-    const start = document.getElementById('eventStart').value;
-    const end = document.getElementById('eventEnd').value;
-    const groupId = document.getElementById('eventGroup').value;
-    const classroom = document.getElementById('eventClassroom').value;
+    const title = (document.getElementById('lessonTitle').value || '').trim();
+    const date = (document.getElementById('lessonDate').value || '').trim();
+    const start = (document.getElementById('lessonStart').value || '').trim();
+    const end = (document.getElementById('lessonEnd').value || '').trim();
+    const groupId = (document.getElementById('lessonGroup').value || '').trim();
+    const classroom = (document.getElementById('lessonClassroom').value || '').trim();
 
     if (!title || !date || !start || !end || !groupId) {
         alert('Заполните все обязательные поля');
@@ -1475,7 +1666,7 @@ function deleteEvent() {
     }
 
     // Определяем правильную кнопку удаления
-    const deleteBtn = document.getElementById('deleteBtn') || document.getElementById('deleteEventBtn');
+    const deleteBtn = document.getElementById('deleteLessonBtn') || document.getElementById('deleteEventBtn');
     const originalText = deleteBtn.innerHTML;
     deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Удаление...';
     deleteBtn.disabled = true;
@@ -1498,14 +1689,11 @@ function deleteEvent() {
     .then(data => {
         console.log('Delete response data:', data);
         if (data.status === 'success') {
-            // Закрываем правильное модальное окно
-            const eventModal = document.getElementById('eventModal');
-            const lessonModal = document.getElementById('lessonModal');
-            
-            if (eventModal.classList.contains('show') || eventModal.style.display !== 'none') {
-                bootstrap.Modal.getInstance(eventModal).hide();
-            } else if (lessonModal.classList.contains('show') || lessonModal.style.display !== 'none') {
-                bootstrap.Modal.getInstance(lessonModal).hide();
+            // Закрываем фактически открытое модальное окно (если есть)
+            const openModalEl = document.querySelector('.modal.show');
+            if (openModalEl) {
+                const instance = bootstrap.Modal.getInstance(openModalEl) || bootstrap.Modal.getOrCreateInstance(openModalEl);
+                if (instance) instance.hide();
             }
             
             // Обновляем календарь
@@ -1616,16 +1804,16 @@ function applyAISuggestion(day, time) {
     const targetDate = new Date(today);
     targetDate.setDate(today.getDate() + daysUntilTarget);
 
-    document.getElementById('eventDate').value = targetDate.toISOString().split('T')[0];
-    document.getElementById('eventStart').value = time;
+    document.getElementById('lessonDate').value = targetDate.toISOString().split('T')[0];
+    document.getElementById('lessonStart').value = time;
 
     const [hours, minutes] = time.split(':');
     const endTime = new Date();
     endTime.setHours(parseInt(hours) + 1, parseInt(minutes) + 30);
-    document.getElementById('eventEnd').value = endTime.toTimeString().substring(0, 5);
+    document.getElementById('lessonEnd').value = endTime.toTimeString().substring(0, 5);
 
     bootstrap.Modal.getInstance(document.getElementById('aiSuggestModal')).hide();
-    showEventModal();
+    showLessonModal();
 }
 
 function checkConflicts() {
@@ -1679,21 +1867,21 @@ function createEventAtSlot(dateTime) {
     const date = dateTime.split('T')[0];
     const time = dateTime.split('T')[1].substring(0, 5);
 
-    document.getElementById('eventDate').value = date;
-    document.getElementById('eventStart').value = time;
+    document.getElementById('lessonDate').value = date;
+    document.getElementById('lessonStart').value = time;
 
     const [hours, minutes] = time.split(':');
     const endTime = new Date();
     endTime.setHours(parseInt(hours) + 1, parseInt(minutes) + 30);
-    document.getElementById('eventEnd').value = endTime.toTimeString().substring(0, 5);
+    document.getElementById('lessonEnd').value = endTime.toTimeString().substring(0, 5);
 
-    showEventModal();
+    showLessonModal();
 }
 
 function refreshCalendar() {
     console.log('Manually refreshing calendar...');
     calendar.refetchEvents();
-    
+
     // Также проверим события напрямую через API
     fetch('/api/schedule/all-events')
         .then(r => r.json())
@@ -1719,13 +1907,13 @@ function showExcelUploadModal() {
     document.getElementById('excelFileInput').value = '';
     document.getElementById('excelPreview').style.display = 'none';
     document.getElementById('uploadBtn').disabled = true;
-    
+
     // Очищаем селекты колонок
     ['titleColumn', 'groupColumn', 'dateColumn', 'timeColumn', 'classroomColumn'].forEach(id => {
         const select = document.getElementById(id);
         select.innerHTML = '<option value="">Выберите столбец</option>';
     });
-    
+
     // Показываем модальное окно
     new bootstrap.Modal(document.getElementById('excelUploadModal')).show();
 }
@@ -1735,28 +1923,28 @@ function previewExcelFile() {
     const excelPreview = document.getElementById('excelPreview');
     const previewTable = document.getElementById('previewTable');
     const uploadBtn = document.getElementById('uploadBtn');
-    
+
     if (!fileInput || !excelPreview || !previewTable || !uploadBtn) {
         console.error('Required elements not found for Excel preview');
         return;
     }
-    
+
     const file = fileInput.files[0];
-    
+
     if (!file) {
         excelPreview.style.display = 'none';
         uploadBtn.disabled = true;
         return;
     }
-    
+
     // Показываем индикатор загрузки
     excelPreview.style.display = 'block';
     previewTable.innerHTML = '<tr><td colspan="10" class="text-center">Загрузка файла...</td></tr>';
-    
+
     // Создаем FormData для предварительного просмотра
     const formData = new FormData();
     formData.append('file', file);
-    
+
     // Отправляем запрос для предварительного просмотра
     fetch('/api/schedule/preview-excel', {
         method: 'POST',
@@ -1794,22 +1982,22 @@ function previewExcelFile() {
 function displayExcelPreview(previewData) {
     const headerRow = document.getElementById('previewHeader');
     const bodyRows = document.getElementById('previewBody');
-    
+
     // Проверяем, что элементы существуют
     if (!headerRow || !bodyRows) {
         console.error('Preview table elements not found');
         return;
     }
-    
+
     // Очищаем таблицу
     headerRow.innerHTML = '';
     bodyRows.innerHTML = '';
-    
+
     if (!previewData || previewData.length === 0) {
         bodyRows.innerHTML = '<tr><td colspan="10" class="text-center">Нет данных для отображения</td></tr>';
         return;
     }
-    
+
     // Создаем заголовки (буквы Excel)
     const maxColumns = Math.max(...previewData.map(row => row.length));
     for (let i = 0; i < maxColumns; i++) {
@@ -1820,7 +2008,7 @@ function displayExcelPreview(previewData) {
         th.style.backgroundColor = '#f8f9fa';
         headerRow.appendChild(th);
     }
-    
+
     // Добавляем строки данных
     previewData.forEach((row, rowIndex) => {
         const tr = document.createElement('tr');
@@ -1828,7 +2016,7 @@ function displayExcelPreview(previewData) {
             tr.style.backgroundColor = '#e9ecef';
             tr.style.fontWeight = 'bold';
         }
-        
+
         for (let i = 0; i < maxColumns; i++) {
             const td = document.createElement('td');
             td.textContent = row[i] || '';
@@ -1842,16 +2030,16 @@ function displayExcelPreview(previewData) {
 
 function populateColumnSelects(columns) {
     const columnSelects = ['titleColumn', 'groupColumn', 'dateColumn', 'timeColumn', 'classroomColumn'];
-    
+
     columnSelects.forEach(selectId => {
         const select = document.getElementById(selectId);
         if (!select) {
             console.error(`Select element ${selectId} not found`);
             return;
         }
-        
+
         select.innerHTML = '<option value="">Выберите столбец</option>';
-        
+
         if (columns && columns.length > 0) {
             columns.forEach((col, index) => {
                 const option = document.createElement('option');
@@ -1868,12 +2056,12 @@ function populateColumnSelects(columns) {
 function uploadExcelFile() {
     const fileInput = document.getElementById('excelFileInput');
     const file = fileInput.files[0];
-    
+
     if (!file) {
         alert('Выберите файл для загрузки');
         return;
     }
-    
+
     // Получаем настройки колонок
     const columnMapping = {
         title: document.getElementById('titleColumn').value,
@@ -1882,25 +2070,25 @@ function uploadExcelFile() {
         time: document.getElementById('timeColumn').value,
         classroom: document.getElementById('classroomColumn').value
     };
-    
+
     const startRow = document.getElementById('startRow').value;
-    
+
     // Проверяем обязательные поля
     if (!columnMapping.title || !columnMapping.group || !columnMapping.date || !columnMapping.time) {
         alert('Заполните все обязательные поля: Название занятия, Группа, Дата, Время');
         return;
     }
-    
+
     // Показываем прогресс
     document.getElementById('uploadProgress').style.display = 'block';
     document.getElementById('uploadResult').innerHTML = '';
-    
+
     // Создаем FormData
     const formData = new FormData();
     formData.append('file', file);
     formData.append('column_mapping', JSON.stringify(columnMapping));
     formData.append('start_row', startRow);
-    
+
     // Отправляем запрос
     fetch('/api/schedule/upload-excel', {
         method: 'POST',
@@ -1909,7 +2097,7 @@ function uploadExcelFile() {
     .then(response => response.json())
     .then(data => {
         document.getElementById('uploadProgress').style.display = 'none';
-        
+
         if (data.status === 'success') {
             // Показываем успешный результат
             document.getElementById('uploadResult').innerHTML = `
@@ -1924,15 +2112,15 @@ function uploadExcelFile() {
                     ` : ''}
                 </div>
             `;
-            
+
             // Обновляем календарь
             calendar.refetchEvents();
-            
+
             // Закрываем модальное окно через 3 секунды
             setTimeout(() => {
                 bootstrap.Modal.getInstance(document.getElementById('excelUploadModal')).hide();
             }, 3000);
-            
+
         } else {
             // Показываем ошибку
             document.getElementById('uploadResult').innerHTML = `
@@ -1960,29 +2148,29 @@ function exportToExcel() {
     const originalText = button.innerHTML;
     button.innerHTML = '<i class="bi bi-hourglass-split"></i> <span class="d-none d-md-inline">Экспорт...</span>';
     button.disabled = true;
-    
+
     // Создаем ссылку для скачивания
     const link = document.createElement('a');
     link.href = '/api/schedule/export-excel';
     link.download = '';
-    
+
     // Добавляем обработчики для восстановления кнопки
     link.onload = function() {
         button.innerHTML = originalText;
         button.disabled = false;
     };
-    
+
     link.onerror = function() {
         button.innerHTML = originalText;
         button.disabled = false;
         alert('Ошибка при экспорте файла. Попробуйте еще раз.');
     };
-    
+
     // Запускаем скачивание
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     // Восстанавливаем кнопку через 3 секунды на всякий случай
     setTimeout(() => {
         button.innerHTML = originalText;
@@ -1999,24 +2187,24 @@ function showRecurringLessonModal() {
     document.getElementById('recurringStartDate').value = '';
     document.getElementById('recurringEndDate').value = '';
     document.getElementById('recurringResult').innerHTML = '';
-    
+
     // Снимаем все выбранные дни
     document.querySelectorAll('.recurring-day').forEach(checkbox => {
         checkbox.checked = false;
     });
-    
+
     // Устанавливаем даты по умолчанию
     const today = new Date();
     const nextWeek = new Date(today);
     nextWeek.setDate(today.getDate() + 7);
-    
+
     document.getElementById('recurringStartDate').value = today.toISOString().split('T')[0];
     document.getElementById('recurringEndDate').value = nextWeek.toISOString().split('T')[0];
-    
+
     // Устанавливаем время по умолчанию
     document.getElementById('recurringStartTime').value = '09:00';
     document.getElementById('recurringEndTime').value = '10:30';
-    
+
     // Инициализируем цветовую палитру
     document.querySelectorAll('#recurringColorPicker .group-color-picker').forEach(picker => {
         picker.addEventListener('click', function() {
@@ -2024,10 +2212,10 @@ function showRecurringLessonModal() {
             this.classList.add('selected');
         });
     });
-    
+
     // Выбираем первый цвет по умолчанию
     document.querySelector('#recurringColorPicker .group-color-picker').classList.add('selected');
-    
+
     new bootstrap.Modal(document.getElementById('recurringLessonModal')).show();
 }
 
@@ -2039,34 +2227,34 @@ function createRecurringLessons() {
     const classroom = document.getElementById('recurringClassroom').value;
     const startDate = document.getElementById('recurringStartDate').value;
     const endDate = document.getElementById('recurringEndDate').value;
-    
+
     // Получаем выбранные дни недели
     const selectedDays = Array.from(document.querySelectorAll('.recurring-day:checked')).map(cb => parseInt(cb.value));
-    
+
     // Получаем выбранный цвет
     const selectedColorElement = document.querySelector('#recurringColorPicker .group-color-picker.selected');
     const color = selectedColorElement ? selectedColorElement.dataset.color : '#3788d8';
-    
+
     // Валидация
     if (!title || !groupId || !startTime || !endTime || !startDate || !endDate) {
         alert('Заполните все обязательные поля');
         return;
     }
-    
+
     if (selectedDays.length === 0) {
         alert('Выберите хотя бы один день недели');
         return;
     }
-    
+
     if (new Date(startDate) > new Date(endDate)) {
         alert('Дата начала не может быть позже даты окончания');
         return;
     }
-    
+
     // Показываем индикатор загрузки
     const resultDiv = document.getElementById('recurringResult');
     resultDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split"></i> Создание занятий...</div>';
-    
+
     // Подготавливаем данные
     const lessonData = {
         title: title,
@@ -2079,7 +2267,7 @@ function createRecurringLessons() {
         end_date: endDate,
         days_of_week: selectedDays
     };
-    
+
     // Отправляем запрос
     fetch('/api/schedule/create-recurring', {
         method: 'POST',
@@ -2104,15 +2292,15 @@ function createRecurringLessons() {
                     <p>Дни недели: ${selectedDays.map(d => ['', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][d]).join(', ')}</p>
                 </div>
             `;
-            
+
             // Обновляем календарь
             calendar.refetchEvents();
-            
+
             // Закрываем модальное окно через 3 секунды
             setTimeout(() => {
                 bootstrap.Modal.getInstance(document.getElementById('recurringLessonModal')).hide();
             }, 3000);
-            
+
         } else {
             resultDiv.innerHTML = `
                 <div class="alert alert-danger">
@@ -2131,6 +2319,61 @@ function createRecurringLessons() {
             </div>
         `;
     });
+}
+
+function goToJournal() {
+    // Проверяем, есть ли текущее событие
+    if (!currentEvent) {
+        alert('Не выбрано занятие');
+        return;
+    }
+    
+    // Получаем группу напрямую из события (более надежно, чем из селекта)
+    const groupId = currentEvent.extendedProps.groupId || currentEvent.extendedProps.group_id || currentEvent.groupId;
+    
+    console.log('goToJournal - currentEvent:', currentEvent);
+    console.log('goToJournal - groupId:', groupId);
+    
+    if (!groupId) {
+        console.error('Не удалось определить groupId из события:', currentEvent);
+        alert('Не удалось определить группу занятия');
+        return;
+    }
+    
+    // Получаем дисциплину из события или из формы
+    let discipline = '';
+    if (currentEvent.title) {
+        const titleLines = currentEvent.title.split('\n');
+        discipline = titleLines.length >= 3 ? titleLines[2].trim() : currentEvent.title.trim();
+    }
+    
+    // Если не удалось извлечь из события, берем из формы
+    if (!discipline) {
+        discipline = document.getElementById('lessonTitle').value.trim();
+    }
+    
+    console.log('goToJournal - discipline:', discipline);
+    
+    if (!discipline) {
+        alert('Не удалось определить дисциплину');
+        return;
+    }
+    
+    // Формируем URL для перехода в журнал
+    const journalUrl = new URL('/journal', window.location.origin);
+    journalUrl.searchParams.set('group_id', String(groupId));
+    journalUrl.searchParams.set('subject', discipline);
+    
+    console.log('goToJournal - переход на:', journalUrl.toString());
+    
+    // Закрываем модальное окно и переходим в журнал
+    const modal = bootstrap.Modal.getInstance(document.getElementById('lessonModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
+    // Переходим на страницу журнала
+    window.location.href = journalUrl.toString();
 }
 </script>
 {% endblock %}

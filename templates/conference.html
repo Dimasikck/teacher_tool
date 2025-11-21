@@ -1,0 +1,510 @@
+{% extends 'base.html' %}
+{% block title %}Конференцсвязь{% endblock %}
+
+{% block extra_css %}
+<style>
+    .conference-card {
+        border-radius: 20px;
+        border: 1px solid var(--border-light);
+        background: var(--bg-card);
+        box-shadow: 0 15px 50px rgba(15, 52, 96, 0.08);
+        padding: 1.75rem;
+    }
+
+    .service-option {
+        border-radius: 18px;
+        border: 1px solid var(--border-light);
+        padding: 1.25rem;
+        cursor: pointer;
+        display: flex;
+        gap: 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .service-option.active {
+        border-color: var(--accent-primary);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.15);
+        background: rgba(102, 126, 234, 0.08);
+    }
+
+    .service-option:hover {
+        transform: translateY(-3px);
+    }
+
+    .service-status.ready {
+        color: #16a34a;
+        background: rgba(34, 197, 94, 0.15);
+    }
+
+    .service-status.warning {
+        color: #b45309;
+        background: rgba(251, 191, 36, 0.2);
+    }
+
+    .service-status.disabled {
+        color: #991b1b;
+        background: rgba(239, 68, 68, 0.15);
+    }
+
+    .service-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.1rem 0.75rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .feature-chip {
+        border-radius: 999px;
+        background: var(--bg-secondary);
+        padding: 0.2rem 0.75rem;
+        font-size: 0.8rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column gap-1 mb-4">
+    <h1 class="mb-0">Конференцсвязь</h1>
+    <p class="text-muted mb-0">Выберите сервис видеоконференций, подключите его аккаунт и запускайте встречи прямо из Teacher Tools.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="conference-card h-100">
+            <h5 class="mb-3">1. Выберите сервис</h5>
+            <div class="d-flex flex-column gap-3" id="serviceList">
+                {% for service in services %}
+                <div class="service-option {% if loop.first %}active{% endif %}" data-service="{{ service.id }}" onclick="selectService('{{ service.id }}')">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="fw-semibold">{{ service.name }}</div>
+                            <span class="service-status {{ service.status }}" id="status-{{ service.id }}">
+                                <span id="status-text-{{ service.id }}">{% if service.status == 'ready' %}Готов к запуску{% elif service.status == 'warning' %}Нужна настройка{% else %}Недоступно{% endif %}</span>
+                            </span>
+                        </div>
+                        <p class="text-muted small mb-2">{{ service.description }}</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for feature in service.features %}
+                            <span class="feature-chip">{{ feature }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="conference-card h-100">
+            <h5 class="mb-3">2. Настройка подключения</h5>
+            <div id="settingsFormContainer">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Выберите сервис для настройки подключения
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <button class="btn btn-outline-secondary" onclick="openSettingsModal()" id="settingsBtn" style="display: none;">
+                    <i class="bi bi-gear"></i> Настроить подключение
+                </button>
+                <button class="btn btn-outline-info" onclick="testConnection()" id="testBtn" style="display: none;">
+                    <i class="bi bi-wifi"></i> Проверить подключение
+                </button>
+            </div>
+            
+            <hr class="my-4">
+            
+            <h5 class="mb-3">3. Создать конференцию</h5>
+            <form id="conferenceForm">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label class="form-label">Название встречи</label>
+                        <input type="text" class="form-control" id="conferenceTitle" placeholder="Консультация по проекту" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Дата</label>
+                        <input type="date" class="form-control" id="conferenceDate" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Время (МСК)</label>
+                        <input type="time" class="form-control" id="conferenceTime" value="12:00" required>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Участники</label>
+                        <textarea class="form-control" id="conferenceParticipants" placeholder="student1@example.com, student2@example.com" rows="2"></textarea>
+                        <div class="form-text">Можно вставить список адресов или выбрать группу позже.</div>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-primary" onclick="getConferenceLink()" id="getLinkBtn" style="display: none;">
+                        <i class="bi bi-link-45deg"></i> Получить ссылку
+                    </button>
+                    <button type="submit" class="btn btn-primary flex-grow-1" id="createBtn" style="display: none;">
+                        <i class="bi bi-camera-video-fill"></i> Запустить конференцию
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="conference-card mt-4">
+    <h5 class="mb-3">4. История встреч</h5>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Сервис</th>
+                    <th>Название</th>
+                    <th>Участники</th>
+                    <th>Запись</th>
+                </tr>
+            </thead>
+            <tbody id="conferencesTableBody">
+                {% if conferences %}
+                    {% for conf in conferences %}
+                    <tr>
+                        <td>{{ conf.scheduled_time.strftime('%d.%m.%Y, %H:%M') if conf.scheduled_time else 'Не указано' }}</td>
+                        <td>
+                            {% if conf.service_type == 'kontur' %}КонтурТолк
+                            {% elif conf.service_type == 'yandex' %}Яндекс Телемост
+                            {% elif conf.service_type == 'zoom' %}Zoom EDU
+                            {% else %}{{ conf.service_type }}{% endif %}
+                        </td>
+                        <td>{{ conf.title }}</td>
+                        <td>{{ conf.participants_count }} участников</td>
+                        <td>
+                            {% if conf.recording_url %}
+                            <a href="{{ conf.recording_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-play-circle"></i> Смотреть
+                            </a>
+                            {% else %}
+                            <span class="text-muted">Недоступно</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">Нет созданных конференций</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Модальное окно настроек -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="settingsModalTitle">
+                    <i class="bi bi-gear"></i> Настройки подключения
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="settingsForm">
+                    <input type="hidden" id="serviceType" name="service_type">
+                    
+                    <!-- КонтурТолк настройки -->
+                    <div id="konturSettings" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Идентификатор организации</label>
+                            <input type="text" class="form-control" id="konturOrgId" name="organization_id" placeholder="org-12345">
+                            <div class="form-text">Organization ID из панели КонтурТолк</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">API ключ</label>
+                            <input type="password" class="form-control" id="konturApiKey" name="api_key" placeholder="Введите API ключ">
+                        </div>
+                    </div>
+                    
+                    <!-- Яндекс Телемост настройки -->
+                    <div id="yandexSettings" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">API ключ</label>
+                            <input type="password" class="form-control" id="yandexApiKey" name="api_key" placeholder="Введите API ключ">
+                            <div class="form-text">Получите ключ в <a href="https://oauth.yandex.ru/" target="_blank">OAuth Yandex</a></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Client ID (опционально)</label>
+                            <input type="text" class="form-control" id="yandexClientId" name="client_id" placeholder="Введите Client ID">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Client Secret (опционально)</label>
+                            <input type="password" class="form-control" id="yandexClientSecret" name="client_secret" placeholder="Введите Client Secret">
+                        </div>
+                    </div>
+                    
+                    <!-- Zoom настройки -->
+                    <div id="zoomSettings" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">API Key</label>
+                            <input type="text" class="form-control" id="zoomApiKey" name="api_key" placeholder="Введите API Key">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">API Secret</label>
+                            <input type="password" class="form-control" id="zoomApiSecret" name="api_secret" placeholder="Введите API Secret">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Account ID</label>
+                            <input type="text" class="form-control" id="zoomAccountId" name="account_id" placeholder="Введите Account ID">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="isActive" name="is_active">
+                            <label class="form-check-label" for="isActive">Активировать подключение</label>
+                        </div>
+                    </div>
+                    
+                    <div id="testResult" class="mb-3"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-info" onclick="testConnection()">
+                    <i class="bi bi-wifi"></i> Тестировать
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveSettings()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentServiceType = null;
+
+function selectService(id) {
+    currentServiceType = id;
+    document.querySelectorAll('.service-option').forEach(option => {
+        option.classList.toggle('active', option.dataset.service === id);
+    });
+    
+    // Показываем кнопки настройки
+    document.getElementById('settingsBtn').style.display = 'inline-block';
+    document.getElementById('testBtn').style.display = 'inline-block';
+    document.getElementById('getLinkBtn').style.display = 'inline-block';
+    document.getElementById('createBtn').style.display = 'inline-block';
+    
+    // Загружаем настройки для выбранного сервиса
+    loadSettings(id);
+}
+
+function loadSettings(serviceType) {
+    fetch(`/conference/api/settings/${serviceType}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.is_active) {
+                updateServiceStatus(serviceType, 'ready', 'Готов к запуску');
+            } else {
+                updateServiceStatus(serviceType, 'disabled', 'Недоступно');
+            }
+        })
+        .catch(err => {
+            console.error('Ошибка загрузки настроек:', err);
+        });
+}
+
+function updateServiceStatus(serviceType, status, text) {
+    const statusEl = document.getElementById(`status-${serviceType}`);
+    const textEl = document.getElementById(`status-text-${serviceType}`);
+    if (statusEl && textEl) {
+        statusEl.className = `service-status ${status}`;
+        textEl.textContent = text;
+    }
+}
+
+function openSettingsModal() {
+    if (!currentServiceType) {
+        showToast('Выберите сервис', 'warning');
+        return;
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
+    document.getElementById('serviceType').value = currentServiceType;
+    
+    // Скрываем все настройки
+    document.getElementById('konturSettings').style.display = 'none';
+    document.getElementById('yandexSettings').style.display = 'none';
+    document.getElementById('zoomSettings').style.display = 'none';
+    
+    // Показываем нужные настройки
+    if (currentServiceType === 'kontur') {
+        document.getElementById('konturSettings').style.display = 'block';
+        document.getElementById('settingsModalTitle').innerHTML = '<i class="bi bi-gear"></i> Настройки КонтурТолк';
+    } else if (currentServiceType === 'yandex') {
+        document.getElementById('yandexSettings').style.display = 'block';
+        document.getElementById('settingsModalTitle').innerHTML = '<i class="bi bi-gear"></i> Настройки Яндекс Телемост';
+    } else if (currentServiceType === 'zoom') {
+        document.getElementById('zoomSettings').style.display = 'block';
+        document.getElementById('settingsModalTitle').innerHTML = '<i class="bi bi-gear"></i> Настройки Zoom EDU';
+    }
+    
+    // Загружаем текущие настройки
+    loadSettingsForm(currentServiceType);
+    modal.show();
+}
+
+function loadSettingsForm(serviceType) {
+    fetch(`/conference/api/settings/${serviceType}`)
+        .then(r => r.json())
+        .then(data => {
+            if (serviceType === 'kontur') {
+                document.getElementById('konturOrgId').value = data.organization_id || '';
+                document.getElementById('konturApiKey').value = data.api_key || '';
+            } else if (serviceType === 'yandex') {
+                document.getElementById('yandexApiKey').value = data.api_key || '';
+                document.getElementById('yandexClientId').value = data.client_id || '';
+                document.getElementById('yandexClientSecret').value = data.client_secret || '';
+            } else if (serviceType === 'zoom') {
+                document.getElementById('zoomApiKey').value = data.api_key || '';
+                document.getElementById('zoomApiSecret').value = data.api_secret || '';
+                document.getElementById('zoomAccountId').value = data.account_id || '';
+            }
+            document.getElementById('isActive').checked = data.is_active || false;
+        })
+        .catch(err => {
+            console.error('Ошибка загрузки настроек:', err);
+        });
+}
+
+function saveSettings() {
+    const serviceType = document.getElementById('serviceType').value;
+    const formData = {
+        is_active: document.getElementById('isActive').checked
+    };
+    
+    if (serviceType === 'kontur') {
+        formData.organization_id = document.getElementById('konturOrgId').value;
+        formData.api_key = document.getElementById('konturApiKey').value;
+    } else if (serviceType === 'yandex') {
+        formData.api_key = document.getElementById('yandexApiKey').value;
+        formData.client_id = document.getElementById('yandexClientId').value;
+        formData.client_secret = document.getElementById('yandexClientSecret').value;
+    } else if (serviceType === 'zoom') {
+        formData.api_key = document.getElementById('zoomApiKey').value;
+        formData.api_secret = document.getElementById('zoomApiSecret').value;
+        formData.account_id = document.getElementById('zoomAccountId').value;
+    }
+    
+    fetch(`/conference/api/settings/${serviceType}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Настройки сохранены', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+            loadSettings(serviceType);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Ошибка сохранения', 'danger');
+        }
+    })
+    .catch(err => {
+        console.error('Ошибка сохранения:', err);
+        showToast('Ошибка сохранения настроек', 'danger');
+    });
+}
+
+function testConnection() {
+    const serviceType = currentServiceType || document.getElementById('serviceType').value;
+    if (!serviceType) {
+        showToast('Выберите сервис', 'warning');
+        return;
+    }
+    
+    const resultDiv = document.getElementById('testResult');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Тестирование подключения...';
+    
+    fetch(`/conference/api/test-connection/${serviceType}`, {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success mb-0"><i class="bi bi-check-circle"></i> ${data.message}</div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-x-circle"></i> ${data.error || 'Ошибка подключения'}</div>`;
+        }
+    })
+    .catch(err => {
+        console.error('Ошибка тестирования:', err);
+        resultDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-x-circle"></i> Ошибка тестирования</div>';
+    });
+}
+
+function getConferenceLink() {
+    if (!currentServiceType) {
+        showToast('Выберите сервис', 'warning');
+        return;
+    }
+    
+    showToast('Функция получения ссылки в разработке', 'info');
+}
+
+document.getElementById('conferenceForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!currentServiceType) {
+        showToast('Выберите сервис', 'warning');
+        return;
+    }
+    
+    const formData = {
+        service_type: currentServiceType,
+        title: document.getElementById('conferenceTitle').value,
+        date: document.getElementById('conferenceDate').value,
+        time: document.getElementById('conferenceTime').value,
+        participants: document.getElementById('conferenceParticipants').value
+    };
+    
+    fetch('/conference/api/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Конференция создана', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Ошибка создания конференции', 'danger');
+        }
+    })
+    .catch(err => {
+        console.error('Ошибка создания:', err);
+        showToast('Ошибка создания конференции', 'danger');
+    });
+});
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'danger' ? 'danger' : type === 'warning' ? 'warning' : 'info'} position-fixed top-0 end-0 m-3`;
+    toast.style.zIndex = 2000;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// Инициализация при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    // Выбираем первый сервис по умолчанию
+    const firstService = document.querySelector('.service-option');
+    if (firstService) {
+        selectService(firstService.dataset.service);
+    }
+});
+</script>
+{% endblock %}
+

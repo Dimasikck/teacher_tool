@@ -88,12 +88,254 @@
         height: 0;
         overflow: hidden;
     }
+
+    /* Облако */
+    .cloud-card {
+        border-radius: 20px;
+        border: 1px solid var(--border-light);
+        box-shadow: 0 15px 60px rgba(15, 52, 96, 0.08);
+        background: var(--bg-card);
+        overflow: hidden;
+    }
+
+    .cloud-card-header {
+        background: var(--bg-glass);
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .cloud-card-body {
+        padding: 1.5rem;
+        background: var(--bg-card);
+    }
+
+    .cloud-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: var(--accent-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 1.3rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.35);
+    }
+
+    .cloud-toolbar .btn {
+        min-width: 110px;
+    }
+
+    .cloud-path {
+        border-radius: 16px;
+        border: 1px solid var(--border-light);
+        background: var(--bg-secondary);
+        box-shadow: 0 12px 40px rgba(15, 52, 96, 0.05);
+    }
+
+    .cloud-files .card-body {
+        min-height: 200px;
+    }
+
+    .cloud-file {
+        border: 1px solid var(--border-light);
+        border-radius: 16px;
+        padding: 1.25rem;
+        height: 100%;
+        background: var(--bg-secondary);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+
+    .cloud-file:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 15px 40px rgba(15, 52, 96, 0.12);
+        border-color: var(--accent-primary);
+    }
+
+    .cloud-file .file-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .cloud-file.folder {
+        background: linear-gradient(145deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
+        border-color: rgba(102, 126, 234, 0.4);
+    }
+
+    .cloud-file.folder .file-icon {
+        color: var(--accent-primary);
+    }
+
+    .cloud-file.list-view {
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .cloud-file-actions {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        display: flex;
+        gap: 0.35rem;
+    }
+
+    .cloud-file:hover .cloud-file-actions {
+        opacity: 1;
+    }
+
+    .cloud-file-info {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+
+    .cloud-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+        color: var(--text-muted);
+    }
+
+    .cloud-breadcrumb a {
+        text-decoration: none;
+        color: var(--accent-primary);
+    }
+
+    .cloud-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .cloud-modal .modal-content {
+        border-radius: 20px;
+        border: 1px solid var(--border-light);
+        background: var(--bg-card);
+    }
+
+    .cloud-modal .modal-header,
+    .cloud-modal .modal-footer {
+        border-color: var(--border-light);
+        background: var(--bg-glass);
+    }
+
+    .cloud-modal .form-control,
+    .cloud-modal .form-select {
+        border-radius: 12px;
+        border-color: var(--border-light);
+    }
+
+    @media (max-width: 768px) {
+        .cloud-card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .cloud-toolbar {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .cloud-toolbar .btn {
+            flex: 1;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <h1 class="mb-4">Задания</h1>
 
+<!-- Встроенное подключение к облачному диску -->
+<div class="cloud-card mb-4">
+    <div class="cloud-card-header d-flex flex-wrap align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <div class="cloud-icon">
+                <i class="bi bi-cloud-lightning"></i>
+            </div>
+            <div>
+                <h5 class="mb-0">Облачные материалы (Yandex Disk)</h5>
+                <small class="text-muted">Храните материалы для заданий и прикрепляйте их студентам</small>
+            </div>
+        </div>
+        <div class="btn-group btn-group-sm cloud-toolbar" role="group">
+            <button class="btn btn-outline-secondary" onclick="openCloudSettings()">
+                <i class="bi bi-gear"></i> Настройки
+            </button>
+            <button class="btn btn-outline-success" onclick="openCloudUploadModal()">
+                <i class="bi bi-cloud-upload"></i> Загрузить
+            </button>
+            <button class="btn btn-outline-primary" onclick="refreshCloudFiles()">
+                <i class="bi bi-arrow-clockwise"></i> Обновить
+            </button>
+        </div>
+    </div>
+    <div class="cloud-card-body">
+        <div id="cloudStatus" class="alert alert-warning d-flex gap-2 align-items-center">
+            <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
+            <div>
+                <strong>Проверка подключения...</strong>
+                <div class="small text-muted">Пожалуйста, подождите несколько секунд</div>
+            </div>
+        </div>
+
+        <div class="cloud-path card mb-3">
+            <div class="card-body d-flex flex-column flex-lg-row align-items-lg-center gap-3">
+                <div>
+                    <span class="text-muted small">Текущая папка</span>
+                    <div class="fw-semibold" id="cloudCurrentPath">/</div>
+                </div>
+                <div class="flex-grow-1 w-100">
+                    <div class="input-group">
+                        <input type="text" id="cloudPathInput" class="form-control" placeholder="/path/to/folder" value="/">
+                        <button class="btn btn-outline-secondary" type="button" onclick="goToCloudPath()">
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" onclick="cloudGoRoot()" title="Корень">
+                            <i class="bi bi-house"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" id="cloudGridBtn" onclick="toggleCloudView('grid')" title="Плитка">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" id="cloudListBtn" onclick="toggleCloudView('list')" title="Список">
+                        <i class="bi bi-list"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-footer py-2">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0" id="cloudBreadcrumb">
+                        <li class="breadcrumb-item"><a href="#" onclick="cloudGoRoot()">Корень</a></li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+
+        <div class="cloud-files card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="fw-semibold">
+                    <i class="bi bi-folder2-open"></i> Файлы и папки
+                </div>
+                <div class="text-muted small" id="cloudFilesCount">—</div>
+            </div>
+            <div class="card-body">
+                <div id="cloudFilesContainer" class="row g-3 cloud-grid-view">
+                    <div class="col-12 text-center py-4 text-muted">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 mb-0">Загрузка содержимого папки...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="row mb-4">
     <div class="col-md-4">
@@ -128,6 +370,115 @@
     </div>
             </div>
 
+<!-- Модальные окна для облака -->
+<div class="modal fade cloud-modal" id="cloudSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-gear"></i> Настройки Yandex Disk</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <strong>Подключение Yandex Disk</strong>
+                    <div class="small mt-1">
+                        Используйте Client ID и Client Secret из <a href="https://oauth.yandex.ru/" target="_blank">OAuth Yandex</a>.
+                        После ввода данных получите токен и активируйте подключение.
+                    </div>
+                </div>
+                <form id="cloudSettingsForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Client ID</label>
+                            <input type="text" id="cloudClientId" name="client_id" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Client Secret</label>
+                            <input type="password" id="cloudClientSecret" name="client_secret" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Access Token</label>
+                        <div class="input-group">
+                            <input type="text" id="cloudAccessToken" name="access_token" class="form-control" placeholder="Вставьте токен или получите автоматически">
+                            <button class="btn btn-outline-primary" type="button" onclick="cloudGetAccessToken()">
+                                <i class="bi bi-key"></i> Получить токен
+                            </button>
+                        </div>
+                        <div class="form-text">Можно ввести подтверждающий код или готовый токен.</div>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="cloudIsActive" name="is_active">
+                        <label class="form-check-label" for="cloudIsActive">Активировать подключение</label>
+                    </div>
+                    <div id="cloudTestResult" class="mb-3 small text-muted"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" onclick="cloudTestConnection()" type="button">
+                    <i class="bi bi-wifi"></i> Тестировать
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveCloudSettings()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade cloud-modal" id="cloudUploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> Загрузить файл</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="cloudUploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Выберите файл</label>
+                        <input type="file" id="cloudFileInput" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Папка назначения</label>
+                        <input type="text" id="cloudUploadPath" class="form-control" value="/">
+                    </div>
+                    <div class="progress" id="cloudUploadProgress" style="height: 6px; display: none;">
+                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="startCloudUpload()">Загрузить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade cloud-modal" id="cloudViewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye"></i> Просмотр файла</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="cloudFileViewer" class="border rounded p-3" style="min-height: 300px;">
+                    <div class="text-center py-5 text-muted">
+                        Выберите файл для просмотра
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" onclick="downloadCurrentCloudFile()">
+                    <i class="bi bi-download"></i> Скачать
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Модальное окно создания задания -->
 <div class="modal fade" id="createAssignmentModal" tabindex="-1">
     <div class="modal-dialog">
@@ -156,6 +507,479 @@
 </div>
 
 <script>
+// === Интеграция с Yandex Disk ===
+const cloudState = {
+    path: '/',
+    view: 'grid',
+    settings: null,
+    currentFile: null
+};
+
+function initAssignmentsCloud() {
+    updateCloudStatus('info', 'Проверка подключения...', 'Пожалуйста, подождите несколько секунд.');
+    loadCloudSettings();
+}
+
+function updateCloudStatus(type, title, subtitle) {
+    const status = document.getElementById('cloudStatus');
+    if (!status) return;
+    status.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'info'} d-flex gap-2 align-items-center`;
+    status.innerHTML = `
+        <i class="bi ${type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-x-circle' : type === 'warning' ? 'bi-exclamation-triangle' : 'bi-info-circle'}"></i>
+        <div>
+            <strong>${title}</strong>
+            <div class="small">${subtitle}</div>
+        </div>
+    `;
+}
+
+function loadCloudSettings() {
+    fetch('/docs/api/yandex/settings')
+        .then(r => r.json())
+        .then(data => {
+            if (data.error || !data.is_active) {
+                cloudState.settings = data;
+                updateCloudStatus('warning', 'Облако не подключено', 'Откройте настройки и активируйте интеграцию.');
+                document.getElementById('cloudFilesContainer').innerHTML = `
+                    <div class="col-12 text-center py-4">
+                        <i class="bi bi-plug text-warning" style="font-size: 2.5rem;"></i>
+                        <h5 class="mt-2">Подключение не настроено</h5>
+                        <p class="text-muted mb-3">Включите интеграцию с Yandex Disk, чтобы просматривать материалы.</p>
+                        <button class="btn btn-primary" onclick="openCloudSettings()">
+                            <i class="bi bi-gear"></i> Настроить подключение
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            cloudState.settings = data;
+            document.getElementById('cloudClientId').value = data.client_id || '';
+            document.getElementById('cloudClientSecret').value = data.client_secret || '';
+            document.getElementById('cloudAccessToken').value = data.access_token || '';
+            document.getElementById('cloudIsActive').checked = data.is_active || false;
+            updateCloudStatus('success', 'Yandex Disk подключен', 'Файлы доступны для просмотра и загрузки.');
+            loadCloudFiles();
+        })
+        .catch(err => {
+            console.error('Ошибка загрузки настроек облака:', err);
+            updateCloudStatus('error', 'Ошибка подключения', 'Не удалось проверить настройки. Повторите попытку позже.');
+        });
+}
+
+function loadCloudFiles() {
+    const container = document.getElementById('cloudFilesContainer');
+    if (!cloudState.settings || !cloudState.settings.is_active) {
+        container.innerHTML = `
+            <div class="col-12 text-center py-4 text-muted">
+                Подключение отключено. Настройте интеграцию, чтобы просматривать файлы.
+            </div>
+        `;
+        document.getElementById('cloudFilesCount').textContent = '—';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="col-12 text-center py-4 text-muted">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 mb-0">Загрузка содержимого...</p>
+        </div>
+    `;
+
+    fetch(`/docs/api/yandex/files?path=${encodeURIComponent(cloudState.path)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-exclamation-triangle text-danger" style="font-size: 2.5rem;"></i>
+                        <p class="mt-2">${data.error}</p>
+                        <button class="btn btn-outline-primary btn-sm" onclick="loadCloudFiles()">Повторить</button>
+                    </div>
+                `;
+                document.getElementById('cloudFilesCount').textContent = '—';
+                return;
+            }
+            renderCloudFiles(data.files || []);
+        })
+        .catch(err => {
+            console.error('Ошибка загрузки файлов облака:', err);
+            container.innerHTML = `
+                <div class="col-12 text-center py-5 text-danger">
+                    Не удалось загрузить содержимое. Попробуйте позже.
+                </div>
+            `;
+            document.getElementById('cloudFilesCount').textContent = '—';
+        });
+}
+
+function renderCloudFiles(files) {
+    const container = document.getElementById('cloudFilesContainer');
+    const counter = document.getElementById('cloudFilesCount');
+    container.classList.toggle('cloud-grid-view', cloudState.view === 'grid');
+    container.classList.toggle('cloud-list-view', cloudState.view === 'list');
+
+    if (!files.length) {
+        container.innerHTML = `
+            <div class="col-12 text-center py-4 text-muted">
+                <i class="bi bi-folder-x" style="font-size: 2.5rem;"></i>
+                <p class="mt-2 mb-0">Папка пуста</p>
+            </div>
+        `;
+        counter.textContent = '0 элементов';
+        updateCloudPathDisplay();
+        return;
+    }
+
+    counter.textContent = `${files.length} ${files.length === 1 ? 'элемент' : files.length < 5 ? 'элемента' : 'элементов'}`;
+    container.innerHTML = '';
+    files.forEach(file => container.appendChild(createCloudFileCard(file)));
+    updateCloudPathDisplay();
+}
+
+function createCloudFileCard(file) {
+    const col = document.createElement('div');
+    col.className = cloudState.view === 'grid' ? 'col-md-3 col-sm-6' : 'col-12';
+    const isFolder = file.type === 'dir';
+
+    const card = document.createElement('div');
+    card.className = `cloud-file ${isFolder ? 'folder' : ''} ${cloudState.view === 'list' ? 'list-view' : ''}`;
+    card.innerHTML = `
+        <div class="file-icon">
+            <i class="bi ${isFolder ? 'bi-folder-fill' : getCloudFileIcon(file.name)}"></i>
+        </div>
+        <div>
+            <div class="fw-semibold">${file.name}</div>
+            <div class="cloud-file-info">${isFolder ? 'Папка' : (file.size_formatted || '')}</div>
+        </div>
+        <div class="cloud-file-actions">
+            ${isFolder ? `
+                <button class="btn btn-sm btn-outline-primary" title="Открыть" onclick="event.stopPropagation(); navigateCloudFolder('${file.path}')">
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            ` : `
+                <button class="btn btn-sm btn-outline-primary" title="Просмотр" onclick="event.stopPropagation(); viewCloudFile('${file.path}', '${file.name}')">
+                    <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success" title="Скачать" onclick="event.stopPropagation(); downloadCloudFile('${file.path}', '${file.name}')">
+                    <i class="bi bi-download"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" title="Удалить" onclick="event.stopPropagation(); deleteCloudFile('${file.path}', '${file.name}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `}
+        </div>
+    `;
+
+    card.onclick = () => {
+        if (isFolder) {
+            navigateCloudFolder(file.path);
+        } else {
+            viewCloudFile(file.path, file.name);
+        }
+    };
+
+    col.appendChild(card);
+    return col;
+}
+
+function getCloudFileIcon(name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const map = {
+        pdf: 'bi-file-earmark-pdf',
+        doc: 'bi-file-earmark-word',
+        docx: 'bi-file-earmark-word',
+        xls: 'bi-file-earmark-excel',
+        xlsx: 'bi-file-earmark-excel',
+        ppt: 'bi-file-earmark-ppt',
+        pptx: 'bi-file-earmark-ppt',
+        jpg: 'bi-file-earmark-image',
+        jpeg: 'bi-file-earmark-image',
+        png: 'bi-file-earmark-image',
+        gif: 'bi-file-earmark-image',
+        mp4: 'bi-file-earmark-play',
+        mp3: 'bi-file-earmark-music',
+        txt: 'bi-file-earmark-text',
+        zip: 'bi-file-earmark-zip',
+        rar: 'bi-file-earmark-zip',
+        js: 'bi-file-earmark-code',
+        py: 'bi-file-earmark-code'
+    };
+    return map[ext] || 'bi-file-earmark';
+}
+
+function navigateCloudFolder(path) {
+    cloudState.path = path;
+    loadCloudFiles();
+}
+
+function cloudGoRoot() {
+    cloudState.path = '/';
+    loadCloudFiles();
+}
+
+function goToCloudPath() {
+    const path = document.getElementById('cloudPathInput').value || '/';
+    cloudState.path = path;
+    loadCloudFiles();
+}
+
+function updateCloudPathDisplay() {
+    document.getElementById('cloudCurrentPath').textContent = cloudState.path;
+    document.getElementById('cloudPathInput').value = cloudState.path;
+    const breadcrumb = document.getElementById('cloudBreadcrumb');
+    breadcrumb.innerHTML = '<li class="breadcrumb-item"><a href="#" onclick="cloudGoRoot()">Корень</a></li>';
+
+    if (cloudState.path === '/' || !cloudState.path) return;
+
+    const parts = cloudState.path.split('/').filter(Boolean);
+    let cumulative = '';
+
+    parts.forEach((part, index) => {
+        cumulative += '/' + part;
+        const li = document.createElement('li');
+        li.className = 'breadcrumb-item';
+        if (index === parts.length - 1) {
+            li.classList.add('active');
+            li.textContent = part;
+        } else {
+            const link = document.createElement('a');
+            link.href = '#';
+            link.textContent = part;
+            link.onclick = () => {
+                cloudState.path = cumulative;
+                loadCloudFiles();
+            };
+            li.appendChild(link);
+        }
+        breadcrumb.appendChild(li);
+    });
+}
+
+function toggleCloudView(view) {
+    cloudState.view = view;
+    document.getElementById('cloudGridBtn').classList.toggle('btn-primary', view === 'grid');
+    document.getElementById('cloudGridBtn').classList.toggle('btn-outline-secondary', view !== 'grid');
+    document.getElementById('cloudListBtn').classList.toggle('btn-primary', view === 'list');
+    document.getElementById('cloudListBtn').classList.toggle('btn-outline-secondary', view !== 'list');
+    loadCloudFiles();
+}
+
+function openCloudSettings() {
+    const modal = new bootstrap.Modal(document.getElementById('cloudSettingsModal'));
+    modal.show();
+}
+
+function saveCloudSettings() {
+    const payload = {
+        client_id: document.getElementById('cloudClientId').value,
+        client_secret: document.getElementById('cloudClientSecret').value,
+        access_token: document.getElementById('cloudAccessToken').value,
+        is_active: document.getElementById('cloudIsActive').checked
+    };
+
+    fetch('/docs/api/yandex/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showCloudToast('Настройки сохранены', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('cloudSettingsModal')).hide();
+            loadCloudSettings();
+        } else {
+            showCloudToast(data.error || 'Ошибка сохранения', 'danger');
+        }
+    })
+    .catch(() => showCloudToast('Ошибка сервера', 'danger'));
+}
+
+function cloudGetAccessToken() {
+    const clientId = document.getElementById('cloudClientId').value;
+    const clientSecret = document.getElementById('cloudClientSecret').value;
+    if (!clientId || !clientSecret) {
+        showCloudToast('Укажите Client ID и Client Secret', 'warning');
+        return;
+    }
+    const url = `https://oauth.yandex.ru/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent('https://oauth.yandex.ru/verification_code')}`;
+    window.open(url, 'yandex_auth', 'width=600,height=600,resizable=yes,scrollbars=yes');
+}
+
+function cloudTestConnection() {
+    const result = document.getElementById('cloudTestResult');
+    result.innerHTML = '<span class="spinner-border spinner-border-sm text-primary me-2"></span>Тестирование...';
+    fetch('/docs/api/yandex/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            client_id: document.getElementById('cloudClientId').value,
+            client_secret: document.getElementById('cloudClientSecret').value,
+            access_token: document.getElementById('cloudAccessToken').value
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            result.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Подключение успешно</span>';
+            if (data.access_token) {
+                document.getElementById('cloudAccessToken').value = data.access_token;
+            }
+        } else {
+            result.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${data.error || 'Ошибка подключения'}</span>`;
+        }
+    })
+    .catch(() => {
+        result.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> Ошибка тестирования</span>';
+    });
+}
+
+function openCloudUploadModal() {
+    if (!cloudState.settings || !cloudState.settings.is_active) {
+        showCloudToast('Сначала подключите облако', 'warning');
+        return;
+    }
+    document.getElementById('cloudUploadPath').value = cloudState.path;
+    document.getElementById('cloudFileInput').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('cloudUploadModal'));
+    modal.show();
+}
+
+function startCloudUpload() {
+    const fileInput = document.getElementById('cloudFileInput');
+    if (!fileInput.files.length) {
+        showCloudToast('Выберите файл для загрузки', 'warning');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('path', document.getElementById('cloudUploadPath').value || '/');
+
+    const progress = document.getElementById('cloudUploadProgress');
+    const bar = progress.querySelector('.progress-bar');
+    progress.style.display = 'block';
+    bar.style.width = '15%';
+
+    fetch('/docs/api/yandex/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        progress.style.display = 'none';
+        bar.style.width = '0%';
+        if (data.success) {
+            showCloudToast('Файл загружен', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('cloudUploadModal')).hide();
+            loadCloudFiles();
+        } else {
+            showCloudToast(data.error || 'Ошибка загрузки', 'danger');
+        }
+    })
+    .catch(() => {
+        progress.style.display = 'none';
+        bar.style.width = '0%';
+        showCloudToast('Ошибка сервера', 'danger');
+    });
+}
+
+function viewCloudFile(path, name) {
+    cloudState.currentFile = { path, name };
+    const viewer = document.getElementById('cloudFileViewer');
+    viewer.innerHTML = `<div class="text-center py-4 text-muted"><div class="spinner-border text-primary"></div><p class="mt-2">Загрузка...</p></div>`;
+    document.getElementById('cloudViewModal').querySelector('.modal-title').innerHTML = `<i class="bi bi-eye"></i> ${name}`;
+    const modal = new bootstrap.Modal(document.getElementById('cloudViewModal'));
+    modal.show();
+
+    fetch(`/docs/api/yandex/view?path=${encodeURIComponent(path)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                viewer.innerHTML = `<div class="text-center py-4 text-danger">${data.error}</div>`;
+                return;
+            }
+            renderCloudFileContent(data.content, data.type, name);
+        })
+        .catch(() => {
+            viewer.innerHTML = '<div class="text-center py-4 text-danger">Не удалось загрузить файл</div>';
+        });
+}
+
+function renderCloudFileContent(content, type, name) {
+    const viewer = document.getElementById('cloudFileViewer');
+    if (type && type.startsWith('image/')) {
+        viewer.innerHTML = `<img src="${content}" alt="${name}" class="img-fluid rounded shadow-sm">`;
+    } else if (type && type.startsWith('text/')) {
+        viewer.innerHTML = `<pre class="bg-light p-3 rounded" style="max-height:400px; overflow:auto;">${content}</pre>`;
+    } else {
+        viewer.innerHTML = `
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-file-earmark" style="font-size: 2rem;"></i>
+                <p class="mt-2 mb-0">Предпросмотр недоступен. Скачайте файл.</p>
+            </div>
+        `;
+    }
+}
+
+function downloadCurrentCloudFile() {
+    if (!cloudState.currentFile) return;
+    downloadCloudFile(cloudState.currentFile.path, cloudState.currentFile.name);
+}
+
+function downloadCloudFile(path, name) {
+    const link = document.createElement('a');
+    link.href = `/docs/api/yandex/download?path=${encodeURIComponent(path)}`;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function deleteCloudFile(path, name) {
+    if (!confirm(`Удалить "${name}"?`)) return;
+    fetch('/docs/api/yandex/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ path })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showCloudToast('Файл удален', 'success');
+            loadCloudFiles();
+        } else {
+            showCloudToast(data.error || 'Ошибка удаления', 'danger');
+        }
+    })
+    .catch(() => showCloudToast('Ошибка сервера', 'danger'));
+}
+
+function refreshCloudFiles() {
+    loadCloudSettings();
+}
+
+function showCloudToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+    toast.style.zIndex = 2000;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+window.addEventListener('message', function(event) {
+    if (event.origin !== window.location.origin) return;
+    if (event.data.type === 'yandex_oauth_success') {
+        document.getElementById('cloudAccessToken').value = event.data.access_token;
+        showCloudToast('Токен получен успешно', 'success');
+    } else if (event.data.type === 'yandex_oauth_error') {
+        showCloudToast('Ошибка получения токена', 'danger');
+    }
+});
+
+// === Логика заданий ===
 let currentGroupId = null;
 let currentGroupData = null;
 let currentSubject = '';
@@ -492,6 +1316,9 @@ function updateActionButtons() {
 
 // Инициализируем отображение плейсхолдера/статистики
 document.addEventListener('DOMContentLoaded', function() {
+    // Статус подключения к облаку
+    initAssignmentsCloud();
+
     // Проверяем URL параметры для предзаполнения
     const urlParams = new URLSearchParams(window.location.search);
     const groupId = urlParams.get('group_id');

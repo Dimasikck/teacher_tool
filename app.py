@@ -9,6 +9,9 @@ from calendar_module import calendar_bp
 from groups import groups_bp
 from tasks import tasks_bp
 from docs import docs_bp
+from communications import communications_bp
+from mail import mail_bp
+from conference import conference_bp
 from admin import admin_bp
 from notes import notes_bp
 from analytics import analytics_bp
@@ -45,6 +48,9 @@ app.register_blueprint(calendar_bp)
 app.register_blueprint(groups_bp)
 app.register_blueprint(tasks_bp)
 app.register_blueprint(docs_bp)
+app.register_blueprint(communications_bp)
+app.register_blueprint(mail_bp)
+app.register_blueprint(conference_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(notes_bp)
 app.register_blueprint(analytics_bp)
@@ -754,10 +760,11 @@ def analytics_lessons_timeline():
             }
             month_name = month_names[current_date.month]
             label = f"{month_name} {current_date.year}"
+            # Правильный переход к следующему месяцу
             if current_date.month == 12:
-                current_date = current_date.replace(year=current_date.year + 1, month=1)
+                current_date = current_date.replace(year=current_date.year + 1, month=1, day=1)
             else:
-                current_date = current_date.replace(month=current_date.month + 1)
+                current_date = current_date.replace(month=current_date.month + 1, day=1)
         
         all_periods.append({
             'key': key,
@@ -820,4 +827,4 @@ def github_webhook():
 
 if __name__ == '__main__':
     ensure_startup_state()
-    app.run(host='0.0.0.0', port=8080, debug=True, threaded=True)
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
