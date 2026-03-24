@@ -54,7 +54,7 @@
     <!-- Общая статистика -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
+            <div class="card analytics-kpi-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -62,14 +62,16 @@
                             <p class="card-text">Групп</p>
                         </div>
                         <div class="align-self-center">
-                            <i class="fas fa-users fa-2x"></i>
+                            <span class="analytics-kpi-icon analytics-kpi-icon-groups">
+                                <i class="fas fa-users"></i>
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-success text-white">
+            <div class="card analytics-kpi-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -77,14 +79,16 @@
                             <p class="card-text">Студентов</p>
                         </div>
                         <div class="align-self-center">
-                            <i class="fas fa-user-graduate fa-2x"></i>
+                            <span class="analytics-kpi-icon analytics-kpi-icon-students">
+                                <i class="fas fa-user-graduate"></i>
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-warning text-white">
+            <div class="card analytics-kpi-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -92,14 +96,16 @@
                             <p class="card-text">Средняя посещаемость</p>
                         </div>
                         <div class="align-self-center">
-                            <i class="fas fa-calendar-check fa-2x"></i>
+                            <span class="analytics-kpi-icon analytics-kpi-icon-attendance">
+                                <i class="fas fa-calendar-check"></i>
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-info text-white">
+            <div class="card analytics-kpi-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -107,7 +113,9 @@
                             <p class="card-text">Средний балл</p>
                         </div>
                         <div class="align-self-center">
-                            <i class="fas fa-star fa-2x"></i>
+                            <span class="analytics-kpi-icon analytics-kpi-icon-grade">
+                                <i class="fas fa-star"></i>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -247,6 +255,55 @@
         </div>
     </div>
 </div>
+
+<style>
+.analytics-kpi-card .card-body {
+    padding: 1.35rem 1.4rem;
+}
+
+.analytics-kpi-card .card-title {
+    font-weight: 700;
+    font-size: 2rem;
+    margin-bottom: 0.35rem;
+}
+
+.analytics-kpi-card .card-text {
+    margin-bottom: 0;
+    font-weight: 500;
+}
+
+.analytics-kpi-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    box-shadow: 0 10px 22px rgba(42, 62, 96, 0.24);
+}
+
+.analytics-kpi-icon i {
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.analytics-kpi-icon-groups {
+    background: linear-gradient(140deg, #8a55ff 0%, #ed47c5 100%);
+}
+
+.analytics-kpi-icon-students {
+    background: linear-gradient(140deg, #2f7dff 0%, #00a8cc 100%);
+}
+
+.analytics-kpi-icon-attendance {
+    background: linear-gradient(140deg, #11b981 0%, #00cb73 100%);
+}
+
+.analytics-kpi-icon-grade {
+    background: linear-gradient(140deg, #ff7a00 0%, #ff3b3f 100%);
+}
+</style>
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
