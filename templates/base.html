@@ -991,6 +991,7 @@
             color: #f7fafc;
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mockup-theme.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -1029,7 +1030,7 @@
                 <div class="text-center py-2">
                     <h6 class="text-white">{{ current_user.username }}</h6>
                 </div>
-                <nav>
+                <nav class="sidebar-nav">
                     <a href="{{ url_for('dashboard') }}" onclick="closeSidebar()">
                         <i class="bi bi-speedometer2"></i> Главная
                     </a>
@@ -1256,8 +1257,26 @@
             }
         });
 
-        // Загружаем тему при загрузке страницы
-        document.addEventListener('DOMContentLoaded', loadTheme);
+        function markActiveNavLink() {
+            const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+            const links = document.querySelectorAll('#sidebar nav a[href]');
+
+            links.forEach((link) => {
+                const linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+                const isMatch = currentPath === linkPath || (linkPath !== '/' && currentPath.startsWith(linkPath + '/'));
+
+                if (isMatch) {
+                    link.classList.add('is-active');
+                    link.setAttribute('aria-current', 'page');
+                }
+            });
+        }
+
+        // Загружаем тему и подсвечиваем активный пункт меню при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTheme();
+            markActiveNavLink();
+        });
 
         // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
