@@ -622,14 +622,19 @@ def ensure_startup_state():
     with app.app_context():
         db.create_all()
 
-        if not Teacher.query.filter_by(username='admin').first():
-            admin = Teacher(username='admin', email='admin@example.com')
-            admin.set_password('admin123')
-            db.session.add(admin)
-            db.session.commit()
+        # Create initial admin only when explicitly requested via env var.
+        bootstrap_password = os.environ.get('INIT_ADMIN_PASSWORD')
+        if bootstrap_password:
+            bootstrap_username = os.environ.get('INIT_ADMIN_USERNAME', 'admin')
+            bootstrap_email = os.environ.get('INIT_ADMIN_EMAIL', 'admin@example.com')
+            if not Teacher.query.filter_by(username=bootstrap_username).first():
+                admin = Teacher(username=bootstrap_username, email=bootstrap_email)
+                admin.set_password(bootstrap_password)
+                db.session.add(admin)
+                db.session.commit()
 
-        os.makedirs('uploads', exist_ok=True)
-        os.makedirs('static/exports', exist_ok=True)
+        os.makedirs(os.path.join(app.root_path, 'uploads'), exist_ok=True)
+        os.makedirs(os.path.join(app.root_path, 'static', 'exports'), exist_ok=True)
 
         # Lightweight migration for missing columns in SQLite
         try:
@@ -687,6 +692,13 @@ def ensure_startup_state():
             db.session.commit()
         except Exception:
             pass
+
+
+# Ensure DB schema exists in WSGI deployments too (PythonAnywhere, etc.).
+try:
+    ensure_startup_state()
+except Exception as startup_error:
+    app.logger.exception("Startup DB initialization failed: %s", startup_error)
 
 
 @app.route('/api/analytics/lessons-timeline')
@@ -900,8 +912,6 @@ def delete_telegram_webhook():
 
 
 if __name__ == '__main__':
-    ensure_startup_state()
-
     # Initialize Telegram bot (webhook mode for PythonAnywhere)
     try:
         from telegram_bot import start_bot

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 # Опциональная загрузка .env файла
 try:
@@ -10,7 +11,11 @@ except ImportError:
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///database.db'
+    _BASE_DIR = Path(__file__).resolve().parent
+    _INSTANCE_DIR = _BASE_DIR / 'instance'
+    _INSTANCE_DIR.mkdir(exist_ok=True)
+    _DEFAULT_SQLITE_URI = f"sqlite:///{(_INSTANCE_DIR / 'database.db').as_posix()}"
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or _DEFAULT_SQLITE_URI
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or SECRET_KEY
     # Flask-Login remember cookie lifetime and security
