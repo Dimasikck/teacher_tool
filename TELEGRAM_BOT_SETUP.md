@@ -54,7 +54,7 @@
 Done! Congratulations on your new bot. You will find it at t.me/teachertools_school_bot.
 
 Use this token to access the HTTP API:
-123456789:ABCdefGHIjklMNOpqrsTUVwxyz1234567890
+<your-telegram-bot-token>
 ```
 
 ⚠️ **Важно:** Сохраните этот токен в безопасном месте! Он понадобится для настройки приложения.
@@ -84,7 +84,7 @@ Use this token to access the HTTP API:
 Откройте файл `.env` в корне проекта и добавьте строку:
 
 ```env
-TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz1234567890
+TELEGRAM_BOT_TOKEN=<your-telegram-bot-token>
 ```
 
 Замените значение на ваш реальный токен, полученный от BotFather.

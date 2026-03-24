@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""
-Скрипт для установки пароля администратора с хешированием
-Пароль хранится в зашифрованном виде с использованием bcrypt
-"""
+"""Set or rotate admin password without hardcoded credentials."""
 
+import argparse
 import os
+import secrets
 import sys
 
 # Ensure project root is on PYTHONPATH
@@ -17,57 +16,54 @@ from app import app, db
 from models import Teacher
 
 
-def set_admin_password(username: str, new_password: str, email_fallback: str = "admin@example.com") -> None:
-    """
-    Устанавливает пароль для администратора с хешированием
-    
-    Args:
-        username: Имя пользователя
-        new_password: Новый пароль (будет захеширован)
-        email_fallback: Email для создания пользователя, если не существует
-    """
+def set_admin_password(username: str, new_password: str, email_fallback: str = 'admin@example.com') -> None:
     with app.app_context():
         teacher = Teacher.query.filter_by(username=username).first()
         if not teacher:
-            # Создаем пользователя, если не существует
             teacher = Teacher(username=username, email=email_fallback)
             db.session.add(teacher)
-            print(f"✅ Создан новый пользователь: {username}")
+            print(f"Created user: {username}")
         else:
-            print(f"🔄 Обновление пароля для существующего пользователя: {username}")
-        
-        # Устанавливаем пароль (автоматически хешируется в модели)
+            print(f"Updating password for user: {username}")
+
         teacher.set_password(new_password)
         db.session.commit()
-        
-        # Проверяем, что пароль работает
+
         if teacher.check_password(new_password):
-            print(f"✅ Пароль успешно установлен и проверен для '{username}'")
-            print(f"🔐 Хеш пароля: {teacher.password_hash[:20]}...")
+            print(f"Password updated successfully for '{username}'")
         else:
-            print(f"❌ Ошибка: пароль не работает для '{username}'")
+            print(f"Password verification failed for '{username}'")
+            raise SystemExit(1)
 
 
-if __name__ == "__main__":
-    print("🔧 Установка паролей администратора")
-    print("=" * 50)
-    
-    # Устанавливаем пароль для основных административных аккаунтов
-    set_admin_password(
-        username="admin", 
-        new_password="Dimasik0505", 
-        email_fallback="admin@example.com"
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description='Set or rotate admin password')
+    parser.add_argument('--username', default=os.environ.get('ADMIN_USERNAME', 'admin'), help='Username')
+    parser.add_argument('--email', default=os.environ.get('ADMIN_EMAIL', 'admin@example.com'), help='Email for new account')
+    parser.add_argument('--password', default=os.environ.get('ADMIN_PASSWORD', ''), help='New password')
+    parser.add_argument(
+        '--generate',
+        action='store_true',
+        help='Generate a strong password automatically if --password is not provided',
     )
-    
-    set_admin_password(
-        username="d.subbotin", 
-        new_password="Dimasik0505", 
-        email_fallback="dmitriy.aleksandrovich.subbotin@mail.ru"
-    )
-    
-    print("=" * 50)
-    print("✅ Все пароли установлены успешно!")
-    print("🔒 Пароли хранятся в зашифрованном виде с использованием bcrypt")
-    print("🌐 Теперь можно войти в систему по адресу: http://localhost:8080/login")
+    return parser.parse_args()
 
 
+def main() -> None:
+    args = parse_args()
+
+    password = args.password.strip()
+    if not password:
+        if args.generate:
+            password = secrets.token_urlsafe(16)
+            print('Generated password:')
+            print(password)
+        else:
+            print('Password is required. Provide --password or ADMIN_PASSWORD, or use --generate.')
+            raise SystemExit(2)
+
+    set_admin_password(username=args.username, new_password=password, email_fallback=args.email)
+
+
+if __name__ == '__main__':
+    main()

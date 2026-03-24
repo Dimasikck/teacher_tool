@@ -1,77 +1,38 @@
-# 🔒 Безопасность проекта TeacherTools
+# Security Notes (TeacherTools)
 
-## Авторизация и аутентификация
+## Admin Credentials
+Do not store real usernames/passwords in this repository.
 
-### Хеширование паролей
-- **Алгоритм**: bcrypt с солью (salt)
-- **Стоимость**: 12 раундов (рекомендуемое значение)
-- **Формат хеша**: `$2b$12$...` (60 символов)
-
-### Административные аккаунты
-Созданы следующие административные аккаунты:
-
-| Пользователь | Email | Пароль |
-|-------------|-------|--------|
-| `admin` | admin@example.com | Dimasik0505 |
-| `d.subbotin` | dmitriy.aleksandrovich.subbotin@mail.ru | Dimasik0505 |
-
-### Установка паролей
-Для установки/обновления паролей администратора используйте скрипт:
+Create or rotate admin password with:
 
 ```bash
-python scripts/set_admin_password.py
+python scripts/set_admin_password.py --username admin --generate
 ```
 
-### Безопасность хранения
-- ✅ Пароли **НЕ** хранятся в открытом виде
-- ✅ Используется bcrypt для хеширования
-- ✅ Каждый пароль имеет уникальную соль
-- ✅ Хеш имеет фиксированную длину (60 символов)
+Or set an explicit password:
 
-### Проверка пароля
-```python
-# В модели Teacher
-def check_password(self, password):
-    return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+```bash
+python scripts/set_admin_password.py --username admin --password "<new-strong-password>"
 ```
 
-### Рекомендации по безопасности
-1. **Регулярно обновляйте пароли** администраторов
-2. **Используйте сложные пароли** (минимум 8 символов, буквы, цифры, спецсимволы)
-3. **Не передавайте пароли** в открытом виде в логах или консоли
-4. **Ограничьте доступ** к скрипту `set_admin_password.py`
+## Environment Variables
+Keep secrets only in local `.env` or deployment secrets manager.
 
-### Структура хеша
-```
-$2b$12$cSAJzaXUU/kzh...  # Пример хеша
-│ │  │  └─ Соль (22 символа)
-│ │  └─ Стоимость (12 раундов)
-│ └─ Версия bcrypt (2b)
-└─ Алгоритм (bcrypt)
-```
+Required/important secrets:
+- `SECRET_KEY`
+- `JWT_SECRET_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `GITHUB_WEBHOOK_SECRET`
+- `WEBDAV_LOGIN`
+- `WEBDAV_PASSWORD`
+- `OPENAI_API_KEY` (if AI features are enabled)
 
-### Логирование
-- Все попытки входа логируются
-- Ошибки аутентификации записываются в консоль
-- Успешные входы также отслеживаются
+## Rotation Policy
+- Rotate credentials immediately after any accidental commit.
+- Rotate on a regular schedule.
+- Never print secrets in logs.
 
-## Защита от атак
-
-### SQL Injection
-- Используется SQLAlchemy ORM с параметризованными запросами
-- Все пользовательские данные экранируются
-
-### XSS (Cross-Site Scripting)
-- HTML-контент экранируется в шаблонах
-- Используется функция `escapeHtml()` для пользовательского ввода
-
-### CSRF (Cross-Site Request Forgery)
-- Flask-Login обеспечивает защиту сессий
-- Все формы защищены токенами
-
-## Мониторинг
-- Отслеживание неудачных попыток входа
-- Логирование изменений в системе
-- Мониторинг доступа к административным функциям
-
-
+## Recommended Hardening
+- Enable branch protection.
+- Add secret scanning in CI (for example, gitleaks).
+- Restrict access to production environment variables.

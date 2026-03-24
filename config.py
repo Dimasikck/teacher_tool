@@ -12,7 +12,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///database.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key'
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or SECRET_KEY
     # Flask-Login remember cookie lifetime and security
     REMEMBER_COOKIE_DURATION = int(os.environ.get('REMEMBER_COOKIE_DURATION_DAYS', 30)) * 24 * 60 * 60
     REMEMBER_COOKIE_HTTPONLY = True
@@ -25,12 +25,12 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     # WebDAV (Mail.ru Cloud) settings
     WEBDAV_URL = os.environ.get('WEBDAV_URL') or 'https://webdav.cloud.mail.ru'
-    WEBDAV_LOGIN = os.environ.get('WEBDAV_LOGIN') or 'dmitriy.aleksandrovich.subbotin@mail.ru'
-    WEBDAV_PASSWORD = os.environ.get('WEBDAV_PASSWORD') or 'UDfLpjHfnl9kkcfx3jdh'
+    WEBDAV_LOGIN = os.environ.get('WEBDAV_LOGIN') or ''
+    WEBDAV_PASSWORD = os.environ.get('WEBDAV_PASSWORD') or ''
     WEBDAV_ROOT_PATH = os.environ.get('WEBDAV_ROOT_PATH') or '/'
  
     # GitHub webhook / deployment settings (for PythonAnywhere)
-    GITHUB_WEBHOOK_SECRET = os.environ.get('GITHUB_WEBHOOK_SECRET') or 'UDfLpjHfnl9kkcfx3jdh'
+    GITHUB_WEBHOOK_SECRET = os.environ.get('GITHUB_WEBHOOK_SECRET') or ''
     REPO_PATH = os.environ.get('REPO_PATH') or '/home/teachertool/teacher_tool'
     # Option 1: path to WSGI file to touch for reload
     WSGI_FILE_PATH = os.environ.get('WSGI_FILE_PATH') or '/var/www/teachertool_pythonanywhere_com_wsgi.py'
