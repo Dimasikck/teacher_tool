@@ -825,6 +825,91 @@ def github_webhook():
     return jsonify({'status': 'ok'})
 
 
+# Telegram Bot Webhook Route
+@app.route('/webhook/telegram', methods=['POST'])
+def telegram_webhook():
+    """Receive webhook updates from Telegram."""
+    import asyncio
+    from telegram_bot import process_update
+    
+    if request.method == 'POST':
+        update_data = request.get_json()
+        if update_data:
+            # Process the update asynchronously
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                success = loop.run_until_complete(process_update(update_data))
+                loop.close()
+                if success:
+                    return 'OK', 200
+                else:
+                    return 'Error processing update', 500
+            except Exception as e:
+                print(f"Error in telegram_webhook: {e}")
+                return 'Error', 500
+    return 'OK', 200
+
+
+@app.route('/api/telegram/setup-webhook', methods=['POST'])
+@login_required
+def setup_telegram_webhook():
+    """Admin endpoint to set up the Telegram webhook."""
+    import asyncio
+    from telegram_bot import set_webhook, get_webhook_url
+    
+    data = request.get_json() or {}
+    webhook_url = data.get('webhook_url') or get_webhook_url()
+    
+    if not webhook_url:
+        return jsonify({'error': 'No webhook URL provided. Set TELEGRAM_WEBHOOK_URL env var or provide in request.'}), 400
+    
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(set_webhook(webhook_url))
+        loop.close()
+        
+        if success:
+            return jsonify({'success': True, 'message': f'Webhook set to {webhook_url}'})
+        else:
+            return jsonify({'error': 'Failed to set webhook'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/telegram/delete-webhook', methods=['POST'])
+@login_required
+def delete_telegram_webhook():
+    """Admin endpoint to delete the Telegram webhook."""
+    import asyncio
+    from telegram_bot import delete_webhook
+    
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(delete_webhook())
+        loop.close()
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Webhook deleted'})
+        else:
+            return jsonify({'error': 'Failed to delete webhook'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     ensure_startup_state()
+
+    # Initialize Telegram bot (webhook mode for PythonAnywhere)
+    try:
+        from telegram_bot import start_bot
+        bot_initialized = start_bot(db, app)
+        if bot_initialized:
+            print("Telegram bot initialized for webhook mode")
+            print("Make sure to set TELEGRAM_WEBHOOK_URL and call /api/telegram/setup-webhook")
+    except Exception as e:
+        print(f"Failed to initialize Telegram bot: {e}")
+
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)

@@ -36,3 +36,7 @@ class Config:
     WSGI_FILE_PATH = os.environ.get('WSGI_FILE_PATH') or '/var/www/teachertool_pythonanywhere_com_wsgi.py'
     # Option 2: explicit reload command (e.g., 'pa_reload_webapp.py <username>.pythonanywhere.com')
     RELOAD_CMD = os.environ.get('RELOAD_CMD') or 'pa_reload_webapp.py teachertool.pythonanywhere.com'
+    
+    # Telegram Bot settings
+    TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN') or ''
+    TELEGRAM_WEBHOOK_URL = os.environ.get('TELEGRAM_WEBHOOK_URL') or ''

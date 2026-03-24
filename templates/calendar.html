@@ -1450,12 +1450,12 @@ function showEventModal() {
 
 function editEvent(event) {
     currentEvent = event;
-    
+
     // Проверяем, является ли это мероприятием
     if (event.extendedProps && event.extendedProps.is_event) {
         document.getElementById('eventModalTitle').textContent = 'Редактировать мероприятие';
         document.getElementById('deleteEventBtn').classList.remove('d-none');
-        
+
         document.getElementById('eventTitle').value = event.title.split('\n')[2] || event.title; // Берем название из третьей строки
         document.getElementById('eventDescription').value = event.extendedProps.description || '';
         document.getElementById('eventDate').value = event.startStr.split('T')[0];
@@ -1463,44 +1463,64 @@ function editEvent(event) {
         document.getElementById('eventEnd').value = event.end.toTimeString().substring(0, 5);
         document.getElementById('eventLocation').value = event.extendedProps.classroom || '';
         document.getElementById('eventType').value = event.extendedProps.event_type || 'other';
-        
+
         selectedColor = event.backgroundColor;
-        
+
         // Обновляем цветовую палитру
         document.querySelectorAll('#eventColorPicker .group-color-picker').forEach(p => {
             p.classList.toggle('selected', p.dataset.color === selectedColor);
         });
-        
+
         new bootstrap.Modal(document.getElementById('eventModal')).show();
     } else {
         // Для обычных занятий используем модальное окно занятий
         document.getElementById('lessonModalTitle').textContent = 'Редактировать занятие';
         document.getElementById('deleteLessonBtn').classList.remove('d-none');
         document.getElementById('goToJournalBtn').classList.remove('d-none'); // Показываем кнопку "Перейти"
-        
+
         // Извлекаем название дисциплины из многострочного заголовка
         const titleLines = event.title.split('\n');
         const discipline = titleLines.length >= 3 ? titleLines[2] : event.title;
-        
+
         document.getElementById('lessonTitle').value = discipline;
         document.getElementById('lessonDate').value = event.startStr.split('T')[0];
         document.getElementById('lessonStart').value = event.start.toTimeString().substring(0, 5);
         document.getElementById('lessonEnd').value = event.end.toTimeString().substring(0, 5);
-        // Устанавливаем группу, если есть совпадающая опция; иначе выбираем первую доступную
+
+        // Устанавливаем группу из события - используем более надежный способ получения groupId
         const groupSelect = document.getElementById('lessonGroup');
-        const targetGroupId = String(event.extendedProps.groupId || '');
-        let matched = false;
-        Array.from(groupSelect.options).forEach(opt => {
-            if (opt.value === targetGroupId) {
-                groupSelect.value = opt.value;
-                matched = true;
+        let targetGroupId = null;
+
+        // Пробуем разные варианты получения groupId
+        if (event.extendedProps && event.extendedProps.groupId) {
+            targetGroupId = String(event.extendedProps.groupId);
+        } else if (event.extendedProps && event.extendedProps.group_id) {
+            targetGroupId = String(event.extendedProps.group_id);
+        } else if (event.groupId) {
+            targetGroupId = String(event.groupId);
+        }
+
+        // Если нашли groupId, устанавливаем его в выпадающем списке
+        if (targetGroupId) {
+            let matched = false;
+            Array.from(groupSelect.options).forEach(opt => {
+                if (opt.value === targetGroupId) {
+                    groupSelect.value = opt.value;
+                    matched = true;
+                }
+            });
+
+            // Если не нашли группу в списке, выбираем первую доступную
+            if (!matched && groupSelect.options.length > 0) {
+                groupSelect.selectedIndex = 0;
             }
-        });
-        if (!matched && groupSelect.options.length > 0) {
+        } else if (groupSelect.options.length > 0) {
+            // Если не удалось определить groupId, выбираем первую доступную группу
             groupSelect.selectedIndex = 0;
         }
+
         document.getElementById('lessonClassroom').value = event.extendedProps.classroom || '';
-        selectedColor = event.backgroundColor;
+        selectedColor = event.backgroundColor || event.extendedProps.groupColor || '#3788d8';
 
         document.querySelectorAll('#lessonColorPicker .group-color-picker').forEach(p => {
             p.classList.toggle('selected', p.dataset.color === selectedColor);
